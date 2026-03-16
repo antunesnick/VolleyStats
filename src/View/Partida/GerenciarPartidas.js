@@ -123,10 +123,8 @@ const GerenciarPartidas = () => {
                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Tipo da Partida *</label>
                     <select name="tipo" value={novaPartida.tipo} onChange={handleInputChange} required className="w-full bg-gray-50 border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 block p-3">
                       <option value="">Selecione o tipo</option>
-                      <option value="Amistoso">Amistoso</option>
-                      <option value="Campeonato Regional">Campeonato Regional</option>
-                      <option value="Estadual">Estadual</option>
-                      <option value="Nacional">Nacional</option>
+                      <option value="mataMata">Mata-mata</option>
+                      <option value="fasedegrupos">Fase de Grupos</option>
                     </select>
                   </div>
                 </div>
