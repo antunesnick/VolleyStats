@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 // Importamos todos os estilos do arquivo que criamos
-import * as Style from "./PlayerStyle"; 
+import * as Style from "./PlayerRegStyle"; 
 
-export function PlayerView({ open, onClose, onSave, player, categories = [] }) {
+export function PlayerRegView({ open, onClose, onSave, player, categories = [] }) {
   const [formData, setFormData] = useState(
     player || {
       name: "",
