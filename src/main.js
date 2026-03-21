@@ -27,17 +27,6 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  ipcMain.on('abrir-aviso', (event, mensagem) => {
-    const webContents = event.sender;
-    const win = BrowserWindow.fromWebContents(webContents);
-    dialog.showMessageBoxSync(win, {
-      type: 'info',
-      title: 'Sistema de Categorias',
-      message: mensagem,
-      buttons: ['OK'],
-      defaultId: 0
-    });
-  });
   ipcMain.handle('salvar-categoria', async (event, dados) => {
     try {
       return await CategoriaControl.cadastrarDados(dados);
