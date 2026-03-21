@@ -5,10 +5,16 @@ class GameEvent {
     }
 }
 
+class GameType {
+    id;
+    type;
+}
+
 class GameAction extends GameEvent {
-    constructor(playerId, type) {
+    constructor(playerId, type, quality) {
         super(playerId);
         this.type = type;
+        this.quality = quality;
     }
 }
 
@@ -29,6 +35,7 @@ class GamePoint {
 }
 
 const gamePoints = [];
+let gameEvents = [];
 
 function attributeGamePoint(game, team, gEvents = []) {
     const events = Array.isArray(gEvents) ? gEvents : [gEvents];

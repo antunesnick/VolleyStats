@@ -1,5 +1,9 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('node:path');
+const { initDatabase } = require('./db/db');
+const { TournamentDAO } = require('./Model/Tournament');
+
+const tournamentDAO = new TournamentDAO();
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -9,8 +13,10 @@ if (require('electron-squirrel-startup')) {
 const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1680,
+    height: 1020,
+    minWidth: 1280,
+    minHeight: 800,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
     },
@@ -20,13 +26,31 @@ const createWindow = () => {
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
   // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 };
+
+function registerTournamentIpcHandlers() {
+  ipcMain.handle('tournaments:list', async () => tournamentDAO.getAllTournaments());
+
+  ipcMain.handle('tournaments:create', async (_event, payload) => {
+    return tournamentDAO.createFromPayload(payload);
+  });
+
+  ipcMain.handle('tournaments:update', async (_event, payload) => {
+    return tournamentDAO.updateFromPayload(payload);
+  });
+
+  ipcMain.handle('tournaments:delete', async (_event, id) => {
+    return tournamentDAO.deleteById(id);
+  });
+}
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  initDatabase();
+  registerTournamentIpcHandlers();
   createWindow();
 
   // On OS X it's common to re-create a window in the app when the
