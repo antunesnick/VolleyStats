@@ -1,5 +1,7 @@
-const { app, BrowserWindow } = require('electron');
+
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('node:path');
+const CategoriaControl = require("./Controls/Categoria").default
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -25,7 +27,35 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  ipcMain.on('abrir-aviso', (event, mensagem) => {
+    const webContents = event.sender;
+    const win = BrowserWindow.fromWebContents(webContents);
+    dialog.showMessageBoxSync(win, {
+      type: 'info',
+      title: 'Sistema de Categorias',
+      message: mensagem,
+      buttons: ['OK'],
+      defaultId: 0
+    });
+  });
+  ipcMain.handle('salvar-categoria', async (event, dados) => {
+    try {
+      return await CategoriaControl.cadastrarDados(dados);
+    } catch (e) {
+      throw e;
+    }
+  })
+  ipcMain.handle('listar-categorias', async () => {
+    try {
+      return await CategoriaControl.listarCategorias();
+    } catch (e) {
+      throw e;
+    }
+  });
+
   createWindow();
+
+
 
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.

@@ -1,18 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+const Swal = require('sweetalert2');
 
 const GerenciarCategorias = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editandoId, setEditandoId] = useState(null); // Novo: Controla se é edição
-  const [categorias, setCategorias] = useState([
-    { id: 1, nome: 'Sub-17 Masculino', idadeMin: 15, idadeMax: 17 },
-    { id: 2, nome: 'Adulto Pro', idadeMin: 18, idadeMax: 40 }
-  ]);
+  const [categorias, setCategorias] = useState([]); // Carrega categorias do banco
 
   const [novaCategoria, setNovaCategoria] = useState({
     nome: '',
     idadeMin: '',
     idadeMax: ''
   });
+
+  useEffect(() => {
+    const carregarCategorias = async () => {
+      const dadosDoBanco = await window.ElectronAPI.listarCategorias();
+      setCategorias(dadosDoBanco);
+    };
+    carregarCategorias();
+  }, [])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -39,21 +45,50 @@ const GerenciarCategorias = () => {
     setIsModalOpen(true);
   };
 
-  const handleSalvarCategoria = (e) => {
+  const handleSalvarCategoria = async (e) => {
     e.preventDefault();
-    
-    if (editandoId) {
-      // Lógica de Edição
-      setCategorias(categorias.map(cat => 
-        cat.id === editandoId ? { ...novaCategoria, id: editandoId } : cat
-      ));
-    } else {
-      // Lógica de Criação
-      setCategorias([...categorias, { ...novaCategoria, id: Date.now() }]);
+
+    const dados = {
+      nome: novaCategoria.nome,
+      idadeMin: parseInt(novaCategoria.idadeMin),
+      idadeMax: parseInt(novaCategoria.idadeMax)
     }
 
-    setIsModalOpen(false);
-    setEditandoId(null);
+    try {
+      if (editandoId) {
+        // Lógica de Edição
+        setCategorias(categorias.map(cat =>
+          cat.id === editandoId ? { ...novaCategoria, id: editandoId } : cat
+        ));
+      } else {
+        // Lógica de Criação
+        const resultado = await window.ElectronAPI.salvarCategoria(dados)
+        if (resultado)
+        {
+          setCategorias(
+            [...categorias, { ...novaCategoria, id: resultado }]
+          );
+          Swal.fire({
+            title: 'Sucesso!',
+            text: 'Categoria id: ' + resultado + ' cadastrada com sucesso.',
+            icon: 'success',
+            confirmButtonColor: '#920A13', // Use a cor vermelha do seu projeto JPC
+          });
+        }
+          
+      }
+
+      setIsModalOpen(false);
+      setEditandoId(null);
+    } catch (e) {
+      Swal.fire({
+        title: 'Erro!',
+        text: 'Erro ao cadastrar categoria, Idade mínima deve ser maior ou igual a 12 e idade máxima deve ser maior ou igual a 13.',
+        icon: 'error',
+        confirmButtonColor: '#920A13', // Use a cor vermelha do seu projeto JPC
+      });
+      // Recarrega a página para garantir que os dados estejam atualizados
+    }
   };
 
   return (
@@ -63,7 +98,7 @@ const GerenciarCategorias = () => {
           <h1 className="text-4xl font-black text-black tracking-tight uppercase">Categorias</h1>
           <p className="text-gray-500 mt-1">Gerencie as faixas etárias e divisões do clube</p>
         </div>
-        <button 
+        <button
           onClick={handleAbrirNovo}
           className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-colors flex items-center gap-2"
         >
@@ -83,7 +118,7 @@ const GerenciarCategorias = () => {
             </div>
             <div className="p-6">
               <h3 className="text-xl font-bold text-black mb-4 uppercase">{cat.nome}</h3>
-              
+
               <div className="flex items-center gap-4 mb-6">
                 <div className="flex-1 bg-gray-50 p-3 rounded-lg border border-gray-100">
                   <p className="text-[10px] font-bold text-gray-400 uppercase">Idade Mín.</p>
@@ -96,7 +131,7 @@ const GerenciarCategorias = () => {
               </div>
 
               <div className="flex gap-2">
-                <button 
+                <button
                   onClick={() => handleAbrirEditar(cat)}
                   className="flex-1 border border-black hover:bg-black hover:text-white text-black font-semibold py-2 rounded transition-all text-sm uppercase"
                 >
@@ -126,52 +161,52 @@ const GerenciarCategorias = () => {
               <div className="space-y-5">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Nome da Categoria</label>
-                  <input 
-                    type="text" 
-                    name="nome" 
-                    value={novaCategoria.nome} 
-                    onChange={handleInputChange} 
-                    required 
-                    className="w-full bg-gray-50 border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 block p-3" 
+                  <input
+                    type="text"
+                    name="nome"
+                    value={novaCategoria.nome}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full bg-gray-50 border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 block p-3"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-5">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Idade Mínima</label>
-                    <input 
-                      type="number" 
-                      name="idadeMin" 
-                      value={novaCategoria.idadeMin} 
-                      onChange={handleInputChange} 
-                      required 
-                      className="w-full bg-gray-50 border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 block p-3" 
+                    <input
+                      type="number"
+                      name="idadeMin"
+                      value={novaCategoria.idadeMin}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full bg-gray-50 border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 block p-3"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Idade Máxima</label>
-                    <input 
-                      type="number" 
-                      name="idadeMax" 
-                      value={novaCategoria.idadeMax} 
-                      onChange={handleInputChange} 
-                      required 
-                      className="w-full bg-gray-50 border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 block p-3" 
+                    <input
+                      type="number"
+                      name="idadeMax"
+                      value={novaCategoria.idadeMax}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full bg-gray-50 border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 block p-3"
                     />
                   </div>
                 </div>
               </div>
 
               <div className="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-200">
-                <button 
-                  type="button" 
-                  onClick={() => setIsModalOpen(false)} 
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
                   className="px-6 py-3 font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                 >
                   Cancelar
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="px-6 py-3 font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-md transition-colors"
                 >
                   {editandoId ? 'Salvar Alterações' : 'Criar Categoria'}
