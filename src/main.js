@@ -34,13 +34,32 @@ app.whenReady().then(() => {
       throw e;
     }
   })
+
   ipcMain.handle('listar-categorias', async () => {
     try {
       return await CategoriaControl.listarCategorias();
     } catch (e) {
       throw e;
     }
-  });
+  })
+
+  ipcMain.handle('editar-categoria', async (event, id, dados) => {
+    try {
+      await CategoriaControl.editarCategoria(id, dados);
+    } catch (e) {
+      throw e;
+    }
+  })
+
+  ipcMain.handle('excluir-categoria', async (event, id) => {
+    try {
+      await CategoriaControl.excluirCategoria(id);
+    } catch (e) {
+      throw e;
+    }
+  })
+
+
 
   createWindow();
 

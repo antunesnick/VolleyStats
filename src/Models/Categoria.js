@@ -37,6 +37,28 @@ class Categoria{
             throw e;
         }
     }
+
+    async editarCategoria(id){
+        const erro = this.validarIdade(this.idadeMin, this.idadeMax);
+        if(erro){
+            throw new Error(erro);
+        }
+        try {
+            const sql = db.prepare('UPDATE Categorias SET nome = ?, idadeMin = ?, idadeMax = ? WHERE id = ?');
+            sql.run(this.nome, this.idadeMin, this.idadeMax, id);
+        } catch (e) {
+            throw e;
+        }
+    }
+
+    async excluirCategoria(id){
+        try {
+            const sql = db.prepare('DELETE FROM Categorias WHERE id = ?');
+            sql.run(id);
+        } catch (e) {
+            throw e;
+        }
+    }
 }
 
 export default Categoria;

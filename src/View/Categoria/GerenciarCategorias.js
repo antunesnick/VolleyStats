@@ -45,6 +45,38 @@ const GerenciarCategorias = () => {
     setIsModalOpen(true);
   };
 
+  const handleExcluirCategoria = (id) => {
+    Swal.fire({
+      title: 'Tem certeza?',
+      text: 'Essa ação não pode ser desfeita!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#920A13',
+      cancelButtonColor: '#6c757d'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await window.ElectronAPI.excluirCategoria(id);
+          setCategorias(categorias.filter(cat => cat.id !== id));
+          Swal.fire({
+            title: 'Sucesso!',
+            text: 'Categoria excluída com sucesso.',
+            icon: 'success',
+            confirmButtonColor: '#920A13'
+          });
+        } catch (e) {
+          Swal.fire({
+            title: 'Erro!',
+            text: 'Erro ao excluir categoria.',
+            icon: 'error',
+            confirmButtonColor: '#920A13'
+          });
+        }
+      }
+    });
+  };
+
+
   const handleSalvarCategoria = async (e) => {
     e.preventDefault();
 
@@ -57,9 +89,14 @@ const GerenciarCategorias = () => {
     try {
       if (editandoId) {
         // Lógica de Edição
-        setCategorias(categorias.map(cat =>
-          cat.id === editandoId ? { ...novaCategoria, id: editandoId } : cat
-        ));
+        await window.ElectronAPI.editarCategoria(editandoId, dados);
+        setCategorias(categorias.map(cat => cat.id === editandoId ? { ...cat, ...dados, id: editandoId } : cat));
+        Swal.fire({
+          title: 'Sucesso!',
+          text: 'Categoria id: ' + editandoId + ' editada com sucesso.',
+          icon: 'success',
+          confirmButtonColor: '#920A13', // Use a cor vermelha do seu projeto JPC
+        });
       } else {
         // Lógica de Criação
         const resultado = await window.ElectronAPI.salvarCategoria(dados)
@@ -136,6 +173,12 @@ const GerenciarCategorias = () => {
                   className="flex-1 border border-black hover:bg-black hover:text-white text-black font-semibold py-2 rounded transition-all text-sm uppercase"
                 >
                   Editar Dados
+                </button>
+                <button
+                  onClick={() => handleExcluirCategoria(cat.id)}
+                  className="flex-1 border border-red-500 hover:bg-red-500 hover:text-white text-red-500 font-semibold py-2 rounded transition-all text-sm uppercase"
+                >
+                  Excluir
                 </button>
               </div>
             </div>

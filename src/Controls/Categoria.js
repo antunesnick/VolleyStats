@@ -18,6 +18,23 @@ const CategoriaControl = {
         } catch (e) {
             throw e;
         }
+    },
+
+    async editarCategoria(id, dados){
+        try {
+            const categoria = new Categoria(dados.nome, dados.idadeMin, dados.idadeMax);
+            await categoria.editarCategoria(id);
+        } catch (e) {
+            throw e;
+        }
+    },
+
+    async excluirCategoria(id){
+        try {
+            await new Categoria().excluirCategoria(id);
+        } catch (e) {
+            throw e;
+        }
     }
 }
 
