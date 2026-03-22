@@ -1,10 +1,9 @@
 const Database = require('better-sqlite3');
-const sqlite3 = require('better-sqlite3');
 const path = require('path');
 
 const dbPath = path.resolve(__dirname, 'developVS.db');
 
-const db = new Database(dbPath, {verbose: console.log})
+const db = new Database(dbPath, {verbose: console.log});
 
 db.pragma('foreign_keys = ON');
 
@@ -17,30 +16,35 @@ function inicializarBanco() {
                 idadeMin INTEGER NOT NULL,
                 idadeMax INTEGER NOT NULL
             );
+            
             CREATE TABLE IF NOT EXISTS Times(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome VARCHAR(80) NOT NULL,
                 imagem VARCHAR(255),
                 cidade VARCHAR(45) NOT NULL
             );
+            
             CREATE TABLE IF NOT EXISTS Torneios(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome VARCHAR(80) NOT NULL,
                 tipo INTEGER NOT NULL
             );
-            CREATE TABLE Ginasios(
+            
+            CREATE TABLE IF NOT EXISTS Ginasios(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome VARCHAR(80) NOT NULL,
                 estado VARCHAR(80) NOT NULL,
                 cidade VARCHAR(80)
             );
-            CREATE TABLE Partidas(
+            
+            CREATE TABLE IF NOT EXISTS Partidas(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome VARCHAR(80) NOT NULL,
                 pontosTime1 INTEGER,
                 pontosTime2 INTEGER,
                 dataPartida DATE NOT NULL,
                 tipo VARCHAR(45) NOT NULL,
-                status VARCHAR(45) DEFAULT 'AGENDADA'
+                status VARCHAR(45) DEFAULT 'AGENDADA',
                 externa BOOLEAN DEFAULT 0,
 
                 ginasio_id INTEGER,
@@ -49,14 +53,24 @@ function inicializarBanco() {
 
                 FOREIGN KEY (ginasio_id) REFERENCES Ginasios (id),
                 FOREIGN KEY (time1) REFERENCES Times (id),
-                FOREIGN KEY (time2) REFERENCES Times(id)
-            )
-            `)
+                FOREIGN KEY (time2) REFERENCES Times (id)
+            );
+
+            -- INSERINDO DADOS MOCK PARA TESTAR AS CHAVES ESTRANGEIRAS
+            -- O "INSERT OR IGNORE" com o ID fixo garante que ele só insere na primeira vez que o sistema roda
+            INSERT OR IGNORE INTO Ginasios (id, nome, estado, cidade) VALUES (1, 'Ginásio de Esportes Watal Ishibashi', 'SP', 'Presidente Prudente');
+            
+            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (1, 'Vôlei Prudente', 'Presidente Prudente');
+            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (2, 'Sada Cruzeiro', 'Belo Horizonte');
+            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (3, 'Vôlei Renata', 'Campinas');
+        `);
+        console.log('Banco de dados inicializado com sucesso (com dados mockados para testes).');
     } catch (e) {
+        console.error("Erro ao inicializar o banco de dados:", e);
         throw e;
     }
-
-
-
-
 }
+
+inicializarBanco();
+
+module.exports = db;
