@@ -1,22 +1,37 @@
-import React, { useState } from "react";
-// Importamos todos os estilos do arquivo que criamos
+import React, { useEffect, useState } from "react";
 import * as Style from "./PlayerRegStyle"; 
+import PositionControl from "../../Cotrol/PositionControl";
 
 export function PlayerRegView({ open, onClose, onSave, player, categories = [] }) {
   const [formData, setFormData] = useState(
     player || {
-      name: "",
-      number: "",
-      category: "",
-      height: "",
+      nome: "",
+      numCamisa: "",
+      altura: "",
       cpf: "",
       rg: "",
-      position: "",
-      dateOfBirth: "",
-      team: "friendly",
-      isActive: true,
+      posicaoId: "",
+      dataNasc: "",
+      foto: "", 
     }
   );
+
+  const [positions, setPositions] = useState([]);
+
+  useEffect(() => {
+    if (open) {
+      const positionControl = new PositionControl();
+      positionControl.findAllPositions().then((data) => {
+        setPositions(data);
+      });
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (player) {
+      setFormData(player);
+    }
+  }, [player]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -30,7 +45,6 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
     <Style.Overlay>
       <Style.Modal>
         <Style.CloseIcon onClick={onClose} type="button">
-          {/* Ícone de X */}
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
         </Style.CloseIcon>
 
@@ -44,8 +58,8 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
               <Style.Label>Nome *</Style.Label>
               <Style.Input
                 type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
                 required
               />
             </Style.InputGroup>
@@ -54,8 +68,8 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
               <Style.Label>Número *</Style.Label>
               <Style.Input
                 type="text"
-                value={formData.number}
-                onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+                value={formData.numCamisa}
+                onChange={(e) => setFormData({ ...formData, numCamisa: e.target.value })}
                 required
               />
             </Style.InputGroup>
@@ -65,7 +79,7 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
             <Style.InputGroup>
               <Style.Label>Categoria</Style.Label>
               <Style.Select
-                value={formData.category}
+                value={formData.category} // Se categoria for pra DB depois, mude para formData.categoria
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               >
                 <option value="">Selecione...</option>
@@ -78,17 +92,18 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
             </Style.InputGroup>
 
             <Style.InputGroup>
-              <Style.Label>Posição</Style.Label>
+              <Style.Label>Posição *</Style.Label>
               <Style.Select
-                value={formData.position}
-                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                value={formData.posicaoId}
+                onChange={(e) => setFormData({ ...formData, posicaoId: e.target.value })}
+                required
               >
                 <option value="">Selecione...</option>
-                <option value="Levantador">Levantador</option>
-                <option value="Ponteiro">Ponteiro</option>
-                <option value="Central">Central</option>
-                <option value="Oposto">Oposto</option>
-                <option value="Líbero">Líbero</option>
+                {positions.map((pos) => (
+                  <option key={pos.id} value={pos.id}>
+                    {pos.nome}
+                  </option>
+                ))}
               </Style.Select>
             </Style.InputGroup>
           </Style.Row>
@@ -99,8 +114,8 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
               <Style.Input
                 type="text"
                 placeholder="Ex: 1.85"
-                value={formData.height}
-                onChange={(e) => setFormData({ ...formData, height: e.target.value })}
+                value={formData.altura}
+                onChange={(e) => setFormData({ ...formData, altura: e.target.value })}
               />
             </Style.InputGroup>
 
@@ -108,8 +123,8 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
               <Style.Label>Data de Nascimento</Style.Label>
               <Style.Input
                 type="date"
-                value={formData.dateOfBirth}
-                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                value={formData.dataNasc}
+                onChange={(e) => setFormData({ ...formData, dataNasc: e.target.value })}
               />
             </Style.InputGroup>
           </Style.Row>
@@ -135,9 +150,38 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
               />
             </Style.InputGroup>
           </Style.Row>
+          <Style.Row>
+            <Style.InputGroup style={{ gridColumn: "span 2" }}>
+              <Style.Label>Foto do Jogador</Style.Label>
+              
+              {}
+              {formData.foto && (
+                <img 
+                  src={formData.foto} 
+                  alt="Preview da Foto" 
+                  style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', marginBottom: '10px', border: '1px solid #ccc' }} 
+                />
+              )}
+              
+              {}
+              <Style.Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setFormData({ ...formData, foto: reader.result });
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+              />
+            </Style.InputGroup>
+          </Style.Row>
 
           <Style.Footer>
-            {}
             <Style.Button type="button" onClick={onClose} $variant="cancel">
               Cancelar
             </Style.Button>

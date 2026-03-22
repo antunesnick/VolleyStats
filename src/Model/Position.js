@@ -4,7 +4,7 @@ class Position{
         this.nome = nome;   
     }
 
-    async getAllPositions() {
+    async getAllPositions(db) {
         try {
             const sql = db.prepare('SELECT * FROM Posicoes');
             return sql.all();
@@ -12,7 +12,7 @@ class Position{
             throw e;
         }   
     }
-    async getPositionById(id) {
+    async getPositionById(id,db) {
         try {
             const sql = db.prepare('SELECT * FROM Posicoes WHERE id = ?');
             return sql.get(id);
@@ -21,3 +21,5 @@ class Position{
         }
     }
 }
+
+export default Position;
