@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import logoTime from '../assets/logoTransparent.png';
 
-// Componente Genérico de Seleção Estilizado (mantido)
 const CustomSelect = ({ label, icon, children, ...props }) => (
   <div className="flex-1 min-w-[260px]">
     <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -25,7 +24,7 @@ const CustomSelect = ({ label, icon, children, ...props }) => (
 const GerenciarPartidas = () => {
   const [partidas, setPartidas] = useState([]);
   
-  // Estados para carregar dados do Banco de Dados para os seletores
+  // Estados para carregar dados do Banco de Dados para os select
   const [timesCadastrados, setTimesCadastrados] = useState([]);
   const [ginasiosCadastrados, setGinasiosCadastrados] = useState([]);
 
@@ -35,11 +34,11 @@ const GerenciarPartidas = () => {
   const [editandoId, setEditandoId] = useState(null);
   const [partidaAtiva, setPartidaAtiva] = useState(null);
 
-  // Estado do formulário (mantido)
+
   const estadoInicialForm = { 
     nome: '', 
     dataPartida: '', 
-    tipo: '', // Fase de Grupos, Mata-Mata, etc.
+    tipo: '', 
     externa: false, 
     ginasio_id: '',
     time1: '', 
@@ -48,18 +47,18 @@ const GerenciarPartidas = () => {
   const [formData, setFormData] = useState(estadoInicialForm);
   const [placar, setPlacar] = useState({ pontosTime1: '', pontosTime2: '' });
 
-  // 1. CARREGAMENTO INICIAL DE DADOS (Puxa as partidas cadastradas)
+  // 1. CARREGAMENTO INICIAL DE DADOS
   useEffect(() => {
     carregarTudo();
   }, []);
 
   const carregarTudo = async () => {
     try {
-        // Busca partidas existentes (Isso puxa todas as partidas já cadastradas atualmente)
+        // Busca partidas existentes
         const dadosPartidas = await window.api.partidas.findAll();
         setPartidas(dadosPartidas);
 
-        // Busca Times e Ginásios para preencher os Comboboxes do formulário
+        // Busca Times e Ginásios para preencher os Combobox
         if(window.api.times && window.api.ginasios) {
             const dadosTimes = await window.api.times.findAll();
             const dadosGinasios = await window.api.ginasios.findAll();
@@ -74,11 +73,11 @@ const GerenciarPartidas = () => {
     }
   };
 
-  // Auxiliares para renderização (mantidos)
+  // Auxiliares para renderização
   const getNomeTime = (id) => timesCadastrados.find(t => t.id === id)?.nome || `Time ${id}`;
   const getNomeGinasio = (id) => ginasiosCadastrados.find(g => g.id === id)?.nome || `Ginásio ${id}`;
 
-  // 2. LÓGICA DO FORMULÁRIO (mantida)
+  // 2. LÓGICA DO FORMULÁRIO
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData({
@@ -107,7 +106,7 @@ const GerenciarPartidas = () => {
     }
   };
 
-  // 3. AÇÕES (mantidas)
+  // 3. AÇÕES
   const handleDeletar = async (id) => {
     if (window.confirm("Esta ação é irreversível. Deseja realmente apagar esta partida?")) {
         try {
@@ -130,7 +129,7 @@ const GerenciarPartidas = () => {
       }
   };
 
-  // 4. CONTROLE DE MODAIS (mantido)
+  // 4. CONTROLE DE MODAIS
   const abrirModalCriar = () => {
     setFormData(estadoInicialForm);
     setEditandoId(null);
@@ -173,7 +172,6 @@ const GerenciarPartidas = () => {
             </div>
           </div>
 
-          {/* AJUSTE DO BOTÃO DE CADASTRAR (Tamanho Equilibrado) */}
           <button 
             onClick={abrirModalCriar} 
             className="bg-red-600 hover:bg-red-700 text-white font-extrabold py-3 px-6 rounded-2xl shadow-lg transition-all transform hover:scale-105 flex items-center gap-2.5 active:scale-95 text-base"
@@ -184,10 +182,8 @@ const GerenciarPartidas = () => {
         </div>
       </header>
 
-      {/* ÁREA PRINCIPAL MAIS LARGA (max-w-[2200px]) */}
       <main className="w-full max-w-[2200px] mx-auto p-6 md:p-12">
         
-        {/* TÍTULO DA SEÇÃO REFINADO (Puxando Yellow do patrocinador) */}
         <div className="mb-12 pb-5 border-b-4 border-neutral-900 flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
                 <div className="w-2.5 h-12 bg-red-600 rounded-full shadow-lg"></div>
@@ -198,13 +194,11 @@ const GerenciarPartidas = () => {
             </div>
         </div>
 
-        {/* GRID DE PARTIDAS RESPONSIVO REFINADO */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
           {partidas.map((partida) => (
             // APLICANDO DETALHE EM AMARELO NO CARD ATIVO
             <div key={partida.id} className={`bg-white rounded-3xl shadow-lg border-2 ${partida.status === 'AGENDADA' ? 'border-yellow-400' : 'border-gray-200'} overflow-hidden hover:shadow-2xl transition-all group flex flex-col transform hover:-translate-y-2`}>
               
-              {/* Status Header REFINADO (Amarelo para Status Ativo) */}
               <div className={`px-7 py-4 flex justify-between items-center ${partida.status === 'FINALIZADA' ? 'bg-neutral-800' : 'bg-black'} text-white`}>
                 <span className={`text-xs font-bold uppercase tracking-widest ${partida.status === 'FINALIZADA' ? 'text-gray-400' : 'text-red-500'} bg-red-950/30 px-3 py-1.5 rounded-full`}>{partida.tipo}</span>
                 <span className={`text-xs font-semibold ${partida.status === 'FINALIZADA' ? 'text-gray-300' : 'text-yellow-400'} flex items-center gap-2`}>
@@ -213,7 +207,6 @@ const GerenciarPartidas = () => {
                 </span>
               </div>
 
-              {/* Body REFINADO */}
               <div className="p-8 flex-grow flex flex-col">
                 <div className="flex justify-between items-baseline mb-3">
                     <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">{partida.dataPartida}</p>
@@ -221,7 +214,6 @@ const GerenciarPartidas = () => {
                 </div>
                 <h3 className="text-3xl font-black text-black mb-7 leading-tight group-hover:text-red-600 transition-colors">{partida.nome}</h3>
                 
-                {/* Visualização do Confronto REFINADO (Mais Larga) */}
                 <div className="flex items-center gap-6 bg-neutral-900 p-6 rounded-2xl border-2 border-neutral-800 mb-7 shadow-lg flex-1">
                     <div className="flex-1 text-center font-bold text-xl text-white truncate px-1">{getNomeTime(partida.time1)}</div>
                     <div className="text-3xl font-black text-red-500 flex items-center gap-1.5">
@@ -244,7 +236,6 @@ const GerenciarPartidas = () => {
                     <span className="truncate font-medium">{getNomeGinasio(partida.ginasio_id)}</span>
                 </div>
 
-                {/* Ações do Card REFINADO (Puxando Yellow do patrocinador no hover) */}
                 <div className="grid grid-cols-2 gap-4 mt-2 border-t pt-6 border-gray-100">
                   {partida.status !== 'FINALIZADA' && (
                       <button onClick={() => abrirModalEditar(partida)} className="col-span-2 bg-black hover:bg-neutral-800 text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 border-2 border-neutral-800 hover:border-yellow-400 transition-colors">
@@ -274,21 +265,17 @@ const GerenciarPartidas = () => {
         )}
       </main>
 
-      {/* MODAL DE CADASTRAR/EDITAR PARTIDA (Mantido) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4 md:p-10 animate-fade-in overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl transform animate-scale-in my-auto">
             
-            {/* Modal Header REFINADO (Border Vermelha) */}
             <div className="bg-black px-8 py-5 flex justify-between items-center border-b-4 border-red-600 shadow-lg">
               <h2 className="text-2xl font-black text-white tracking-wide uppercase">{editandoId ? 'Atualizar Confronto' : 'Cadastrar Confronto Temporada'}</h2>
               <button onClick={fecharModal} className="text-gray-400 hover:text-red-500 transition-colors text-3xl font-light p-2">✕</button>
             </div>
 
-            {/* Modal Body - Formulário Reformulado (Mantido) */}
             <form onSubmit={handleSalvarPartida} className="p-8 md:p-10 space-y-8">
               
-              {/* Campo Nome (Full Width) */}
               <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
                     <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -297,7 +284,6 @@ const GerenciarPartidas = () => {
                   <input type="text" name="nome" value={formData.nome} onChange={handleInputChange} required placeholder="Ex: Semifinal - Jogo 1 ou Amistoso de Verão" className="w-full bg-white border-2 border-gray-200 text-black rounded-xl p-4 shadow-inner focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm font-semibold transition-all" />
               </div>
 
-              {/* Row 1: SELEÇÃO DE TIMES (Correção Solicitada Mantida) */}
               <div className="flex flex-wrap gap-6 border-2 border-dashed border-gray-200 p-6 rounded-2xl bg-gray-50 shadow-inner">
                 <CustomSelect 
                     label="Time 1 (Mandante/Principal)" 
@@ -334,7 +320,6 @@ const GerenciarPartidas = () => {
                 </CustomSelect>
               </div>
 
-              {/* Row 2: Data, Tipo e Local */}
               <div className="flex flex-wrap gap-6">
                 <div className="flex-1 min-w-[200px]">
                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -376,7 +361,6 @@ const GerenciarPartidas = () => {
                 </CustomSelect>
               </div>
 
-              {/* Switch Partida Externa (Mantido) */}
               <div className="flex items-center gap-4 bg-red-50 border-2 border-dashed border-red-100 p-5 rounded-2xl shadow-inner">
                     <label className="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" name="externa" checked={formData.externa} onChange={handleInputChange} className="sr-only peer" />
@@ -391,7 +375,6 @@ const GerenciarPartidas = () => {
                     </div>
               </div>
 
-              {/* Modal Footer REFINADO */}
               <div className="mt-12 flex justify-end gap-4 pt-7 border-t-2 border-gray-100 responsividade-footer-modal">
                 <button type="button" onClick={fecharModal} className="px-8 py-3.5 font-extrabold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-base flex-1 md:flex-none border border-gray-200 hover:border-gray-300">
                   cancelar
@@ -405,7 +388,6 @@ const GerenciarPartidas = () => {
         </div>
       )}
 
-      {/* MODAL DE FINALIZAR PARTIDA (Mantido) */}
       {isFinalizarModalOpen && (
           <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
               <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-in border-4 border-black">
