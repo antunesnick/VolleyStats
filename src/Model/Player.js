@@ -1,3 +1,5 @@
+const { cpf } = require('cpf-cnpj-validator');
+
 class Player {
   constructor(id, cpf, nome, dataNasc, numCamisa, rg, altura, posicaoId, foto) {
     this.id = id;
@@ -11,9 +13,17 @@ class Player {
     this.foto = foto;
   }
 
+    #validarCPF(cpfString) {
+    if (!cpfString) return false;
+    return cpf.isValid(cpfString); 
+  }
+
    
 
   insertPlayer(db) {
+    if (!this.#validarCPF(this.cpf)) {
+      throw new Error("CPF inválido. Por favor, insira um CPF válido.");
+    }
     try {
       const sql = db.prepare('INSERT INTO Jogadores (cpf, nome, dataNasc, numCamisa, rg, altura, posicao_id, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
       const info = sql.run(this.cpf, this.nome, this.dataNasc, this.numCamisa, this.rg, this.altura, this.posicaoId, this.foto);
@@ -33,6 +43,9 @@ class Player {
   }
 
   updatePlayer(db) {
+        if (!this.#validarCPF(this.cpf)) {
+            throw new Error("CPF inválido. Por favor, insira um CPF válido.");
+        }
     try {
       const sql = db.prepare('UPDATE Jogadores SET cpf = ?, nome = ?, dataNasc = ?, numCamisa = ?, rg = ?, altura = ?, posicao_id = ?, foto = ? WHERE id = ?');
       sql.run(this.cpf, this.nome, this.dataNasc, this.numCamisa, this.rg, this.altura, this.posicaoId, this.foto, this.id);

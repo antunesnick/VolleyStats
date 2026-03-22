@@ -1,9 +1,22 @@
-const { app, BrowserWindow } = require('electron');
-const path = require('node:path');
+const { app, BrowserWindow, protocol } = require('electron'); 
+const path = require('path');
+const url = require('url'); // Importação segura do URL
 
 if (require('electron-squirrel-startup')) {
   app.quit();
 }
+
+// 1. PRIVILÉGIOS PRECISAM ESTAR AQUI FORA (ANTES DO APP.WHENREADY)
+protocol.registerSchemesAsPrivileged([
+  { 
+    scheme: 'local', 
+    privileges: { 
+      secure: true, 
+      supportFetchAPI: true, 
+      bypassCSP: true 
+    } 
+  }
+]);
 
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
@@ -11,9 +24,9 @@ const createWindow = () => {
     height: 600,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
-      // 👇 AS DUAS LINHAS MÁGICAS PARA PERMITIR O NODE.JS NO REACT 👇
       nodeIntegration: true,
       contextIsolation: false,
+      webSecurity: false 
     },
   });
 
@@ -21,7 +34,23 @@ const createWindow = () => {
   mainWindow.webContents.openDevTools();
 };
 
+// 2. INICIALIZAÇÃO DO APP
 app.whenReady().then(() => {
+  
+  // 3. REGISTRO DO PROTOCOLO SEGURO (Lida com as barras do Windows perfeitamente)
+  protocol.registerFileProtocol('local', (request, callback) => {
+    try {
+      // Troca o local:// por file:// e pede pro Node descobrir o caminho exato do HD
+      const fileUrl = request.url.replace('local://', 'file://');
+      const filePath = url.fileURLToPath(fileUrl);
+      
+      callback({ path: filePath });
+    } catch (err) {
+      console.error("Erro ao processar imagem local:", err);
+      callback({ error: -2 }); // Código de erro: Arquivo não encontrado
+    }
+  });
+
   createWindow();
 
   app.on('activate', () => {

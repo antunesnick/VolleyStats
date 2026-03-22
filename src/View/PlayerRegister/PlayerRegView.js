@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import * as Style from "./PlayerRegStyle"; 
-import PositionControl from "../../Cotrol/PositionControl";
+import PositionControl from "../../Control/PositionControl";
 
 export function PlayerRegView({ open, onClose, onSave, player, categories = [] }) {
   const [formData, setFormData] = useState(
@@ -32,6 +32,25 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
       setFormData(player);
     }
   }, [player]);
+
+  const maskCPF = (value) => {
+    return value
+      .replace(/\D/g, "") 
+      .slice(0, 11) // Limita a 11 números
+      .replace(/(\d{3})(\d)/, "$1.$2") // Coloca o primeiro ponto
+      .replace(/(\d{3})(\d)/, "$1.$2") // Coloca o segundo ponto
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2"); // Coloca o traço
+  };
+
+  const maskRG = (value) => {
+    return value
+      .replace(/[^a-zA-Z0-9]/g, "") // Permite números e letras (para o "X")
+      .toUpperCase()
+      .slice(0, 9) // Limita a 9 caracteres (Padrão mais comum)
+      .replace(/^(\d{2})(\d)/, "$1.$2") // Coloca o primeiro ponto
+      .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3") // Coloca o segundo ponto
+      .replace(/\.(\d{3})([a-zA-Z0-9]+)$/, ".$1-$2"); // Coloca o traço
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -130,13 +149,14 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
           </Style.Row>
 
           <Style.Row>
+            <Style.Row>
             <Style.InputGroup>
               <Style.Label>CPF</Style.Label>
               <Style.Input
                 type="text"
                 placeholder="000.000.000-00"
                 value={formData.cpf}
-                onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, cpf: maskCPF(e.target.value) })}
               />
             </Style.InputGroup>
 
@@ -146,9 +166,10 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
                 type="text"
                 placeholder="00.000.000-0"
                 value={formData.rg}
-                onChange={(e) => setFormData({ ...formData, rg: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, rg: maskRG(e.target.value) })}
               />
             </Style.InputGroup>
+          </Style.Row>
           </Style.Row>
           <Style.Row>
             <Style.InputGroup style={{ gridColumn: "span 2" }}>

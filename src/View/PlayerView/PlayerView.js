@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Settings, Trash2, Pencil, ChevronRight, Plus } from "lucide-react";
 import * as Style from "./PleayerStyles"; 
-import PlayerControl from "../../Cotrol/PlayerControl"; 
+import PlayerControl from "../../Control/PlayerControl"; 
 import { PlayerRegView } from "../PlayerRegister/PlayerRegView";
 
 export function PlayerView() {
@@ -20,14 +20,15 @@ export function PlayerView() {
     playerControl.findAllPlayers().then((data) => {
       const formattedPlayers = data.map((p) => ({
         id: p.id,
-        name: p.nome,
-        number: p.numCamisa,
-        photo: p.foto || "https://via.placeholder.com/150",
+        nome: p.nome, 
+        numCamisa: p.numCamisa, 
+        foto: p.foto || "https://via.placeholder.com/150",
         cpf: p.cpf,
         rg: p.rg,
-        height: p.altura,
-        position: p.posicao,
-        dateOfBirth: p.dataNasc,
+        altura: p.altura, 
+        posicaoId: p.posicao_id,
+        posicaoNome: p.posicao, 
+        dataNasc: p.dataNasc, 
       }));
       setPlayers(formattedPlayers);
     });
@@ -90,7 +91,7 @@ export function PlayerView() {
           {players.map((p) => (
             <Style.PlayerCard key={p.id}>
               <Style.ImageWrapper>
-                <Style.PlayerImage src={p.photo} alt={p.name} />
+                <Style.PlayerImage src={p.foto} alt={p.nome} />
 
                 <Style.Overlay>
                   <Style.OverlayText>
@@ -115,8 +116,8 @@ export function PlayerView() {
               </Style.ImageWrapper>
 
               <Style.PlayerInfo>
-                <Style.PlayerNumber>#{p.number}</Style.PlayerNumber>
-                <Style.PlayerName>{p.name}</Style.PlayerName>
+                <Style.PlayerNumber>#{p.numCamisa}</Style.PlayerNumber>
+                <Style.PlayerName>{p.nome}</Style.PlayerName>
               </Style.PlayerInfo>
             </Style.PlayerCard>
           ))}

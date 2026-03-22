@@ -1,5 +1,5 @@
 import Position from '../Model/Position.js';
-import db from "../db/db";
+import db from "../db/db.js";
 class PositionControl {
 
         async findAllPositions() {
