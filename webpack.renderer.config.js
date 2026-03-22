@@ -6,7 +6,9 @@ rules.push({
 });
 
 module.exports = {
-  // Put your normal webpack config below here
+  // 👇 AVISA AO WEBPACK QUE É UM RENDERER DO ELECTRON 👇
+  target: 'electron-renderer',
+  
   module: {
     rules,
   },
@@ -14,4 +16,8 @@ module.exports = {
     extensions: ['.js', '.jsx', '.json', '.css'],
   },
   
+  // 👇 MANDA O WEBPACK IGNORAR O SQLITE NA HORA DE EMPACOTAR 👇
+  externals: {
+    'better-sqlite3': 'commonjs better-sqlite3',
+  },
 };

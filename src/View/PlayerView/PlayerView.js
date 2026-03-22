@@ -1,36 +1,72 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Settings, Trash2, Pencil, ChevronRight, Plus } from "lucide-react";
-import * as Style from "./PleayerStyles"; // Importa os estilos que criamos acima
-
-// Dados falsos (mock) apenas para podermos visualizar a tela funcionando
-const MOCK_PLAYERS = [
-  { id: 1, name: "Lucas Lima", number: "07", photo: "https://i.pravatar.cc/300?img=11" },
-  { id: 2, name: "Pedro Santos", number: "12", photo: "https://i.pravatar.cc/300?img=12" },
-  { id: 3, name: "João Silva", number: "04", photo: "https://i.pravatar.cc/300?img=15" },
-];
+import * as Style from "./PleayerStyles"; 
+import PlayerControl from "../../Cotrol/PlayerControl"; 
+import { PlayerRegView } from "../PlayerRegister/PlayerRegView";
 
 export function PlayerView() {
-  const [players, setPlayers] = useState(MOCK_PLAYERS);
+  const [players, setPlayers] = useState([]); 
   const [isEditing, setIsEditing] = useState(false);
 
-  // Funções apenas visuais (placeholders) para a sua lógica de negócio
-  const deletePlayer = (id) => {
-    setPlayers((prev) => prev.filter((p) => p.id !== id));
-  };
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
 
-  const handleEdit = (player) => {
-    console.log("Abrir modal de edição para o jogador:", player);
-    // Aqui você chamaria setEditingPlayer(player) e abriria o PlayerDialog
+  useEffect(() => {
+    fetchPlayers();
+  }, []);
+
+  function fetchPlayers() {
+    const playerControl = new PlayerControl();
+    playerControl.findAllPlayers().then((data) => {
+      const formattedPlayers = data.map((p) => ({
+        id: p.id,
+        name: p.nome,
+        number: p.numCamisa,
+        photo: p.foto || "https://via.placeholder.com/150",
+        cpf: p.cpf,
+        rg: p.rg,
+        height: p.altura,
+        position: p.posicao,
+        dateOfBirth: p.dataNasc,
+      }));
+      setPlayers(formattedPlayers);
+    });
+  }
+
+  const deletePlayer = (id) => {
+    const playerControl = new PlayerControl();
+    playerControl.deletePlayer(id).then(() => {
+      fetchPlayers(); 
+    });
   };
 
   const handleAdd = () => {
-    console.log("Abrir modal para criar novo jogador");
-    // Aqui você abriria o PlayerDialog vazio
+    setSelectedPlayer(null); 
+    setIsModalOpen(true);   
+  };
+
+  const handleEdit = (player) => {
+    setSelectedPlayer(player); 
+    setIsModalOpen(true);      
+  };
+
+  const handleSavePlayer = (formData) => {
+    const playerControl = new PlayerControl();
+
+    if (formData.id) {
+      playerControl.updatePlayer(formData).then(() => {
+        fetchPlayers(); 
+      });
+    } else {
+      playerControl.createPlayer(formData).then(() => {
+        fetchPlayers(); 
+      });
+    }
+    setIsModalOpen(false); 
   };
 
   return (
     <Style.Container>
-      {/* Botão temporário no topo para você testar a visualização do modo de edição */}
       <Style.TopBar>
         <Style.ManageButton
           $isEditing={isEditing}
@@ -63,7 +99,6 @@ export function PlayerView() {
                   </Style.OverlayText>
                 </Style.Overlay>
 
-                {/* Os botões de ação só aparecem se isEditing for true */}
                 {isEditing && (
                   <Style.ActionButtons onClick={(e) => e.stopPropagation()}>
                     <Style.IconButton
@@ -86,7 +121,6 @@ export function PlayerView() {
             </Style.PlayerCard>
           ))}
 
-          {/* O botão de adicionar jogador entra no final do grid se estiver editando */}
           {isEditing && (
             <Style.AddPlayerBtn onClick={handleAdd}>
               <Plus size={32} />
@@ -95,6 +129,16 @@ export function PlayerView() {
           )}
         </Style.Grid>
       </Style.Section>
+
+      {}
+      <PlayerRegView 
+        open={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSave={handleSavePlayer} 
+        player={selectedPlayer}
+        categories={[]} 
+      />
+
     </Style.Container>
   );
 }
