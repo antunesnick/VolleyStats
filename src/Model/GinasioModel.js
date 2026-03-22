@@ -8,12 +8,33 @@ class GinasioModel {
 		this.cidade = cidade;
 	}
 
+	validarCamposObrigatorios() {
+		if (!this.nome || !String(this.nome).trim()) {
+			return "Nome do ginasio e obrigatorio.";
+		}
+
+		if (!this.estado || !String(this.estado).trim()) {
+			return "Estado do ginasio e obrigatorio.";
+		}
+
+		return null;
+	}
+
 	async criarGinasio() {
+		const erroValidacao = this.validarCamposObrigatorios();
+		if (erroValidacao) {
+			throw new Error(erroValidacao);
+		}
+
 		try {
 			const sql = db.prepare(
 				"INSERT INTO Ginasios (nome, estado, cidade) VALUES (?, ?, ?)"
 			);
-			const info = sql.run(this.nome, this.estado, this.cidade);
+			const info = sql.run(
+				String(this.nome).trim(),
+				String(this.estado).trim(),
+				this.cidade
+			);
 			return info.lastInsertRowid;
 		} catch (e) {
 			throw e;
@@ -30,11 +51,16 @@ class GinasioModel {
 	}
 
 	async editarGinasio(id = this.id) {
+		const erroValidacao = this.validarCamposObrigatorios();
+		if (erroValidacao) {
+			throw new Error(erroValidacao);
+		}
+
 		try {
 			const sql = db.prepare(
 				"UPDATE Ginasios SET nome = ?, estado = ?, cidade = ? WHERE id = ?"
 			);
-			sql.run(this.nome, this.estado, this.cidade, id);
+			sql.run(String(this.nome).trim(), String(this.estado).trim(), this.cidade, id);
 		} catch (e) {
 			throw e;
 		}
@@ -93,7 +119,6 @@ class GinasioModel {
 		}
 	}
 
-	// Aliases para manter compatibilidade com chamadas antigas
 	async insertGinasio(ginasio) {
 		this.nome = ginasio.nome;
 		this.estado = ginasio.estado;

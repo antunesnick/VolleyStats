@@ -256,14 +256,13 @@ const Ginasio = () => {
               <div className="grid grid-cols-2 gap-5">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">
-                    Cidade *
+                    Cidade
                   </label>
                   <input
                     type="text"
                     name="cidade"
                     value={novoGinasio.cidade}
                     onChange={handleInputChange}
-                    required
                     className="w-full bg-gray-50 border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 block p-3"
                   />
                 </div>
