@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import Home from './View/Home/Home'; // Aqui ele importa o arquivo que você acabou de criar!
+import Home from './View/Home/Home'; 
 import './View/index.css'; 
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

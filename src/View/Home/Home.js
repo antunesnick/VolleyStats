@@ -1,12 +1,10 @@
 import React from 'react';
-import Ginasio from '../Ginasios/Ginasio';
+import GerenciarPartidas from '../Partida/GerenciarPartidas'; // Ajuste o caminho se necessário
 
 const Home = () => {
   return (
     <div>
-      <h1>Olá, React no Electron! 🚀</h1>
-      <Ginasio />
-      <p>O VolleyStats está ganhando forma.</p>
+      <GerenciarPartidas />
     </div>
   );
 };

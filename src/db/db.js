@@ -1,14 +1,18 @@
-const Database = require('better-sqlite3');
+const { app } = require('electron');
 const path = require('path');
+const Database = require('better-sqlite3');
 
-const dbPath = path.resolve(__dirname, 'developVS.db');
+const userDataPath = app.getPath('userData');
+const dbPath = path.join(userDataPath, 'developVS.db');
+console.log('Caminho do banco de dados:', dbPath);
 
-const db = new Database(dbPath, { verbose: console.log })
+const db = new Database(dbPath, {verbose: console.log});
 
 db.pragma('foreign_keys = ON');
 
-try {
-    db.exec(`
+function inicializarBanco() {
+    try {
+        db.exec(`
             CREATE TABLE IF NOT EXISTS Categorias(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome VARCHAR(80) NOT NULL,
@@ -26,6 +30,7 @@ try {
                 nome VARCHAR(80) NOT NULL,
                 tipo INTEGER NOT NULL
             );
+            
             CREATE TABLE IF NOT EXISTS Ginasios(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome VARCHAR(80) NOT NULL,
@@ -48,12 +53,24 @@ try {
 
                 FOREIGN KEY (ginasio_id) REFERENCES Ginasios (id),
                 FOREIGN KEY (time1) REFERENCES Times (id),
-                FOREIGN KEY (time2) REFERENCES Times(id)
+                FOREIGN KEY (time2) REFERENCES Times (id)
             );
-            `)
-} catch (e) {
-    throw e;
+
+            -- INSERINDO DADOS MOCK PARA TESTAR AS CHAVES ESTRANGEIRAS
+            -- O "INSERT OR IGNORE" com o ID fixo garante que ele só insere na primeira vez que o sistema roda
+            INSERT OR IGNORE INTO Ginasios (id, nome, estado, cidade) VALUES (1, 'Ginásio de Esportes Watal Ishibashi', 'SP', 'Presidente Prudente');
+            
+            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (1, 'Vôlei Prudente', 'Presidente Prudente');
+            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (2, 'Sada Cruzeiro', 'Belo Horizonte');
+            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (3, 'Vôlei Renata', 'Campinas');
+        `);
+        console.log('Banco de dados inicializado com sucesso (com dados mockados para testes).');
+    } catch (e) {
+        console.error("Erro ao inicializar o banco de dados:", e);
+        throw e;
+    }
 }
 
+inicializarBanco();
 
-export default db;
+module.exports = db;
