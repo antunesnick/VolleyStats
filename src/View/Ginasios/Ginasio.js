@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 const Swal = require("sweetalert2");
 
 const initialFormData = {
   nome: "",
   cidade: "",
+  endereco: "",
   estado: "",
-  isActive: true,
 };
 
 const swalBaseOptions = {
@@ -14,51 +14,122 @@ const swalBaseOptions = {
 
 const Ginasio = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [ginasios, setGinasios] = useState([
-    {
-      nome: "Ginasio Municipal Presidente Prudente",
-      cidade: "Presidente Prudente",
-      estado: "SP",
-      isActive: true,
-    },
-  ]);
-  const [editingIndex, setEditingIndex] = useState(null);
+  const [ginasios, setGinasios] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [filtroPesquisa, setFiltroPesquisa] = useState("");
 
   const [novoGinasio, setNovoGinasio] = useState(initialFormData);
 
+  const carregarGinasios = async () => {
+    try {
+      const dadosDoBanco = await window.ElectronAPI.listarGinasios();
+      setGinasios(dadosDoBanco || []);
+    } catch (e) {
+      await Swal.fire({
+        ...swalBaseOptions,
+        title: "Erro!",
+        text: "Nao foi possivel carregar os ginasios.",
+        icon: "error",
+        confirmButtonColor: "#920A13",
+      });
+    }
+  };
+
+  useEffect(() => {
+    carregarGinasios();
+  }, []);
+
+  const handlePesquisar = async (e) => {
+    e.preventDefault();
+
+    const termo = filtroPesquisa.trim();
+
+    if (!termo) {
+      await carregarGinasios();
+      return;
+    }
+
+    try {
+      const resultado = await window.ElectronAPI.pesquisarGinasio(termo);
+      setGinasios(resultado || []);
+    } catch (e) {
+      await Swal.fire({
+        ...swalBaseOptions,
+        title: "Erro!",
+        text: "Nao foi possivel pesquisar os ginasios.",
+        icon: "error",
+        confirmButtonColor: "#920A13",
+      });
+    }
+  };
+
+  const handleLimparPesquisa = async () => {
+    setFiltroPesquisa("");
+    await carregarGinasios();
+  };
+
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
+    const nextValue = value;
 
     setNovoGinasio({
       ...novoGinasio,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: nextValue,
     });
+
+    if (["nome", "cidade", "estado"].includes(name)) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        [name]: String(nextValue || "").trim() ? "" : prev[name],
+      }));
+    }
+  };
+
+  const validarCamposFormulario = () => {
+    const erros = {};
+
+    if (!String(novoGinasio.nome || "").trim()) {
+      erros.nome = "Nome do ginásio é obrigatório.";
+    }
+
+    if (!String(novoGinasio.cidade || "").trim()) {
+      erros.cidade = "Cidade é obrigatória.";
+    }
+
+    if (!String(novoGinasio.estado || "").trim()) {
+      erros.estado = "Estado é obrigatório.";
+    }
+
+    setFieldErrors(erros);
+    return Object.keys(erros).length === 0;
   };
 
   const handleNovoGinasio = () => {
-    setEditingIndex(null);
+    setEditingId(null);
+    setFieldErrors({});
     setNovoGinasio(initialFormData);
     setIsModalOpen(true);
   };
 
-  const handleEditarGinasio = (index) => {
-    const ginasio = ginasios[index];
+  const handleEditarGinasio = (ginasio) => {
 
     if (!ginasio) {
       return;
     }
 
-    setEditingIndex(index);
+    setEditingId(ginasio.id);
     setNovoGinasio({
       nome: ginasio.nome,
       cidade: ginasio.cidade,
+      endereco: ginasio.endereco || "",
       estado: ginasio.estado,
-      isActive: ginasio.isActive,
     });
+    setFieldErrors({});
     setIsModalOpen(true);
   };
 
-  const handleExcluirGinasio = async (index) => {
+  const handleExcluirGinasio = async (id) => {
     const result = await Swal.fire({
       ...swalBaseOptions,
       title: "Tem certeza?",
@@ -75,33 +146,56 @@ const Ginasio = () => {
       return;
     }
 
-    setGinasios(ginasios.filter((_, currentIndex) => currentIndex !== index));
+    try {
+      await window.ElectronAPI.excluirGinasio(id);
+      setGinasios(ginasios.filter((ginasio) => ginasio.id !== id));
 
-    if (editingIndex === index) {
-      setEditingIndex(null);
-      setNovoGinasio(initialFormData);
-      setIsModalOpen(false);
+      if (editingId === id) {
+        setEditingId(null);
+        setNovoGinasio(initialFormData);
+        setIsModalOpen(false);
+      }
+
+      await Swal.fire({
+        ...swalBaseOptions,
+        title: "Sucesso!",
+        text: "Ginasio excluido com sucesso.",
+        icon: "success",
+        confirmButtonColor: "#920A13",
+      });
+    } catch (e) {
+      await Swal.fire({
+        ...swalBaseOptions,
+        title: "Erro!",
+        text: "Erro ao excluir ginasio.",
+        icon: "error",
+        confirmButtonColor: "#920A13",
+      });
     }
-
-    await Swal.fire({
-      ...swalBaseOptions,
-      title: "Sucesso!",
-      text: "Ginasio excluido com sucesso.",
-      icon: "success",
-      confirmButtonColor: "#920A13",
-    });
   };
 
   const handleFecharModal = () => {
     setIsModalOpen(false);
-    setEditingIndex(null);
+    setEditingId(null);
+    setFieldErrors({});
     setNovoGinasio(initialFormData);
   };
 
   const handleSalvarGinasio = async (e) => {
     e.preventDefault();
 
-    if (editingIndex !== null) {
+    if (!validarCamposFormulario()) {
+      return;
+    }
+
+    const dados = {
+      nome: novoGinasio.nome,
+      cidade: novoGinasio.cidade,
+      endereco: novoGinasio.endereco,
+      estado: novoGinasio.estado,
+    };
+
+    if (editingId !== null) {
       const confirmacao = await Swal.fire({
         ...swalBaseOptions,
         title: "Confirmar alteracao?",
@@ -118,26 +212,55 @@ const Ginasio = () => {
         return;
       }
 
-      setGinasios(
-        ginasios.map((ginasio, index) =>
-          index === editingIndex ? { ...ginasio, ...novoGinasio } : ginasio
-        )
-      );
+      try {
+        await window.ElectronAPI.editarGinasio(editingId, dados);
 
-      await Swal.fire({
-        ...swalBaseOptions,
-        title: "Sucesso!",
-        text: "Ginasio alterado com sucesso.",
-        icon: "success",
-        confirmButtonColor: "#920A13",
-      });
+        setGinasios(
+          ginasios.map((ginasio) =>
+            ginasio.id === editingId ? { ...ginasio, ...dados, id: editingId } : ginasio
+          )
+        );
+
+        await Swal.fire({
+          ...swalBaseOptions,
+          title: "Sucesso!",
+          text: "Ginasio alterado com sucesso.",
+          icon: "success",
+          confirmButtonColor: "#920A13",
+        });
+      } catch (e) {
+        await Swal.fire({
+          ...swalBaseOptions,
+          title: "Erro!",
+          text: e?.message || "Erro ao alterar ginasio.",
+          icon: "error",
+          confirmButtonColor: "#920A13",
+        });
+        return;
+      }
     } else {
-      setGinasios([
-        ...ginasios,
-        {
-          ...novoGinasio,
-        },
-      ]);
+      try {
+        const resultado = await window.ElectronAPI.salvarGinasio(dados);
+
+        if (resultado) {
+          setGinasios([
+            ...ginasios,
+            {
+              ...dados,
+              id: resultado,
+            },
+          ]);
+        }
+      } catch (e) {
+        await Swal.fire({
+          ...swalBaseOptions,
+          title: "Erro!",
+          text: e?.message || "Erro ao cadastrar ginasio.",
+          icon: "error",
+          confirmButtonColor: "#920A13",
+        });
+        return;
+      }
     }
 
     handleFecharModal();
@@ -161,6 +284,29 @@ const Ginasio = () => {
         </button>
       </div>
 
+      <form onSubmit={handlePesquisar} className="mb-6 flex flex-col md:flex-row gap-3">
+        <input
+          type="text"
+          value={filtroPesquisa}
+          onChange={(e) => setFiltroPesquisa(e.target.value)}
+          placeholder="Pesquisar por nome, estado ou cidade"
+          className="flex-1 bg-white border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 p-3"
+        />
+        <button
+          type="submit"
+          className="bg-black hover:bg-gray-800 text-white font-semibold py-3 px-5 rounded-lg transition-colors"
+        >
+          Pesquisar
+        </button>
+        <button
+          type="button"
+          onClick={handleLimparPesquisa}
+          className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-5 rounded-lg transition-colors"
+        >
+          Limpar
+        </button>
+      </form>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {ginasios.map((ginasio, index) => (
           <div
@@ -169,33 +315,29 @@ const Ginasio = () => {
           >
             <div className="bg-black text-white px-4 py-2 flex justify-between items-center">
               <span className="text-xs font-bold uppercase tracking-wider text-red-500">
-                Estrutura
-              </span>
-              <span
-                className={`text-xs font-semibold ${
-                  ginasio.isActive ? "text-green-400" : "text-red-400"
-                }`}
-              >
-                {ginasio.isActive ? "Ativo" : "Inativo"}
+                Ginásio
               </span>
             </div>
 
             <div className="p-6">
               <h3 className="text-xl font-bold text-black mb-1">{ginasio.nome}</h3>
               <p className="text-gray-600 font-medium mb-5">
-                {ginasio.cidade} - {ginasio.estado}
+                {ginasio.cidade || "Sem cidade"} - {ginasio.estado}
+              </p>
+              <p className="text-gray-500 text-sm mb-5">
+                {ginasio.endereco || "Sem endereco"}
               </p>
 
               <div className="flex gap-2">
                 <button
                   className="flex-1 bg-black hover:bg-gray-800 text-white font-semibold py-2 rounded transition-colors text-sm"
-                  onClick={() => handleEditarGinasio(index)}
+                  onClick={() => handleEditarGinasio(ginasio)}
                 >
                   Alterar
                 </button>
                 <button
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded transition-colors text-sm"
-                  onClick={() => handleExcluirGinasio(index)}
+                  onClick={() => handleExcluirGinasio(ginasio.id)}
                 >
                   Excluir
                 </button>
@@ -213,10 +355,10 @@ const Ginasio = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl">
+          <div className="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="bg-black px-6 py-4 flex justify-between items-center">
               <h2 className="text-2xl font-black text-white tracking-wide uppercase">
-                {editingIndex !== null ? "Alterar Ginásio" : "Novo Ginásio"}
+                {editingId !== null ? "Alterar Ginásio" : "Novo Ginásio"}
               </h2>
               <button
                 onClick={handleFecharModal}
@@ -238,7 +380,7 @@ const Ginasio = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSalvarGinasio} className="p-8 space-y-5">
+            <form noValidate onSubmit={handleSalvarGinasio} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">
                   Nome do Ginásio *
@@ -248,23 +390,36 @@ const Ginasio = () => {
                   name="nome"
                   value={novoGinasio.nome}
                   onChange={handleInputChange}
-                  required
-                  className="w-full bg-gray-50 border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 block p-3"
+                  className={`w-full bg-gray-50 text-black rounded-lg block p-3 ${
+                    fieldErrors.nome
+                      ? "border border-red-500 focus:ring-red-500 focus:border-red-500"
+                      : "border border-gray-300 focus:ring-red-500 focus:border-red-500"
+                  }`}
                 />
+                {fieldErrors.nome && (
+                  <p className="text-xs text-red-600 mt-1">{fieldErrors.nome}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-5">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">
-                    Cidade
+                    Cidade *
                   </label>
                   <input
                     type="text"
                     name="cidade"
                     value={novoGinasio.cidade}
                     onChange={handleInputChange}
-                    className="w-full bg-gray-50 border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 block p-3"
+                    className={`w-full bg-gray-50 text-black rounded-lg block p-3 ${
+                      fieldErrors.cidade
+                        ? "border border-red-500 focus:ring-red-500 focus:border-red-500"
+                        : "border border-gray-300 focus:ring-red-500 focus:border-red-500"
+                    }`}
                   />
+                  {fieldErrors.cidade && (
+                    <p className="text-xs text-red-600 mt-1">{fieldErrors.cidade}</p>
+                  )}
                 </div>
 
                 <div>
@@ -277,30 +432,32 @@ const Ginasio = () => {
                     value={novoGinasio.estado}
                     onChange={handleInputChange}
                     maxLength={2}
-                    required
-                    className="w-full bg-gray-50 border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 block p-3 uppercase"
+                    className={`w-full bg-gray-50 text-black rounded-lg block p-3 uppercase ${
+                      fieldErrors.estado
+                        ? "border border-red-500 focus:ring-red-500 focus:border-red-500"
+                        : "border border-gray-300 focus:ring-red-500 focus:border-red-500"
+                    }`}
                   />
+                  {fieldErrors.estado && (
+                    <p className="text-xs text-red-600 mt-1">{fieldErrors.estado}</p>
+                  )}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between bg-gray-100 p-4 rounded-lg">
-                <div>
-                  <h4 className="font-bold text-black text-sm uppercase">Status</h4>
-                  <p className="text-xs text-gray-500">Marque se o ginásio está ativo</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="isActive"
-                    checked={novoGinasio.isActive}
-                    onChange={handleInputChange}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">
+                  Endereco
                 </label>
+                <input
+                  type="text"
+                  name="endereco"
+                  value={novoGinasio.endereco}
+                  onChange={handleInputChange}
+                  className="w-full bg-gray-50 border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 block p-3"
+                />
               </div>
 
-              <div className="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
                   className="px-6 py-3 font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
@@ -312,7 +469,7 @@ const Ginasio = () => {
                   type="submit"
                   className="px-6 py-3 font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-md transition-colors"
                 >
-                  {editingIndex !== null ? "Salvar Alteracao" : "Salvar Ginasio"}
+                  {editingId !== null ? "Salvar Alteracao" : "Salvar Ginasio"}
                 </button>
               </div>
             </form>

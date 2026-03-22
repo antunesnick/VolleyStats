@@ -7,7 +7,8 @@ const GinasioControl = {
 				null,
 				dados.nome,
 				dados.estado,
-				dados.cidade
+				dados.cidade,
+				dados.endereco
 			);
 			return await ginasio.criarGinasio();
 		} catch (e) {
@@ -29,7 +30,8 @@ const GinasioControl = {
 				id,
 				dados.nome,
 				dados.estado,
-				dados.cidade
+				dados.cidade,
+				dados.endereco
 			);
 			await ginasio.editarGinasio(id);
 		} catch (e) {

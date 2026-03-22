@@ -1,11 +1,12 @@
 import db from "../db/db.js";
 
 class GinasioModel {
-	constructor(id = null, nome = null, estado = null, cidade = null) {
+	constructor(id = null, nome = null, estado = null, cidade = null, endereco = null) {
 		this.id = id;
 		this.nome = nome;
 		this.estado = estado;
 		this.cidade = cidade;
+		this.endereco = endereco;
 	}
 
 	validarCamposObrigatorios() {
@@ -15,6 +16,10 @@ class GinasioModel {
 
 		if (!this.estado || !String(this.estado).trim()) {
 			return "Estado do ginasio e obrigatorio.";
+		}
+
+		if (!this.cidade || !String(this.cidade).trim()) {
+			return "Cidade do ginasio e obrigatoria.";
 		}
 
 		return null;
@@ -28,12 +33,13 @@ class GinasioModel {
 
 		try {
 			const sql = db.prepare(
-				"INSERT INTO Ginasios (nome, estado, cidade) VALUES (?, ?, ?)"
+				"INSERT INTO Ginasios (nome, estado, cidade, endereco) VALUES (?, ?, ?, ?)"
 			);
 			const info = sql.run(
 				String(this.nome).trim(),
 				String(this.estado).trim(),
-				this.cidade
+				String(this.cidade).trim(),
+				this.endereco ? String(this.endereco).trim() : null
 			);
 			return info.lastInsertRowid;
 		} catch (e) {
@@ -58,9 +64,15 @@ class GinasioModel {
 
 		try {
 			const sql = db.prepare(
-				"UPDATE Ginasios SET nome = ?, estado = ?, cidade = ? WHERE id = ?"
+				"UPDATE Ginasios SET nome = ?, estado = ?, cidade = ?, endereco = ? WHERE id = ?"
 			);
-			sql.run(String(this.nome).trim(), String(this.estado).trim(), this.cidade, id);
+			sql.run(
+				String(this.nome).trim(),
+				String(this.estado).trim(),
+				String(this.cidade).trim(),
+				this.endereco ? String(this.endereco).trim() : null,
+				id
+			);
 		} catch (e) {
 			throw e;
 		}
@@ -87,7 +99,8 @@ class GinasioModel {
 					conditions.push("nome LIKE ?");
 					conditions.push("estado LIKE ?");
 					conditions.push("cidade LIKE ?");
-					params.push(`%${termo}%`, `%${termo}%`, `%${termo}%`);
+					conditions.push("endereco LIKE ?");
+					params.push(`%${termo}%`, `%${termo}%`, `%${termo}%`, `%${termo}%`);
 				}
 			} else if (filter && typeof filter === "object") {
 				if (filter.nome) {
@@ -103,6 +116,11 @@ class GinasioModel {
 				if (filter.cidade) {
 					conditions.push("cidade LIKE ?");
 					params.push(`%${filter.cidade}%`);
+				}
+
+				if (filter.endereco) {
+					conditions.push("endereco LIKE ?");
+					params.push(`%${filter.endereco}%`);
 				}
 			}
 
@@ -123,6 +141,7 @@ class GinasioModel {
 		this.nome = ginasio.nome;
 		this.estado = ginasio.estado;
 		this.cidade = ginasio.cidade;
+		this.endereco = ginasio.endereco;
 		return this.criarGinasio();
 	}
 
@@ -135,6 +154,7 @@ class GinasioModel {
 		this.nome = ginasio.nome;
 		this.estado = ginasio.estado;
 		this.cidade = ginasio.cidade;
+		this.endereco = ginasio.endereco;
 		return this.editarGinasio(ginasio.id);
 	}
 

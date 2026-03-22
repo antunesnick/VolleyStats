@@ -1,2 +1,9 @@
-// See the Electron documentation for details on how to use preload scripts:
-// https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
+const { contextBridge, ipcRenderer } = require("electron");
+
+contextBridge.exposeInMainWorld("ElectronAPI", {
+	listarGinasios: () => ipcRenderer.invoke("ginasio:listar"),
+	salvarGinasio: (dados) => ipcRenderer.invoke("ginasio:salvar", dados),
+	editarGinasio: (id, dados) => ipcRenderer.invoke("ginasio:editar", id, dados),
+	excluirGinasio: (id) => ipcRenderer.invoke("ginasio:excluir", id),
+	pesquisarGinasio: (filtro) => ipcRenderer.invoke("ginasio:pesquisar", filtro),
+});
