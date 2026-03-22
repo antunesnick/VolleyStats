@@ -48,25 +48,31 @@ const GerenciarPartidas = () => {
   const [placar, setPlacar] = useState({ pontosTime1: '', pontosTime2: '' });
 
   // 1. CARREGAMENTO INICIAL DE DADOS
+// 1. CARREGAMENTO INICIAL DE DADOS
   useEffect(() => {
     carregarTudo();
   }, []);
 
   const carregarTudo = async () => {
     try {
-        // Busca partidas existentes
         const dadosPartidas = await window.api.partidas.findAll();
         setPartidas(dadosPartidas);
 
-        // Busca Times e Ginásios para preencher os Combobox
-        if(window.api.times && window.api.ginasios) {
-            const dadosTimes = await window.api.times.findAll();
-            const dadosGinasios = await window.api.ginasios.findAll();
-            setTimesCadastrados(dadosTimes);
-            setGinasiosCadastrados(dadosGinasios);
-        } else {
-            console.warn("Rotas IPC para Times ou Ginásios não encontradas. Os seletores ficarão vazios.");
-        }
+        // MOCK DE DADOS PARA TIMES E GINÁSIOS (Temporário para testes)
+        const mockTimes = [
+            { id: 1, nome: 'Vôlei Prudente', cidade: 'Presidente Prudente' },
+            { id: 2, nome: 'Sada Cruzeiro', cidade: 'Belo Horizonte' },
+            { id: 3, nome: 'Vôlei Renata', cidade: 'Campinas' }
+        ];
+
+        const mockGinasios = [
+            { id: 1, nome: 'Ginásio Watal Ishibashi', estado: 'SP', cidade: 'Presidente Prudente' },
+            { id: 2, nome: 'Arena Sabiá', estado: 'SP', cidade: 'Presidente Prudente' }
+        ];
+
+        // Alimenta os estados do React com os mocks
+        setTimesCadastrados(mockTimes);
+        setGinasiosCadastrados(mockGinasios);
 
     } catch (error) {
         console.error("Erro na integração visual:", error);
