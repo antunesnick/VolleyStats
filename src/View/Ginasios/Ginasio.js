@@ -1,10 +1,15 @@
 import React, { useState } from "react";
+const Swal = require("sweetalert2");
 
 const initialFormData = {
   nome: "",
   cidade: "",
   estado: "",
   isActive: true,
+};
+
+const swalBaseOptions = {
+  backdrop: false,
 };
 
 const Ginasio = () => {
@@ -53,7 +58,23 @@ const Ginasio = () => {
     setIsModalOpen(true);
   };
 
-  const handleExcluirGinasio = (index) => {
+  const handleExcluirGinasio = async (index) => {
+    const result = await Swal.fire({
+      ...swalBaseOptions,
+      title: "Tem certeza?",
+      text: "Essa acao nao pode ser desfeita!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#920A13",
+      cancelButtonColor: "#6c757d",
+      confirmButtonText: "Sim, excluir",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
     setGinasios(ginasios.filter((_, currentIndex) => currentIndex !== index));
 
     if (editingIndex === index) {
@@ -61,6 +82,14 @@ const Ginasio = () => {
       setNovoGinasio(initialFormData);
       setIsModalOpen(false);
     }
+
+    await Swal.fire({
+      ...swalBaseOptions,
+      title: "Sucesso!",
+      text: "Ginasio excluido com sucesso.",
+      icon: "success",
+      confirmButtonColor: "#920A13",
+    });
   };
 
   const handleFecharModal = () => {
@@ -69,15 +98,39 @@ const Ginasio = () => {
     setNovoGinasio(initialFormData);
   };
 
-  const handleSalvarGinasio = (e) => {
+  const handleSalvarGinasio = async (e) => {
     e.preventDefault();
 
     if (editingIndex !== null) {
+      const confirmacao = await Swal.fire({
+        ...swalBaseOptions,
+        title: "Confirmar alteracao?",
+        text: "Deseja salvar as alteracoes deste ginasio?",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonColor: "#920A13",
+        cancelButtonColor: "#6c757d",
+        confirmButtonText: "Sim, salvar",
+        cancelButtonText: "Cancelar",
+      });
+
+      if (!confirmacao.isConfirmed) {
+        return;
+      }
+
       setGinasios(
         ginasios.map((ginasio, index) =>
           index === editingIndex ? { ...ginasio, ...novoGinasio } : ginasio
         )
       );
+
+      await Swal.fire({
+        ...swalBaseOptions,
+        title: "Sucesso!",
+        text: "Ginasio alterado com sucesso.",
+        icon: "success",
+        confirmButtonColor: "#920A13",
+      });
     } else {
       setGinasios([
         ...ginasios,
@@ -159,7 +212,7 @@ const Ginasio = () => {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl">
             <div className="bg-black px-6 py-4 flex justify-between items-center">
               <h2 className="text-2xl font-black text-white tracking-wide uppercase">
