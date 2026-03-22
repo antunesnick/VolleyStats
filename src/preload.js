@@ -7,7 +7,6 @@ contextBridge.exposeInMainWorld("ElectronAPI", {
 	excluirGinasio: (id) => ipcRenderer.invoke("ginasio:excluir", id),
 	pesquisarGinasio: (filtro) => ipcRenderer.invoke("ginasio:pesquisar", filtro),
 });
-const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
     partidas: {
