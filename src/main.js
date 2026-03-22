@@ -1,5 +1,7 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('node:path');
+const GinasioControlModule = require('./Control/GinasioControl');
+const GinasioControl = GinasioControlModule.default || GinasioControlModule;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -19,14 +21,32 @@ const createWindow = () => {
   // and load the index.html of the app.
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
 };
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  ipcMain.handle('ginasio:listar', async () => {
+    return GinasioControl.listarGinasios();
+  });
+
+  ipcMain.handle('ginasio:salvar', async (_event, dados) => {
+    return GinasioControl.cadastrarDados(dados);
+  });
+
+  ipcMain.handle('ginasio:editar', async (_event, id, dados) => {
+    return GinasioControl.editarGinasio(id, dados);
+  });
+
+  ipcMain.handle('ginasio:excluir', async (_event, id) => {
+    return GinasioControl.excluirGinasio(id);
+  });
+
+  ipcMain.handle('ginasio:pesquisar', async (_event, filtro) => {
+    return GinasioControl.pesquisarGinasio(filtro);
+  });
+
   createWindow();
 
   // On OS X it's common to re-create a window in the app when the
