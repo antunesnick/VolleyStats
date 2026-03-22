@@ -11,6 +11,9 @@ class Player{
     this.foto = foto;
   }
 
+  constructor(){
+  }
+
   insertPlayer(player, db){
     try {
       const sql = db.prepare('INSERT INTO Jogadores (cpf, nome, dataNasc, numCamisa, rg, altura, posicao_id, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
