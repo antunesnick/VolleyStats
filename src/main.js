@@ -1,5 +1,6 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('node:path');
+const PartidaControl = require('./Control/PartidaControl');
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -20,6 +21,29 @@ const createWindow = () => {
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
 };
+
+// Rotas IPC para Partidas
+ipcMain.handle('partidas:create', async (event, data) => {
+    return await PartidaControl.createPartida(data);
+});
+
+ipcMain.handle('partidas:update', async (event, data) => {
+    return await PartidaControl.updatePartida(data);
+});
+
+ipcMain.handle('partidas:delete', async (event, id) => {
+    return await PartidaControl.deletePartida(id);
+});
+
+ipcMain.handle('partidas:findAll', async () => {
+    return await PartidaControl.findAllPartidas();
+});
+
+ipcMain.handle('partidas:finalizar', async (event, id, pontosTime1, pontosTime2) => {
+    return await PartidaControl.finalizarPartida(id, pontosTime1, pontosTime2);
+});
+
+
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
