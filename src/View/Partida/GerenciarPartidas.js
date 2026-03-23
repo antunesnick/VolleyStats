@@ -34,6 +34,11 @@ const GerenciarPartidas = () => {
   const [editandoId, setEditandoId] = useState(null);
   const [partidaAtiva, setPartidaAtiva] = useState(null);
 
+  // Estados para filtros
+  const [filtros, setFiltros] = useState({
+    dataPartida: '',
+    timeId: ''
+  });
 
   const estadoInicialForm = { 
     nome: '', 
@@ -83,7 +88,34 @@ const GerenciarPartidas = () => {
   const getNomeTime = (id) => timesCadastrados.find(t => t.id === id)?.nome || `Time ${id}`;
   const getNomeGinasio = (id) => ginasiosCadastrados.find(g => g.id === id)?.nome || `Ginásio ${id}`;
 
-  // 2. LÓGICA DO FORMULÁRIO
+  // 2. LÓGICA DOS FILTROS
+  const handleFiltroChange = (e) => {
+    const { name, value } = e.target;
+    setFiltros({
+      ...filtros,
+      [name]: value
+    });
+  };
+
+  const handleAplicarFiltros = async () => {
+    try {
+      const partidasFiltradas = await window.api.partidas.findByDateAndTeam(filtros);
+      setPartidas(partidasFiltradas);
+    } catch (error) {
+      console.error("Erro ao aplicar filtros.", error);
+      alert("Erro ao filtrar partidas.");
+    }
+  };
+
+  const handleLimparFiltros = async () => {
+    setFiltros({
+      dataPartida: '',
+      timeId: ''
+    });
+    await carregarTudo();
+  };
+
+  // 3. LÓGICA DO FORMULÁRIO
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData({
@@ -198,6 +230,76 @@ const GerenciarPartidas = () => {
                     <p className="text-gray-600 text-sm font-medium mt-1">Gerencie, edite e acompanhe os confrontos agendados</p>
                 </div>
             </div>
+        </div>
+
+        {/* SEÇÃO DE FILTROS */}
+        <div className="mb-10 bg-white rounded-3xl shadow-lg p-8 border-2 border-gray-200">
+          <div className="flex items-center gap-3 mb-6">
+            <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+            <h3 className="text-xl font-bold text-black uppercase tracking-wide">Filtros de Busca</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Filtro por Data */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+                <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                Data da Partida
+              </label>
+              <input 
+                type="date" 
+                name="dataPartida" 
+                value={filtros.dataPartida} 
+                onChange={handleFiltroChange}
+                className="w-full bg-white border-2 border-gray-200 text-black rounded-xl p-3 shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all text-sm font-semibold"
+              />
+            </div>
+
+            {/* Filtro por Time */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+                <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.856-1.487M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 0a1 1 0 11-2 0 1 1 0 012 0zM5 20a6 6 0 1112 0v-2a6 6 0 00-12 0v2z"></path></svg>
+                Time
+              </label>
+              <div className="relative">
+                <select
+                  name="timeId"
+                  value={filtros.timeId}
+                  onChange={handleFiltroChange}
+                  className="w-full appearance-none bg-white border-2 border-gray-200 text-black rounded-xl p-3 pr-10 shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all cursor-pointer text-sm font-semibold"
+                >
+                  <option value="">Selecionar Time...</option>
+                  {timesCadastrados.map((time) => (
+                    <option key={time.id} value={time.id}>
+                      {time.nome}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Botões de Ação */}
+            <div className="flex gap-3 items-end lg:col-span-2">
+              <button
+                onClick={handleAplicarFiltros}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                Aplicar Filtros
+              </button>
+
+              <button
+                onClick={handleLimparFiltros}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                Limpar Filtros
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">

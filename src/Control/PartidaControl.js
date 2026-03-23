@@ -69,6 +69,16 @@ class PartidaControl {
             throw e;
         }
     }
+
+    async findPartidaByDateAndTeam(filters) {
+        const partida = new PartidaModel();
+        try {
+            return partida.findPartidaByDateAndTeam(filters, db);
+        } catch (e) {
+            console.error("Falha ao buscar partidas filtradas.", e);
+            throw e;
+        }
+    }
     
     async finalizarPartida(id, pontosTime1, pontosTime2) {
         const partida = new PartidaModel();
