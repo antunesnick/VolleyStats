@@ -1,4 +1,4 @@
-import Categoria from "../Models/Categoria.js";
+import Categoria from "../Model/Categoria.js";
 
 const CategoriaControl = {
     async cadastrarDados(dados){
