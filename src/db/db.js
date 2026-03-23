@@ -56,6 +56,32 @@ function inicializarBanco() {
                 FOREIGN KEY (time2) REFERENCES Times (id)
             );
 
+            CREATE TABLE IF NOT EXISTS Jogadores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cpf VARCHAR(12) UNIQUE,
+            nome VARCHAR(70),
+            dataNasc DATE,
+            numCamisa INTEGER,
+            rg VARCHAR(12) UNIQUE,
+            altura FLOAT,
+            posicao_id INTEGER NOT NULL,
+            foto VARCHAR(255),
+            FOREIGN KEY (posicao_id) REFERENCES Posicoes (id)
+        );
+
+        CREATE TABLE IF NOT EXISTS Posicoes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome VARCHAR(45) UNIQUE NOT NULL
+        );
+
+        INSERT OR IGNORE INTO Posicoes (nome) VALUES 
+            ('Levantador'),
+            ('Ponteiro'),
+            ('Central'),
+            ('Oposto'),
+            ('Líbero');
+
+
             -- INSERINDO DADOS MOCK PARA TESTAR AS CHAVES ESTRANGEIRAS
             -- O "INSERT OR IGNORE" com o ID fixo garante que ele só insere na primeira vez que o sistema roda
             INSERT OR IGNORE INTO Ginasios (id, nome, estado, cidade) VALUES (1, 'Ginásio de Esportes Watal Ishibashi', 'SP', 'Presidente Prudente');
@@ -74,3 +100,4 @@ function inicializarBanco() {
 inicializarBanco();
 
 module.exports = db;
+
