@@ -1,0 +1,431 @@
+import React, { useState, useEffect } from 'react';
+import logoTime from '../assets/logoTransparent.png';
+
+const CustomSelect = ({ label, icon, children, ...props }) => (
+  <div className="flex-1 min-w-[260px]">
+    <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+      {icon}
+      {label}
+    </label>
+    <div className="relative">
+      <select 
+        {...props} 
+        className="w-full appearance-none bg-white border-2 border-gray-200 text-black rounded-xl p-4 pr-10 shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all cursor-pointer text-sm font-semibold"
+      >
+        {children}
+      </select>
+      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+      </div>
+    </div>
+  </div>
+);
+
+const GerenciarPartidas = () => {
+  const [partidas, setPartidas] = useState([]);
+  
+  // Estados para carregar dados do Banco de Dados para os select
+  const [timesCadastrados, setTimesCadastrados] = useState([]);
+  const [ginasiosCadastrados, setGinasiosCadastrados] = useState([]);
+
+  // Estados de controle da UI
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFinalizarModalOpen, setIsFinalizarModalOpen] = useState(false);
+  const [editandoId, setEditandoId] = useState(null);
+  const [partidaAtiva, setPartidaAtiva] = useState(null);
+
+
+  const estadoInicialForm = { 
+    nome: '', 
+    dataPartida: '', 
+    tipo: '', 
+    externa: false, 
+    ginasio_id: '',
+    time1: '', 
+    time2: '' 
+  };
+  const [formData, setFormData] = useState(estadoInicialForm);
+  const [placar, setPlacar] = useState({ pontosTime1: '', pontosTime2: '' });
+
+  // 1. CARREGAMENTO INICIAL DE DADOS
+// 1. CARREGAMENTO INICIAL DE DADOS
+  useEffect(() => {
+    carregarTudo();
+  }, []);
+
+  const carregarTudo = async () => {
+    try {
+        const dadosPartidas = await window.api.partidas.findAll();
+        setPartidas(dadosPartidas);
+
+        // MOCK DE DADOS PARA TIMES E GINÁSIOS (Temporário para testes)
+        const mockTimes = [
+            { id: 1, nome: 'Vôlei Prudente', cidade: 'Presidente Prudente' },
+            { id: 2, nome: 'Sada Cruzeiro', cidade: 'Belo Horizonte' },
+            { id: 3, nome: 'Vôlei Renata', cidade: 'Campinas' }
+        ];
+
+        const mockGinasios = [
+            { id: 1, nome: 'Ginásio Watal Ishibashi', estado: 'SP', cidade: 'Presidente Prudente' },
+            { id: 2, nome: 'Arena Sabiá', estado: 'SP', cidade: 'Presidente Prudente' }
+        ];
+
+        // Alimenta os estados do React com os mocks
+        setTimesCadastrados(mockTimes);
+        setGinasiosCadastrados(mockGinasios);
+
+    } catch (error) {
+        console.error("Erro na integração visual:", error);
+    }
+  };
+
+  // Auxiliares para renderização
+  const getNomeTime = (id) => timesCadastrados.find(t => t.id === id)?.nome || `Time ${id}`;
+  const getNomeGinasio = (id) => ginasiosCadastrados.find(g => g.id === id)?.nome || `Ginásio ${id}`;
+
+  // 2. LÓGICA DO FORMULÁRIO
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData({
+      ...formData,
+      [name]: type === 'checkbox' ? checked : value
+    });
+  };
+
+  const handleSalvarPartida = async (e) => {
+    e.preventDefault();
+    if (formData.time1 === formData.time2) {
+        alert("O Time 1 não pode ser igual ao Time 2.");
+        return;
+    }
+
+    try {
+        if (editandoId) {
+            await window.api.partidas.update({ ...formData, id: editandoId });
+        } else {
+            await window.api.partidas.create(formData);
+        }
+        await carregarTudo();
+        fecharModal();
+    } catch (error) {
+        alert("Falha crítica ao salvar partida na base de dados.");
+    }
+  };
+
+  // 3. AÇÕES
+  const handleDeletar = async (id) => {
+    if (window.confirm("Esta ação é irreversível. Deseja realmente apagar esta partida?")) {
+        try {
+            await window.api.partidas.delete(id);
+            await carregarTudo();
+        } catch (error) {
+            alert("Erro ao comunicar com o banco de dados.");
+        }
+    }
+  };
+
+  const handleFinalizar = async (e) => {
+      e.preventDefault();
+      try {
+          await window.api.partidas.finalizar(partidaAtiva.id, placar.pontosTime1, placar.pontosTime2);
+          await carregarTudo();
+          setIsFinalizarModalOpen(false);
+      } catch (error) {
+          alert("Erro ao registrar resultado.");
+      }
+  };
+
+  // 4. CONTROLE DE MODAIS
+  const abrirModalCriar = () => {
+    setFormData(estadoInicialForm);
+    setEditandoId(null);
+    setIsModalOpen(true);
+  };
+
+  const abrirModalEditar = (partida) => {
+    setFormData({
+        ...partida,
+        time1: String(partida.time1),
+        time2: String(partida.time2),
+        ginasio_id: String(partida.ginasio_id)
+    });
+    setEditandoId(partida.id);
+    setIsModalOpen(true);
+  };
+
+  const fecharModal = () => {
+    setIsModalOpen(false);
+  };
+
+  // Renderização
+  return (
+    <div className="min-h-screen bg-gray-100 text-neutral-900 font-sans">
+      
+      <header className="bg-black text-white shadow-xl sticky top-0 z-40 border-b-2 border-neutral-800">
+        <div className="w-full max-w-[2200px] mx-auto p-4 md:p-6 flex justify-between items-center responsividade-header gap-6">
+          <div className="flex items-center gap-5">
+            <div className="w-16 h-16 flex items-center justify-center">
+                <img src={logoTime} alt="Logo Vôlei Prudente" className="w-full h-full object-contain drop-shadow-lg" />
+            </div>
+            <div>
+                <h1 className="text-3xl font-black tracking-tighter uppercase flex items-center gap-2">
+                    <span className="text-red-600">Volley</span>Stats
+                </h1>
+                <p className="text-gray-400 text-sm font-medium -mt-1 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 block shadow-lg"></span> 
+                    Temporada 2026
+                </p>
+            </div>
+          </div>
+
+          <button 
+            onClick={abrirModalCriar} 
+            className="bg-red-600 hover:bg-red-700 text-white font-extrabold py-3 px-6 rounded-2xl shadow-lg transition-all transform hover:scale-105 flex items-center gap-2.5 active:scale-95 text-base"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
+            NOVA PARTIDA
+          </button>
+        </div>
+      </header>
+
+      <main className="w-full max-w-[2200px] mx-auto p-6 md:p-12">
+        
+        <div className="mb-12 pb-5 border-b-4 border-neutral-900 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+                <div className="w-2.5 h-12 bg-red-600 rounded-full shadow-lg"></div>
+                <div>
+                    <h2 className="text-4xl font-black text-black tracking-tighter uppercase">Cronograma de Jogos</h2>
+                    <p className="text-gray-600 text-sm font-medium mt-1">Gerencie, edite e acompanhe os confrontos agendados</p>
+                </div>
+            </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
+          {partidas.map((partida) => (
+            // APLICANDO DETALHE EM AMARELO NO CARD ATIVO
+            <div key={partida.id} className={`bg-white rounded-3xl shadow-lg border-2 ${partida.status === 'AGENDADA' ? 'border-yellow-400' : 'border-gray-200'} overflow-hidden hover:shadow-2xl transition-all group flex flex-col transform hover:-translate-y-2`}>
+              
+              <div className={`px-7 py-4 flex justify-between items-center ${partida.status === 'FINALIZADA' ? 'bg-neutral-800' : 'bg-black'} text-white`}>
+                <span className={`text-xs font-bold uppercase tracking-widest ${partida.status === 'FINALIZADA' ? 'text-gray-400' : 'text-red-500'} bg-red-950/30 px-3 py-1.5 rounded-full`}>{partida.tipo}</span>
+                <span className={`text-xs font-semibold ${partida.status === 'FINALIZADA' ? 'text-gray-300' : 'text-yellow-400'} flex items-center gap-2`}>
+                    <div className={`w-2 h-2 rounded-full ${partida.status === 'FINALIZADA' ? 'bg-gray-500' : 'bg-yellow-400 animate-pulse'}`}></div>
+                    {partida.status}
+                </span>
+              </div>
+
+              <div className="p-8 flex-grow flex flex-col">
+                <div className="flex justify-between items-baseline mb-3">
+                    <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">{partida.dataPartida}</p>
+                    <span className="text-xs text-gray-400">ID: {partida.id}</span>
+                </div>
+                <h3 className="text-3xl font-black text-black mb-7 leading-tight group-hover:text-red-600 transition-colors">{partida.nome}</h3>
+                
+                <div className="flex items-center gap-6 bg-neutral-900 p-6 rounded-2xl border-2 border-neutral-800 mb-7 shadow-lg flex-1">
+                    <div className="flex-1 text-center font-bold text-xl text-white truncate px-1">{getNomeTime(partida.time1)}</div>
+                    <div className="text-3xl font-black text-red-500 flex items-center gap-1.5">
+                        <span className="w-1 h-5 bg-yellow-400 rounded-full"></span>
+                        VS
+                        <span className="w-1 h-5 bg-yellow-400 rounded-full"></span>
+                    </div>
+                    <div className="flex-1 text-center font-bold text-xl text-white truncate px-1">{getNomeTime(partida.time2)}</div>
+                </div>
+
+                {partida.status === 'FINALIZADA' && (
+                    <div className="bg-black p-5 rounded-xl text-center mb-7 border-2 border-red-800 shadow-xl">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Placar Final</p>
+                        <p className="text-5xl font-black text-white tracking-tighter">{partida.pontosTime1} <span className="text-red-500">x</span> {partida.pontosTime2}</p>
+                    </div>
+                )}
+
+                <div className="flex items-center text-gray-700 text-sm mb-7 gap-2.5 mt-auto border-t pt-5 border-gray-100">
+                    <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    <span className="truncate font-medium">{getNomeGinasio(partida.ginasio_id)}</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mt-2 border-t pt-6 border-gray-100">
+                  {partida.status !== 'FINALIZADA' && (
+                      <button onClick={() => abrirModalEditar(partida)} className="col-span-2 bg-black hover:bg-neutral-800 text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 border-2 border-neutral-800 hover:border-yellow-400 transition-colors">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                          Editar Confronto
+                      </button>
+                  )}
+                   <button onClick={() => handleDeletar(partida.id)} className="bg-gray-100 hover:bg-red-100 text-gray-700 hover:text-red-700 font-semibold py-3.5 rounded-xl text-sm transition-colors flex-1">
+                    Apagar
+                  </button>
+                  <button className="bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all transform hover:scale-105 active:scale-95 flex-1 hover:shadow-lg">
+                    Iniciar Controle
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {/* Renderização Vazia */}
+        {partidas.length === 0 && (
+            <div className="col-span-full text-center py-24 text-gray-400 bg-white rounded-3xl border-2 border-dashed border-gray-300 shadow-sm">
+                <svg className="w-16 h-16 mx-auto mb-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                <p className="text-xl font-bold">Nenhuma partida cadastrada atualmente.</p>
+                <p className="mt-2">Clique em "NOVA PARTIDA" para começar o cronograma.</p>
+            </div>
+        )}
+      </main>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4 md:p-10 animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl transform animate-scale-in my-auto">
+            
+            <div className="bg-black px-8 py-5 flex justify-between items-center border-b-4 border-red-600 shadow-lg">
+              <h2 className="text-2xl font-black text-white tracking-wide uppercase">{editandoId ? 'Atualizar Confronto' : 'Cadastrar Confronto Temporada'}</h2>
+              <button onClick={fecharModal} className="text-gray-400 hover:text-red-500 transition-colors text-3xl font-light p-2">✕</button>
+            </div>
+
+            <form onSubmit={handleSalvarPartida} className="p-8 md:p-10 space-y-8">
+              
+              <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Identificação da Partida (Nome/Descrição)
+                  </label>
+                  <input type="text" name="nome" value={formData.nome} onChange={handleInputChange} required placeholder="Ex: Semifinal - Jogo 1 ou Amistoso de Verão" className="w-full bg-white border-2 border-gray-200 text-black rounded-xl p-4 shadow-inner focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm font-semibold transition-all" />
+              </div>
+
+              <div className="flex flex-wrap gap-6 border-2 border-dashed border-gray-200 p-6 rounded-2xl bg-gray-50 shadow-inner">
+                <CustomSelect 
+                    label="Time 1 (Mandante/Principal)" 
+                    name="time1" 
+                    value={formData.time1} 
+                    onChange={handleInputChange} 
+                    required 
+                    icon={<svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 01-2 2zm9-13.5V9"></path></svg>}
+                >
+                    <option value="">Selecione o Time 1...</option>
+                    {timesCadastrados.map(time => (
+                        <option key={time.id} value={time.id}>{time.nome} ({time.cidade})</option>
+                    ))}
+                </CustomSelect>
+
+                <div className="text-3xl font-black text-red-600 self-end pb-3 flex items-center gap-1.5 responsividade-vs-modal">
+                    <span className="w-1.5 h-6 bg-yellow-400 rounded-full"></span>
+                    VS
+                    <span className="w-1.5 h-6 bg-yellow-400 rounded-full"></span>
+                </div>
+
+                <CustomSelect 
+                    label="Time 2 (Visitante/Adversário)" 
+                    name="time2" 
+                    value={formData.time2} 
+                    onChange={handleInputChange} 
+                    required
+                    icon={<svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 01-2 2zm9-13.5V9"></path></svg>}
+                >
+                    <option value="">Selecione o Time 2...</option>
+                    {timesCadastrados.map(time => (
+                        <option key={time.id} value={time.id}>{time.nome} ({time.cidade})</option>
+                    ))}
+                </CustomSelect>
+              </div>
+
+              <div className="flex flex-wrap gap-6">
+                <div className="flex-1 min-w-[200px]">
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        Data do Confronto *
+                    </label>
+                    <input type="date" name="dataPartida" value={formData.dataPartida} onChange={handleInputChange} required className="w-full bg-white border-2 border-gray-200 text-black rounded-xl p-4 shadow-inner focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm font-semibold transition-all" />
+                </div>
+
+                <CustomSelect 
+                    label="Tipo de Competição (ERS)" 
+                    name="tipo" 
+                    value={formData.tipo} 
+                    onChange={handleInputChange} 
+                    required
+                    icon={<svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>}
+                >
+                    <option value="">Selecione a fase...</option>
+                    <option value="Fase de Grupos">Fase de Grupos / Classificatória</option>
+                    <option value="Oitavas de Final">Oitavas de Final</option>
+                    <option value="Quartas de Final">Quartas de Final</option>
+                    <option value="Semifinal">Semifinal</option>
+                    <option value="Final">Grande Final</option>
+                    <option value="Amistoso">Amistoso / Treino</option>
+                </CustomSelect>
+
+                <CustomSelect 
+                    label="Local (Ginásio Mandante)" 
+                    name="ginasio_id" 
+                    value={formData.ginasio_id} 
+                    onChange={handleInputChange} 
+                    required
+                    icon={<svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>}
+                >
+                    <option value="">Selecione o Ginásio...</option>
+                    {ginasiosCadastrados.map(gin => (
+                        <option key={gin.id} value={gin.id}>{gin.nome} ({gin.cidade}/{gin.estado})</option>
+                    ))}
+                </CustomSelect>
+              </div>
+
+              <div className="flex items-center gap-4 bg-red-50 border-2 border-dashed border-red-100 p-5 rounded-2xl shadow-inner">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="externa" checked={formData.externa} onChange={handleInputChange} className="sr-only peer" />
+                        <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-red-600 shadow-inner"></div>
+                    </label>
+                    <div>
+                        <h4 className="font-extrabold text-black text-sm uppercase tracking-wider flex items-center gap-2">
+                            <span className="w-1.5 h-4 bg-yellow-400 rounded-full block shadow"></span>
+                            Partida Externa
+                        </h4>
+                        <p className="text-xs text-gray-600 font-medium">Ative se esta partida ocorrer fora dos domínios do Vôlei Prudente (Registrar resultado de terceiros).</p>
+                    </div>
+              </div>
+
+              <div className="mt-12 flex justify-end gap-4 pt-7 border-t-2 border-gray-100 responsividade-footer-modal">
+                <button type="button" onClick={fecharModal} className="px-8 py-3.5 font-extrabold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-base flex-1 md:flex-none border border-gray-200 hover:border-gray-300">
+                  cancelar
+                </button>
+                <button type="submit" className="px-10 py-3.5 font-black text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 text-base flex-1 md:flex-none">
+                  {editandoId ? 'SALVAR ALTERAÇÕES' : 'CONFIRMAR CADASTRO'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isFinalizarModalOpen && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+              <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-in border-4 border-black">
+                  <div className="bg-green-600 px-6 py-4 border-b-4 border-green-800 shadow-lg">
+                      <h2 className="text-xl font-black text-white tracking-wide uppercase text-center">Registrar Placar Final</h2>
+                  </div>
+                  <form onSubmit={handleFinalizar} className="p-8 space-y-9">
+                      <div className="flex justify-between items-center gap-5">
+                          <div className="text-center flex-1">
+                              <label className="block text-xs font-bold text-gray-700 uppercase mb-3 truncate">{getNomeTime(partidaAtiva?.time1)}</label>
+                              <input type="number" min="0" required value={placar.pontosTime1} onChange={(e) => setPlacar({...placar, pontosTime1: e.target.value})} className="w-full text-center text-5xl font-black bg-white border-2 border-gray-300 rounded-2xl p-4 shadow-inner focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all" />
+                          </div>
+                          <span className="text-3xl font-black text-gray-300 self-end pb-5 flex items-center gap-1">
+                            <span className="w-1 h-6 bg-yellow-400 rounded-full block animation-pulse"></span>
+                            X
+                            <span className="w-1 h-6 bg-yellow-400 rounded-full block animation-pulse"></span>
+                          </span>
+                          <div className="text-center flex-1">
+                              <label className="block text-xs font-bold text-gray-700 uppercase mb-3 truncate">{getNomeTime(partidaAtiva?.time2)}</label>
+                              <input type="number" min="0" required value={placar.pontosTime2} onChange={(e) => setPlacar({...placar, pontosTime2: e.target.value})} className="w-full text-center text-5xl font-black bg-white border-2 border-gray-300 rounded-2xl p-4 shadow-inner focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all" />
+                          </div>
+                      </div>
+                      <div className="flex justify-end gap-3.5 pt-6 border-t border-gray-100">
+                          <button type="button" onClick={() => setIsFinalizarModalOpen(false)} className="px-5 py-3.5 font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg w-full transition-colors">Cancelar</button>
+                          <button type="submit" className="px-5 py-3.5 font-black text-white bg-green-600 hover:bg-green-700 rounded-lg w-full transition-all shadow-lg transform hover:scale-105 active:scale-95">Confirmar Resultado</button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      )}
+    </div>
+  );
+};
+
+export default GerenciarPartidas;

@@ -1,10 +1,10 @@
 import React from 'react';
+import GerenciarPartidas from '../Partida/GerenciarPartidas'; // Ajuste o caminho se necessário
 
 const Home = () => {
   return (
     <div>
-      <h1>Olá, React no Electron! 🚀</h1>
-      <p>O VolleyStats está ganhando forma.</p>
+      <GerenciarPartidas />
     </div>
   );
 };
