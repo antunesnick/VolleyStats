@@ -11,10 +11,18 @@ try {
     db.exec(`
         CREATE TABLE IF NOT EXISTS Categorias(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome VARCHAR(80) NOT NULL,
+            nome VARCHAR(80) UNIQUE NOT NULL, -- 👇 Adicionado UNIQUE para evitar duplicatas
             idadeMin INTEGER NOT NULL,
             idadeMax INTEGER NOT NULL
         );
+
+        -- 👇 INSERINDO AS CATEGORIAS DUMMY 👇
+        INSERT OR IGNORE INTO Categorias (nome, idadeMin, idadeMax) VALUES 
+            ('Sub-15', 13, 15),
+            ('Sub-17', 16, 17),
+            ('Sub-19', 18, 19),
+            ('Sub-21', 20, 21),
+            ('Adulto', 22, 99);
 
         CREATE TABLE IF NOT EXISTS Times(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,6 +59,7 @@ try {
             FOREIGN KEY (time1) REFERENCES Times (id),
             FOREIGN KEY (time2) REFERENCES Times(id)
         );
+
         CREATE TABLE IF NOT EXISTS Posicoes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome VARCHAR(45) UNIQUE NOT NULL
@@ -65,11 +74,11 @@ try {
 
         CREATE TABLE IF NOT EXISTS Jogadores (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            cpf VARCHAR(12) UNIQUE,
+            cpf VARCHAR(14) UNIQUE, -- Aumentei para 14 caso salve com a máscara (000.000.000-00)
             nome VARCHAR(70),
             dataNasc DATE,
             numCamisa INTEGER,
-            rg VARCHAR(12) UNIQUE,
+            rg VARCHAR(14) UNIQUE,
             altura FLOAT,
             posicao_id INTEGER NOT NULL,
             foto VARCHAR(255),

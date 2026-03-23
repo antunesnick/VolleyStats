@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import * as Style from "./PlayerRegStyle"; 
 import PositionControl from "../../Control/PositionControl";
+// 1. IMPORTANDO O CONTROL DAS CATEGORIAS (Verifique se o caminho da pasta está correto)
+import CategoriaControl from "../../Control/CategoriaControl"; 
 
-export function PlayerRegView({ open, onClose, onSave, player, categories = [] }) {
+export function PlayerRegView({ open, onClose, onSave, player }) {
   const [formData, setFormData] = useState(
     player || {
       nome: "",
@@ -11,19 +13,31 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
       cpf: "",
       rg: "",
       posicaoId: "",
+      categoria_id: "", // Ajustado para ser consistente com IDs
       dataNasc: "",
       foto: "", 
     }
   );
 
   const [positions, setPositions] = useState([]);
+  // 2. ESTADO PARA GUARDAR AS CATEGORIAS
+  const [categories, setCategories] = useState([]); 
 
   useEffect(() => {
     if (open) {
+      // Busca as Posições
       const positionControl = new PositionControl();
       positionControl.findAllPositions().then((data) => {
         setPositions(data);
       });
+
+      // 3. BUSCA AS CATEGORIAS
+      // Como o CategoriaControl é um objeto e não uma classe, não usamos 'new'
+      CategoriaControl.listarCategorias()
+        .then((data) => {
+          setCategories(data);
+        })
+        .catch((error) => console.error("Erro ao carregar categorias:", error));
     }
   }, [open]);
 
@@ -36,20 +50,20 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
   const maskCPF = (value) => {
     return value
       .replace(/\D/g, "") 
-      .slice(0, 11) // Limita a 11 números
-      .replace(/(\d{3})(\d)/, "$1.$2") // Coloca o primeiro ponto
-      .replace(/(\d{3})(\d)/, "$1.$2") // Coloca o segundo ponto
-      .replace(/(\d{3})(\d{1,2})$/, "$1-$2"); // Coloca o traço
+      .slice(0, 11) 
+      .replace(/(\d{3})(\d)/, "$1.$2") 
+      .replace(/(\d{3})(\d)/, "$1.$2") 
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2"); 
   };
 
   const maskRG = (value) => {
     return value
-      .replace(/[^a-zA-Z0-9]/g, "") // Permite números e letras (para o "X")
+      .replace(/[^a-zA-Z0-9]/g, "") 
       .toUpperCase()
-      .slice(0, 9) // Limita a 9 caracteres (Padrão mais comum)
-      .replace(/^(\d{2})(\d)/, "$1.$2") // Coloca o primeiro ponto
-      .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3") // Coloca o segundo ponto
-      .replace(/\.(\d{3})([a-zA-Z0-9]+)$/, ".$1-$2"); // Coloca o traço
+      .slice(0, 9) 
+      .replace(/^(\d{2})(\d)/, "$1.$2") 
+      .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3") 
+      .replace(/\.(\d{3})([a-zA-Z0-9]+)$/, ".$1-$2"); 
   };
 
   const handleSubmit = (e) => {
@@ -97,14 +111,15 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
           <Style.Row>
             <Style.InputGroup>
               <Style.Label>Categoria</Style.Label>
+              {/* 4. ATUALIZANDO O SELECT PARA USAR OS DADOS DO BANCO */}
               <Style.Select
-                value={formData.category} // Se categoria for pra DB depois, mude para formData.categoria
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                value={formData.categoria_id} 
+                onChange={(e) => setFormData({ ...formData, categoria_id: e.target.value })}
               >
                 <option value="">Selecione...</option>
                 {categories.map((cat) => (
-                  <option key={cat.id || cat.name} value={cat.name}>
-                    {cat.name}
+                  <option key={cat.id} value={cat.id}>
+                    {cat.nome}
                   </option>
                 ))}
               </Style.Select>
@@ -127,6 +142,8 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
             </Style.InputGroup>
           </Style.Row>
 
+          {/* ... resto do seu código de Altura, Nascimento, CPF, RG e Foto continua perfeitamente igual ... */}
+          
           <Style.Row>
             <Style.InputGroup>
               <Style.Label>Altura (m)</Style.Label>
@@ -174,8 +191,6 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
           <Style.Row>
             <Style.InputGroup style={{ gridColumn: "span 2" }}>
               <Style.Label>Foto do Jogador</Style.Label>
-              
-              {}
               {formData.foto && (
                 <img 
                   src={formData.foto} 
@@ -183,8 +198,6 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
                   style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', marginBottom: '10px', border: '1px solid #ccc' }} 
                 />
               )}
-              
-              {}
               <Style.Input
                 type="file"
                 accept="image/*"
