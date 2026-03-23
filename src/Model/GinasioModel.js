@@ -25,10 +25,41 @@ class GinasioModel {
 		return null;
 	}
 
+	validarNomeCidadeDuplicados(idAtual = null) {
+		const nomeNormalizado = String(this.nome).trim();
+		const cidadeNormalizada = String(this.cidade).trim();
+
+		let sql;
+		let existente;
+
+		if (idAtual !== null && idAtual !== undefined) {
+			sql = db.prepare(
+				"SELECT id FROM Ginasios WHERE lower(nome) = lower(?) AND lower(cidade) = lower(?) AND id <> ? LIMIT 1"
+			);
+			existente = sql.get(nomeNormalizado, cidadeNormalizada, idAtual);
+		} else {
+			sql = db.prepare(
+				"SELECT id FROM Ginasios WHERE lower(nome) = lower(?) AND lower(cidade) = lower(?) LIMIT 1"
+			);
+			existente = sql.get(nomeNormalizado, cidadeNormalizada);
+		}
+
+		if (existente) {
+			return "Ja existe um ginasio com esse nome nesta cidade.";
+		}
+
+		return null;
+	}
+
 	async criarGinasio() {
 		const erroValidacao = this.validarCamposObrigatorios();
 		if (erroValidacao) {
 			throw new Error(erroValidacao);
+		}
+
+		const erroDuplicado = this.validarNomeCidadeDuplicados();
+		if (erroDuplicado) {
+			throw new Error(erroDuplicado);
 		}
 
 		try {
@@ -60,6 +91,11 @@ class GinasioModel {
 		const erroValidacao = this.validarCamposObrigatorios();
 		if (erroValidacao) {
 			throw new Error(erroValidacao);
+		}
+
+		const erroDuplicado = this.validarNomeCidadeDuplicados(id);
+		if (erroDuplicado) {
+			throw new Error(erroDuplicado);
 		}
 
 		try {
