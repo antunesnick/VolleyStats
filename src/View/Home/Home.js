@@ -78,6 +78,7 @@ const Home = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState(DEFAULT_FORM);
+  const [scheduleFilterName, setScheduleFilterName] = useState('');
 
   const showToast = (type, text) => {
     showToastMessage(setToasts, type, text);
@@ -107,6 +108,20 @@ const Home = () => {
   const ongoingTournaments = decoratedTournaments.filter((item) => item.status === 'ongoing');
   const upcomingTournaments = decoratedTournaments.filter((item) => item.status === 'upcoming');
   const finishedTournaments = decoratedTournaments.filter((item) => item.status === 'finished');
+  const scheduleTournaments = useMemo(() => {
+    const source = [...upcomingTournaments, ...finishedTournaments];
+    const normalizedName = scheduleFilterName.trim().toLowerCase();
+
+    return source.filter((item) => {
+      const matchName =
+        normalizedName.length === 0 ||
+        String(item.name || '')
+          .toLowerCase()
+          .includes(normalizedName);
+
+      return matchName;
+    });
+  }, [finishedTournaments, scheduleFilterName, upcomingTournaments]);
 
   const selectedTournament = tournaments.find((item) => item.id === selectedTournamentId) || null;
 
@@ -364,40 +379,56 @@ const Home = () => {
               <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tighter italic">Schedule</h2>
               <div className="h-px w-24 bg-[#DC2626] opacity-30 mt-2" />
             </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xl">
+              <input
+                type="text"
+                value={scheduleFilterName}
+                onChange={(event) => setScheduleFilterName(event.target.value)}
+                placeholder="Filtrar por nome"
+                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-red-500"
+              />
+            </div>
           </div>
 
           {isLoading ? (
             <div className="bg-white rounded-2xl border border-gray-100 p-6 text-gray-500 font-semibold">Carregando agenda...</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[...upcomingTournaments, ...finishedTournaments].map((tournament) => (
-                <article
-                  key={tournament.id}
-                  onClick={() => openTournamentDetail(tournament.id)}
-                  className={`group relative bg-white border-2 rounded-2xl p-6 transition-all hover:shadow-lg ${
-                    tournament.status === 'finished' ? 'border-gray-100 opacity-60 grayscale' : 'border-[#DC2626]/30 hover:border-[#DC2626]'
-                  } cursor-pointer`}
-                >
-                  <div className="flex justify-between items-center mb-4">
-                    <span
-                      className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${
-                        tournament.status === 'finished' ? 'bg-gray-100 text-gray-400' : 'bg-red-50 text-red-600'
-                      }`}
-                    >
-                      {tournament.status}
-                    </span>
-                    <span className="text-[11px] font-black text-gray-400">{tournament.year}</span>
-                  </div>
+              {scheduleTournaments.length > 0 ? (
+                scheduleTournaments.map((tournament) => (
+                  <article
+                    key={tournament.id}
+                    onClick={() => openTournamentDetail(tournament.id)}
+                    className={`group relative bg-white border-2 rounded-2xl p-6 transition-all hover:shadow-lg ${
+                      tournament.status === 'finished' ? 'border-gray-100 opacity-60 grayscale' : 'border-[#DC2626]/30 hover:border-[#DC2626]'
+                    } cursor-pointer`}
+                  >
+                    <div className="flex justify-between items-center mb-4">
+                      <span
+                        className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${
+                          tournament.status === 'finished' ? 'bg-gray-100 text-gray-400' : 'bg-red-50 text-red-600'
+                        }`}
+                      >
+                        {tournament.status}
+                      </span>
+                      <span className="text-[11px] font-black text-gray-400">{tournament.year}</span>
+                    </div>
 
-                  <h4 className="text-xl font-black text-gray-900 uppercase tracking-tighter mb-4 group-hover:text-[#DC2626] transition-colors">
-                    {tournament.name}
-                  </h4>
+                    <h4 className="text-xl font-black text-gray-900 uppercase tracking-tighter mb-4 group-hover:text-[#DC2626] transition-colors">
+                      {tournament.name}
+                    </h4>
 
-                  <div className="flex items-center justify-between mt-auto">
-                    <div className="flex items-center gap-2 text-[11px] font-bold text-gray-400">{tournament.date}</div>
-                  </div>
-                </article>
-              ))}
+                    <div className="flex items-center justify-between mt-auto">
+                      <div className="flex items-center gap-2 text-[11px] font-bold text-gray-400">{tournament.date}</div>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <div className="col-span-full py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400">
+                  <p className="font-black uppercase tracking-widest text-[12px]">Nenhum torneio encontrado</p>
+                </div>
+              )}
             </div>
           )}
         </section>
