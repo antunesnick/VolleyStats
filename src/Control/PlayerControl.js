@@ -102,10 +102,11 @@ class PlayerControl {
         }
     }
 
-    async findPlayerFiltered(filter) {
-          const playerInstance = new Player(); 
+    async findPlayerFiltered(filtro) {
+        const playerInstance = new Player(); 
         try {
-            return playerInstance.findPlayerFiltered(filter, db);
+            // Repassa o objeto {nome, posicaoId} para a Model
+            return playerInstance.findPlayerFiltered(filtro, db);
         } catch (e) {
             throw e;
         }

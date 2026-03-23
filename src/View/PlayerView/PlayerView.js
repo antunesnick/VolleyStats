@@ -1,23 +1,37 @@
 import React, { useState, useEffect } from "react";
-import { Settings, Trash2, Pencil, ChevronRight, Plus } from "lucide-react";
+import { Settings, Trash2, Pencil, ChevronRight, Plus, Search } from "lucide-react";
 import * as Style from "./PleayerStyles"; 
 import PlayerControl from "../../Control/PlayerControl";
+import PositionControl from "../../Control/PositionControl"; 
 import { PlayerRegView } from "../PlayerRegister/PlayerRegView";
 
 export function PlayerView() {
   const [players, setPlayers] = useState([]); 
   const [isEditing, setIsEditing] = useState(false);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
 
+  // Estados dos filtros
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedPosition, setSelectedPosition] = useState("");
+  const [positions, setPositions] = useState([]);
+
+  // Carrega as posições no Select ao abrir
   useEffect(() => {
-    fetchPlayers();
+    const positionControl = new PositionControl();
+    positionControl.findAllPositions().then((data) => setPositions(data));
   }, []);
 
-  function fetchPlayers() {
+  // Busca inicial e também quando o filtro muda
+  useEffect(() => {
+    fetchPlayers(searchTerm, selectedPosition);
+  }, [searchTerm, selectedPosition]); 
+
+  // Função com os filtros
+  function fetchPlayers(nome = "", posicaoId = "") {
     const playerControl = new PlayerControl();
-    playerControl.findAllPlayers().then((data) => {
+    
+    playerControl.findPlayerFiltered({ nome, posicaoId }).then((data) => {
       const formattedPlayers = data.map((p) => ({
         id: p.id,
         nome: p.nome, 
@@ -35,10 +49,12 @@ export function PlayerView() {
   }
 
   const deletePlayer = (id) => {
-    const playerControl = new PlayerControl();
-    playerControl.deletePlayer(id).then(() => {
-      fetchPlayers(); 
-    });
+    if (window.confirm("Tem certeza que deseja excluir este jogador?")) {
+      const playerControl = new PlayerControl();
+      playerControl.deletePlayer(id).then(() => {
+        fetchPlayers(searchTerm, selectedPosition); 
+      });
+    }
   };
 
   const handleAdd = () => {
@@ -56,11 +72,11 @@ export function PlayerView() {
 
     if (formData.id) {
       playerControl.updatePlayer(formData).then(() => {
-        fetchPlayers(); 
+        fetchPlayers(searchTerm, selectedPosition); 
       });
     } else {
       playerControl.createPlayer(formData).then(() => {
-        fetchPlayers(); 
+        fetchPlayers(searchTerm, selectedPosition); 
       });
     }
     setIsModalOpen(false); 
@@ -87,40 +103,72 @@ export function PlayerView() {
           </Style.TitleGroup>
         </Style.SectionHeader>
 
+        {/* BARRA DE FILTROS AQUI */}
+        <div style={{ display: 'flex', gap: '15px', marginBottom: '25px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#fff', borderRadius: '8px', padding: '10px 15px', flex: 1, border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+            <Search size={18} color="#94a3b8" />
+            <input 
+              type="text" 
+              placeholder="Buscar jogador por nome..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ border: 'none', outline: 'none', marginLeft: '10px', width: '100%', fontSize: '15px', color: '#334155' }}
+            />
+          </div>
+          
+          <select 
+            value={selectedPosition}
+            onChange={(e) => setSelectedPosition(e.target.value)}
+            style={{ padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#fff', outline: 'none', cursor: 'pointer', fontSize: '15px', color: '#334155', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', minWidth: '200px' }}
+          >
+            <option value="">Todas as Posições</option>
+            {positions.map(pos => (
+              <option key={pos.id} value={pos.id}>{pos.nome}</option>
+            ))}
+          </select>
+        </div>
+
         <Style.Grid>
-          {players.map((p) => (
-            <Style.PlayerCard key={p.id}>
-              <Style.ImageWrapper>
-                <Style.PlayerImage src={p.foto} alt={p.nome} />
+          {players.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#64748b' }}>
+              Nenhum jogador encontrado com esses filtros.
+            </div>
+          ) : (
+            players.map((p) => (
+              <Style.PlayerCard key={p.id}>
+                <Style.ImageWrapper>
+                  <Style.PlayerImage src={p.foto} alt={p.nome} />
 
-                <Style.Overlay>
-                  <Style.OverlayText>
-                    <span>Stats</span>
-                    <ChevronRight size={14} />
-                  </Style.OverlayText>
-                </Style.Overlay>
+                  <Style.Overlay>
+                    <Style.OverlayText>
+                      <span>Stats</span>
+                      <ChevronRight size={14} />
+                    </Style.OverlayText>
+                  </Style.Overlay>
 
-                {isEditing && (
-                  <Style.ActionButtons onClick={(e) => e.stopPropagation()}>
-                    <Style.IconButton
-                      $variant="danger"
-                      onClick={() => deletePlayer(p.id)}
-                    >
-                      <Trash2 size={16} />
-                    </Style.IconButton>
-                    <Style.IconButton onClick={() => handleEdit(p)}>
-                      <Pencil size={16} />
-                    </Style.IconButton>
-                  </Style.ActionButtons>
-                )}
-              </Style.ImageWrapper>
+                  {isEditing && (
+                    <Style.ActionButtons onClick={(e) => e.stopPropagation()}>
+                      <Style.IconButton
+                        $variant="danger"
+                        onClick={() => deletePlayer(p.id)}
+                      >
+                        <Trash2 size={16} />
+                      </Style.IconButton>
+                      <Style.IconButton onClick={() => handleEdit(p)}>
+                        <Pencil size={16} />
+                      </Style.IconButton>
+                    </Style.ActionButtons>
+                  )}
+                </Style.ImageWrapper>
 
-              <Style.PlayerInfo>
-                <Style.PlayerNumber>#{p.numCamisa}</Style.PlayerNumber>
-                <Style.PlayerName>{p.nome}</Style.PlayerName>
-              </Style.PlayerInfo>
-            </Style.PlayerCard>
-          ))}
+                <Style.PlayerInfo>
+                  <Style.PlayerNumber>#{p.numCamisa}</Style.PlayerNumber>
+                  <Style.PlayerName>{p.nome}</Style.PlayerName>
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>{p.posicaoNome}</span>
+                </Style.PlayerInfo>
+              </Style.PlayerCard>
+            ))
+          )}
 
           {isEditing && (
             <Style.AddPlayerBtn onClick={handleAdd}>
@@ -131,13 +179,11 @@ export function PlayerView() {
         </Style.Grid>
       </Style.Section>
 
-      {}
       <PlayerRegView 
         open={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         onSave={handleSavePlayer} 
         player={selectedPlayer}
-        categories={[]} 
       />
 
     </Style.Container>
