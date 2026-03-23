@@ -55,18 +55,21 @@ function inicializarBanco() {
                 FOREIGN KEY (time2) REFERENCES Times (id)
             );
 
-            CREATE TABLE IF NOT EXISTS Jogadores (
+           CREATE TABLE IF NOT EXISTS Jogadores (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            cpf VARCHAR(12) UNIQUE,
+            cpf VARCHAR(14) UNIQUE, 
             nome VARCHAR(70),
             dataNasc DATE,
             numCamisa INTEGER,
-            rg VARCHAR(12) UNIQUE,
+            rg VARCHAR(14) UNIQUE, 
             altura FLOAT,
             posicao_id INTEGER NOT NULL,
+            categoria_id INTEGER,  
             foto VARCHAR(255),
-            FOREIGN KEY (posicao_id) REFERENCES Posicoes (id)
+            FOREIGN KEY (posicao_id) REFERENCES Posicoes (id),
+            FOREIGN KEY (categoria_id) REFERENCES Categorias (id)
         );
+🧹 Aviso Impo
 
         CREATE TABLE IF NOT EXISTS Posicoes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
