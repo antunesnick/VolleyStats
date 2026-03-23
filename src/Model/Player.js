@@ -13,12 +13,10 @@ class Player {
     this.foto = foto;
   }
 
-    #validarCPF(cpfString) {
+  #validarCPF(cpfString) {
     if (!cpfString) return false;
     return cpf.isValid(cpfString); 
   }
-
-   
 
   insertPlayer(db) {
     if (!this.#validarCPF(this.cpf)) {
@@ -43,9 +41,9 @@ class Player {
   }
 
   updatePlayer(db) {
-        if (!this.#validarCPF(this.cpf)) {
-            throw new Error("CPF inválido. Por favor, insira um CPF válido.");
-        }
+    if (!this.#validarCPF(this.cpf)) {
+      throw new Error("CPF inválido. Por favor, insira um CPF válido.");
+    }
     try {
       const sql = db.prepare('UPDATE Jogadores SET cpf = ?, nome = ?, dataNasc = ?, numCamisa = ?, rg = ?, altura = ?, posicao_id = ?, foto = ? WHERE id = ?');
       sql.run(this.cpf, this.nome, this.dataNasc, this.numCamisa, this.rg, this.altura, this.posicaoId, this.foto, this.id);
@@ -54,19 +52,41 @@ class Player {
     }
   }
 
-    findAllPlayers(db) {
+  findAllPlayers(db) {
     try {
-      const sql = db.prepare('SELECT * FROM Jogadores');
+      // 👇 Alterado para ordenar pelo número da camisa
+      const sql = db.prepare('SELECT * FROM Jogadores ORDER BY numCamisa ASC');
       return sql.all();
     } catch (e) {
       throw e;
     }
   }
 
-    findPlayerFiltered(filter, db) {
+  findPlayerFiltered(filtro, db) {
     try {
-      const sql = db.prepare('SELECT * FROM Jogadores WHERE nome LIKE ?');
-      return sql.all(`%${filter}%`);
+      let sqlQuery = `
+        SELECT j.*, p.nome as posicao 
+        FROM Jogadores j 
+        LEFT JOIN Posicoes p ON j.posicao_id = p.id 
+        WHERE 1=1
+      `;
+      const params = [];
+
+      if (filtro.nome) {
+        sqlQuery += ` AND j.nome LIKE ?`;
+        params.push(`%${filtro.nome}%`);
+      }
+
+      if (filtro.posicaoId) {
+        sqlQuery += ` AND j.posicao_id = ?`;
+        params.push(filtro.posicaoId);
+      }
+
+      // 👇 Alterado para ordenar pelo número da camisa
+      sqlQuery += ` ORDER BY j.numCamisa ASC`;
+
+      const sql = db.prepare(sqlQuery);
+      return sql.all(...params);
     } catch (e) {
       throw e;
     }       
