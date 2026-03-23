@@ -1,8 +1,5 @@
-// See the Electron documentation for details on how to use preload scripts:
-
-import { contextBridge, ipcRenderer } from "electron";
-
-// https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
+// USE REQUIRE, NÃO IMPORT!
+const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("ElectronAPI", {
     salvarCategoria: (dados) => ipcRenderer.invoke('salvar-categoria', dados),
@@ -10,11 +7,11 @@ contextBridge.exposeInMainWorld("ElectronAPI", {
     editarCategoria: (id, dados) => ipcRenderer.invoke('editar-categoria', id, dados),
     excluirCategoria: (id) => ipcRenderer.invoke('excluir-categoria', id),
     
-	listarGinasios: () => ipcRenderer.invoke("ginasio:listar"),
-	salvarGinasio: (dados) => ipcRenderer.invoke("ginasio:salvar", dados),
-	editarGinasio: (id, dados) => ipcRenderer.invoke("ginasio:editar", id, dados),
-	excluirGinasio: (id) => ipcRenderer.invoke("ginasio:excluir", id),
-	pesquisarGinasio: (filtro) => ipcRenderer.invoke("ginasio:pesquisar", filtro),
+    listarGinasios: () => ipcRenderer.invoke("ginasio:listar"),
+    salvarGinasio: (dados) => ipcRenderer.invoke("ginasio:salvar", dados),
+    editarGinasio: (id, dados) => ipcRenderer.invoke("ginasio:editar", id, dados),
+    excluirGinasio: (id) => ipcRenderer.invoke("ginasio:excluir", id),
+    pesquisarGinasio: (filtro) => ipcRenderer.invoke("ginasio:pesquisar", filtro),
 });
 
 contextBridge.exposeInMainWorld('api', {

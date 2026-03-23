@@ -1,12 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import Home from './View/Home/Home'; 
-import { PlayerView } from './View/PlayerView/PlayerView'; 
+import App from './View/App'; // 👇 Importamos o App, não o MenuNav
 import './View/index.css'; 
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <PlayerView /> 
+    <App /> 
   </React.StrictMode>
 );

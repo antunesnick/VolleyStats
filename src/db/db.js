@@ -2,8 +2,7 @@ const { app } = require('electron');
 const path = require('path');
 const Database = require('better-sqlite3');
 
-const userDataPath = app.getPath('userData');
-const dbPath = path.join(userDataPath, 'developVS.db');
+const dbPath = path.join(process.cwd(), 'developVS.db');
 console.log('Caminho do banco de dados:', dbPath);
 
 const db = new Database(dbPath, {verbose: console.log});

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Settings, Trash2, Pencil, ChevronRight, Plus } from "lucide-react";
 import * as Style from "./PleayerStyles"; 
-import PlayerControl from "../../Control/PlayerControl"; 
+import PlayerControl from "../../Control/PlayerControl";
 import { PlayerRegView } from "../PlayerRegister/PlayerRegView";
 
 export function PlayerView() {
@@ -143,3 +143,5 @@ export function PlayerView() {
     </Style.Container>
   );
 }
+
+export default PlayerView;

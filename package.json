@@ -51,6 +51,7 @@
     "path": "^0.12.7",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.1",
     "styled": "^1.0.0",
     "styled-components": "^6.3.12",
     "sweetalert2": "^11.26.24",

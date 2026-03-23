@@ -215,3 +215,5 @@ export function PlayerRegView({ open, onClose, onSave, player, categories = [] }
     </Style.Overlay>
   );
 }
+
+export default PlayerRegView;

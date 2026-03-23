@@ -1,5 +1,5 @@
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol } = require('electron');
 const path = require('node:path');
 const CategoriaControl = require("./Control/Categoria").default
 const GinasioControlModule = require('./Control/GinasioControl');
