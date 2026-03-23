@@ -1,5 +1,7 @@
+
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('node:path');
+const CategoriaControl = require("./Controls/Categoria").default
 const GinasioControlModule = require('./Control/GinasioControl');
 const GinasioControl = GinasioControlModule.default || GinasioControlModule;
 const PartidaControl = require('./Control/PartidaControl');
@@ -51,6 +53,40 @@ ipcMain.handle('partidas:finalizar', async (event, id, pontosTime1, pontosTime2)
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  ipcMain.handle('salvar-categoria', async (event, dados) => {
+    try {
+      return await CategoriaControl.cadastrarDados(dados);
+    } catch (e) {
+      throw e;
+    }
+  })
+
+  ipcMain.handle('listar-categorias', async () => {
+    try {
+      return await CategoriaControl.listarCategorias();
+    } catch (e) {
+      throw e;
+    }
+  })
+
+  ipcMain.handle('editar-categoria', async (event, id, dados) => {
+    try {
+      await CategoriaControl.editarCategoria(id, dados);
+    } catch (e) {
+      throw e;
+    }
+  })
+
+  ipcMain.handle('excluir-categoria', async (event, id) => {
+    try {
+      await CategoriaControl.excluirCategoria(id);
+    } catch (e) {
+      throw e;
+    }
+  })
+
+
+
   ipcMain.handle('ginasio:listar', async () => {
     return GinasioControl.listarGinasios();
   });
@@ -72,6 +108,8 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+
+
 
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
