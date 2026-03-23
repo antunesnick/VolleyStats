@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { tournamentController } from '../../Control/tournamentController';
 
 const TOURNAMENT_TYPES = [
   { value: 1, label: 'Pontos Corridos' },
@@ -24,6 +25,61 @@ const DEFAULT_MATCH_FORM = {
   score: '0-0',
 };
 
+const showToastMessage = (setToasts, type, text, duration = 3200) => {
+  const id = `${Date.now()}-${Math.random()}`;
+  setToasts((prev) => [...prev, { id, type, text }]);
+
+  setTimeout(() => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, duration);
+};
+
+const getTournamentStatusByDates = (startDate, endDate) => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const now = new Date();
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return 'upcoming';
+  }
+
+  if (now < start) {
+    return 'upcoming';
+  }
+
+  if (now >= start && now <= end) {
+    return 'ongoing';
+  }
+
+  return 'finished';
+};
+
+const getTournamentTypeLabel = (types, type) => {
+  return types.find((item) => item.value === Number(type))?.label || 'Mata-Mata';
+};
+
+const upsertMatchInTournament = (matchesByTournament, tournamentId, matchForm) => {
+  const current = matchesByTournament[tournamentId] || [];
+
+  if (matchForm.id) {
+    return {
+      ...matchesByTournament,
+      [tournamentId]: current.map((item) => (item.id === matchForm.id ? { ...item, ...matchForm } : item)),
+    };
+  }
+
+  const newMatch = {
+    ...matchForm,
+    id: `m-${Date.now()}`,
+    tournamentId,
+  };
+
+  return {
+    ...matchesByTournament,
+    [tournamentId]: [...current, newMatch],
+  };
+};
+
 const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamentDeleted }) => {
   const [tournament, setTournament] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,21 +99,17 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
   const [tournamentForm, setTournamentForm] = useState({ id: null, name: '', type: 1, startDate: '', endDate: '' });
 
   const showToast = (type, text) => {
-    const id = `${Date.now()}-${Math.random()}`;
-    setToasts((prev) => [...prev, { id, type, text }]);
-
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    }, 3200);
+    showToastMessage(setToasts, type, text);
   };
 
   const loadTournament = async () => {
     setIsLoading(true);
 
     try {
-      const rows = await window.tournamentAPI.list();
+      const rows = await tournamentController.listTournaments();
       const found = rows.find((item) => item.id === tournamentId) || rows[0] || null;
       setTournament(found);
+
       if (found && selectedPlayerIds.length === 0) {
         setSelectedPlayerIds(MOCK_PLAYERS.slice(0, 8).map((item) => item.id));
       }
@@ -88,6 +140,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
   const tournamentType = Number(tournament?.type);
   const canShowStandings = tournamentType === 1 || tournamentType === 3;
   const canShowBracket = tournamentType === 2 || tournamentType === 3;
+  const getTournamentTypeText = (type) => getTournamentTypeLabel(TOURNAMENT_TYPES, type);
 
   useEffect(() => {
     if (viewMode === 'standings' && !canShowStandings) {
@@ -98,30 +151,6 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
       setViewMode('matches');
     }
   }, [canShowBracket, canShowStandings, viewMode]);
-
-  const getTournamentTypeLabel = (type) => {
-    return TOURNAMENT_TYPES.find((item) => item.value === Number(type))?.label || 'Mata-Mata';
-  };
-
-  const getTournamentStatusByDates = (startDate, endDate) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const now = new Date();
-
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      return 'upcoming';
-    }
-
-    if (now < start) {
-      return 'upcoming';
-    }
-
-    if (now >= start && now <= end) {
-      return 'ongoing';
-    }
-
-    return 'finished';
-  };
 
   const togglePlayerSelection = (playerId) => {
     setSelectedPlayerIds((prev) => {
@@ -170,28 +199,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     setMatchSubmitting(true);
 
     try {
-      setMatchesByTournament((prev) => {
-        const current = prev[tournament.id] || [];
-
-        if (matchForm.id) {
-          return {
-            ...prev,
-            [tournament.id]: current.map((item) => (item.id === matchForm.id ? { ...item, ...matchForm } : item)),
-          };
-        }
-
-        const newMatch = {
-          ...matchForm,
-          id: `m-${Date.now()}`,
-          tournamentId: tournament.id,
-        };
-
-        return {
-          ...prev,
-          [tournament.id]: [...current, newMatch],
-        };
-      });
-
+      setMatchesByTournament((prev) => upsertMatchInTournament(prev, tournament.id, matchForm));
       showToast('success', 'Partida salva com sucesso.');
       closeMatchModal();
     } finally {
@@ -250,7 +258,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     setTournamentSubmitting(true);
 
     try {
-      await window.tournamentAPI.update({
+      await tournamentController.updateTournament({
         id: tournamentForm.id,
         name: tournamentForm.name,
         type: Number(tournamentForm.type),
@@ -261,6 +269,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
       showToast('success', 'Torneio atualizado com sucesso.');
       closeTournamentModal();
       await loadTournament();
+
       if (typeof onTournamentChanged === 'function') {
         onTournamentChanged();
       }
@@ -282,7 +291,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     }
 
     try {
-      await window.tournamentAPI.delete(tournament.id);
+      await tournamentController.deleteTournamentById(tournament.id);
       if (typeof onTournamentDeleted === 'function') {
         onTournamentDeleted();
       }
@@ -346,7 +355,8 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
               {tournament ? tournament.name : 'Torneio'}
             </h1>
             <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] mt-1">
-              {tournament ? `${getTournamentTypeLabel(tournament.type)} • MATCHES` : 'Carregando...'}
+              {tournament ? `${getTournamentTypeText(tournament.type)} • MATCHES` : 'Carregando...'}
+
             </p>
           </div>
         </div>

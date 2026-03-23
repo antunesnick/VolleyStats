@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import TournamentView from '../Tournament/Tournament';
 import vsLogo from '../../assets/vslogo.jpeg';
+import { homeController } from '../../Control/homeController';
 
 const TOURNAMENT_TYPES = [
   { value: 1, label: 'Pontos Corridos' },
@@ -23,6 +24,50 @@ const MOCK_PLAYERS = Array.from({ length: 12 }).map((_, index) => ({
   role: index % 2 === 0 ? 'Titular' : 'Reserva',
 }));
 
+const showToastMessage = (setToasts, type, text, duration = 3200) => {
+  const id = `${Date.now()}-${Math.random()}`;
+  setToasts((prev) => [...prev, { id, type, text }]);
+
+  setTimeout(() => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, duration);
+};
+
+const getTournamentStatusByDates = (startDate, endDate) => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const now = new Date();
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return 'upcoming';
+  }
+
+  if (now < start) {
+    return 'upcoming';
+  }
+
+  if (now >= start && now <= end) {
+    return 'ongoing';
+  }
+
+  return 'finished';
+};
+
+const decorateTournaments = (tournaments) => {
+  return tournaments.map((item, index) => {
+    const status = getTournamentStatusByDates(item.startDate, item.endDate);
+    const start = new Date(item.startDate);
+    const year = Number.isNaN(start.getTime()) ? 2026 + (index % 2) : start.getFullYear();
+
+    return {
+      ...item,
+      status,
+      year,
+      date: item.endDate ? item.endDate.split('-').reverse().join('/') : '--/--/----',
+    };
+  });
+};
+
 const Home = () => {
   const [activePage, setActivePage] = useState('home');
   const [selectedTournamentId, setSelectedTournamentId] = useState(null);
@@ -35,39 +80,14 @@ const Home = () => {
   const [formData, setFormData] = useState(DEFAULT_FORM);
 
   const showToast = (type, text) => {
-    const id = `${Date.now()}-${Math.random()}`;
-    setToasts((prev) => [...prev, { id, type, text }]);
-
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    }, 3200);
-  };
-
-  const getTournamentStatusByDates = (startDate, endDate) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const now = new Date();
-
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      return 'upcoming';
-    }
-
-    if (now < start) {
-      return 'upcoming';
-    }
-
-    if (now >= start && now <= end) {
-      return 'ongoing';
-    }
-
-    return 'finished';
+    showToastMessage(setToasts, type, text);
   };
 
   const loadTournaments = async () => {
     setIsLoading(true);
 
     try {
-      const rows = await window.tournamentAPI.list();
+      const rows = await homeController.listTournaments();
       setTournaments(rows);
     } catch (error) {
       showToast('error', error.message || 'Erro ao carregar torneios.');
@@ -81,28 +101,7 @@ const Home = () => {
   }, []);
 
   const decoratedTournaments = useMemo(() => {
-    const today = new Date();
-
-    return tournaments.map((item, index) => {
-      const start = new Date(item.startDate);
-      const end = new Date(item.endDate);
-
-      let status = 'finished';
-      if (today < start) {
-        status = 'upcoming';
-      } else if (today >= start && today <= end) {
-        status = 'ongoing';
-      }
-
-      const year = Number.isNaN(start.getTime()) ? 2026 + (index % 2) : start.getFullYear();
-
-      return {
-        ...item,
-        status,
-        year,
-        date: item.endDate ? item.endDate.split('-').reverse().join('/') : '--/--/----',
-      };
-    });
+    return decorateTournaments(tournaments);
   }, [tournaments]);
 
   const ongoingTournaments = decoratedTournaments.filter((item) => item.status === 'ongoing');
@@ -145,21 +144,15 @@ const Home = () => {
     setIsSubmitting(true);
 
     try {
-      const payload = {
-        id: formData.id,
-        name: formData.name,
-        type: Number(formData.type),
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-      };
+      const payload = homeController.buildTournamentPayload(formData);
 
       if (payload.id) {
-        await window.tournamentAPI.update(payload);
+        await homeController.updateTournament(payload);
         showToast('success', 'Torneio atualizado com sucesso.');
       } else {
-        const created = await window.tournamentAPI.create(payload);
-        showToast('success', 'Torneio criado com sucesso.');
+        const created = await homeController.createTournament(payload);
         setSelectedTournamentId(created.id);
+        showToast('success', 'Torneio criado com sucesso.');
       }
 
       closeModal();
@@ -178,11 +171,11 @@ const Home = () => {
     }
 
     try {
-      await window.tournamentAPI.delete(id);
-      showToast('success', 'Torneio excluido com sucesso.');
+      await homeController.deleteTournamentById(id);
       if (selectedTournamentId === id) {
         setSelectedTournamentId(null);
       }
+      showToast('success', 'Torneio excluido com sucesso.');
       await loadTournaments();
     } catch (error) {
       showToast('error', error.message || 'Nao foi possivel excluir o torneio.');
