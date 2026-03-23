@@ -5,6 +5,7 @@ const GerenciarCategorias = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editandoId, setEditandoId] = useState(null); // Novo: Controla se é edição
   const [categorias, setCategorias] = useState([]); // Carrega categorias do banco
+  const [termoBusca, setTermoBusca] = useState(''); // Novo: Para armazenar o termo de busca
 
   const [novaCategoria, setNovaCategoria] = useState({
     nome: '',
@@ -27,6 +28,10 @@ const GerenciarCategorias = () => {
       [name]: value
     });
   };
+
+  const categoriasFiltradas = categorias.filter((cat) =>
+    cat.nome.toLowerCase().includes(termoBusca.toLowerCase())
+  );
   // Função para abrir o modal em modo de edição
   const handleAbrirEditar = (categoria) => {
     setEditandoId(categoria.id);
@@ -100,8 +105,7 @@ const GerenciarCategorias = () => {
       } else {
         // Lógica de Criação
         const resultado = await window.ElectronAPI.salvarCategoria(dados)
-        if (resultado)
-        {
+        if (resultado) {
           setCategorias(
             [...categorias, { ...novaCategoria, id: resultado }]
           );
@@ -112,7 +116,7 @@ const GerenciarCategorias = () => {
             confirmButtonColor: '#920A13', // Use a cor vermelha do seu projeto JPC
           });
         }
-          
+
       }
 
       setIsModalOpen(false);
@@ -133,7 +137,13 @@ const GerenciarCategorias = () => {
       <div className="flex gap-6 justify-between items-center mb-8 border-b-2 border-red-600 pb-4">
         <div>
           <h1 className="text-4xl font-black text-black tracking-tight uppercase">Categorias</h1>
-          <p className="text-gray-500 mt-1">Gerencie as faixas etárias e divisões do clube</p>
+          <input
+            type="text"
+            placeholder="Buscar categorias..."
+            value={termoBusca}
+            onChange={(e) => setTermoBusca(e.target.value)} // Atualiza o estado ao digitar
+            className="border border-gray-300 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-red-500"
+          />
         </div>
         <button
           onClick={handleAbrirNovo}
@@ -147,7 +157,7 @@ const GerenciarCategorias = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {categorias.map((cat) => (
+        {categoriasFiltradas.map((cat) => (
           <div key={cat.id} className=" bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
             <div className="bg-black text-white px-4 py-2 flex justify-between items-center">
               <span className="text-xs font-bold uppercase tracking-wider text-red-500">Divisão</span>
@@ -184,7 +194,11 @@ const GerenciarCategorias = () => {
             </div>
           </div>
         ))}
+        {categoriasFiltradas.length === 0 && (
+          <p className="text-gray-500 italic">Nenhuma categoria encontrada.</p>
+        )}
       </div>
+
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
