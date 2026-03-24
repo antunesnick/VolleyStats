@@ -31,7 +31,7 @@ class Categoria{
 
     async buscarTodas(){
         try {
-            const sql = db.prepare('SELECT * FROM Categorias');
+            const sql = db.prepare('SELECT * FROM Categorias ORDER BY nome');
             return sql.all();
         } catch (e) {
             throw e;

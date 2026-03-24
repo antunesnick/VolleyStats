@@ -6,6 +6,8 @@ const GerenciarCategorias = () => {
   const [editandoId, setEditandoId] = useState(null); // Novo: Controla se é edição
   const [categorias, setCategorias] = useState([]); // Carrega categorias do banco
   const [termoBusca, setTermoBusca] = useState(''); // Novo: Para armazenar o termo de busca
+  const [filtroIdadeMin, setFiltroIdadeMin] = useState('');
+  const [filtroIdadeMax, setFiltroIdadeMax] = useState('');
 
   const [novaCategoria, setNovaCategoria] = useState({
     nome: '',
@@ -29,9 +31,21 @@ const GerenciarCategorias = () => {
     });
   };
 
-  const categoriasFiltradas = categorias.filter((cat) =>
-    cat.nome.toLowerCase().includes(termoBusca.toLowerCase())
-  );
+  const categoriasFiltradas = categorias.filter((cat) => {
+    // 1. Filtro de Nome (ignora se estiver vazio)
+    const matchesNome = cat.nome.toLowerCase().includes(termoBusca.toLowerCase());
+
+    // 2. Filtro de Idade Mínima
+    // Só filtra se o usuário digitou algo no campo de busca
+    const valorMinBusca = filtroIdadeMin !== '' ? Number(filtroIdadeMin) : null;
+    const matchesMin = valorMinBusca === null || Number(cat.idadeMin) >= valorMinBusca;
+
+    // 3. Filtro de Idade Máxima
+    const valorMaxBusca = filtroIdadeMax !== '' ? Number(filtroIdadeMax) : null;
+    const matchesMax = valorMaxBusca === null || Number(cat.idadeMax) <= valorMaxBusca;
+
+    return matchesNome && matchesMin && matchesMax;
+  });
   // Função para abrir o modal em modo de edição
   const handleAbrirEditar = (categoria) => {
     setEditandoId(categoria.id);
@@ -133,69 +147,116 @@ const GerenciarCategorias = () => {
   };
 
   return (
-    <div className="min-w-max bg-gray-50 text-gray-900 p-8 font-sans">
-      <div className="flex gap-6 justify-between items-center mb-8 border-b-2 border-red-600 pb-4">
-        <div>
-          <h1 className="text-4xl font-black text-black tracking-tight uppercase">Categorias</h1>
-          <input
-            type="text"
-            placeholder="Buscar categorias..."
-            value={termoBusca}
-            onChange={(e) => setTermoBusca(e.target.value)} // Atualiza o estado ao digitar
-            className="border border-gray-300 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-red-500"
-          />
-        </div>
-        <button
-          onClick={handleAbrirNovo}
-          className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-colors flex items-center gap-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
-          </svg>
-          NOVA CATEGORIA
-        </button>
-      </div>
+    <div className="min-h-screen bg-gray-50 text-gray-900 p-4 md:p-8 font-sans">
+      {/* Container Centralizado */}
+      <div className="max-w-7xl mx-auto w-full">
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {categoriasFiltradas.map((cat) => (
-          <div key={cat.id} className=" bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="bg-black text-white px-4 py-2 flex justify-between items-center">
-              <span className="text-xs font-bold uppercase tracking-wider text-red-500">Divisão</span>
-              <span className="text-xs text-gray-300">ID: #{cat.id}</span>
-            </div>
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-black mb-4 uppercase">{cat.nome}</h3>
-
-              <div className="flex items-center gap-4 mb-6">
-                <div className="flex-1 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">Idade Mín.</p>
-                  <p className="text-lg font-black text-black">{cat.idadeMin} anos</p>
-                </div>
-                <div className="flex-1 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">Idade Máx.</p>
-                  <p className="text-lg font-black text-black">{cat.idadeMax} anos</p>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleAbrirEditar(cat)}
-                  className="flex-1 border border-black hover:bg-black hover:text-white text-black font-semibold py-2 rounded transition-all text-sm uppercase"
-                >
-                  Editar Dados
-                </button>
-                <button
-                  onClick={() => handleExcluirCategoria(cat.id)}
-                  className="flex-1 border border-red-500 hover:bg-red-500 hover:text-white text-red-500 font-semibold py-2 rounded transition-all text-sm uppercase"
-                >
-                  Excluir
-                </button>
-              </div>
-            </div>
+        {/* Cabeçalho */}
+        <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center mb-8 border-b-2 border-red-600 pb-6">
+          <div>
+            <h1 className="text-4xl font-black text-black tracking-tight uppercase">Categorias</h1>
+            <p className="text-gray-500 text-sm">Gerencie as divisões por faixa etária</p>
           </div>
-        ))}
-        {categoriasFiltradas.length === 0 && (
-          <p className="text-gray-500 italic">Nenhuma categoria encontrada.</p>
+          <button
+            onClick={handleAbrirNovo}
+            className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all transform hover:scale-105 flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            NOVA CATEGORIA
+          </button>
+        </div>
+
+        {/* Barra de Filtros Centralizada/Alinhada */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-8 flex flex-wrap gap-4 items-end">
+          <div className="flex-1 min-w-[250px]">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">Nome da Categoria</label>
+            <input
+              type="text"
+              placeholder="Ex: Sub-15..."
+              value={termoBusca}
+              onChange={(e) => setTermoBusca(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg py-2 px-4 focus:ring-2 focus:ring-red-500 outline-none transition-all"
+            />
+          </div>
+
+          <div className="w-32">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">Idade Mín</label>
+            <input
+              type="number"
+              placeholder="0"
+              value={filtroIdadeMin}
+              onChange={(e) => setFiltroIdadeMin(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg py-2 px-4 focus:ring-2 focus:ring-red-500 outline-none"
+            />
+          </div>
+
+          <div className="w-32">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">Idade Máx</label>
+            <input
+              type="number"
+              placeholder="99"
+              value={filtroIdadeMax}
+              onChange={(e) => setFiltroIdadeMax(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg py-2 px-4 focus:ring-2 focus:ring-red-500 outline-none"
+            />
+          </div>
+
+          <button
+            onClick={() => { setTermoBusca(''); setFiltroIdadeMin(''); setFiltroIdadeMax(''); }}
+            className="px-4 py-2 text-red-600 font-bold text-xs uppercase hover:bg-red-50 rounded-lg transition-colors"
+          >
+            Limpar Filtros
+          </button>
+        </div>
+
+        {/* Grid de Cards */}
+        {categoriasFiltradas.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {categoriasFiltradas.map((cat) => (
+              <div key={cat.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl transition-all border-t-4 border-t-black">
+                <div className="bg-gray-50 px-4 py-2 flex justify-between items-center border-b">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-red-600">Competição</span>
+                  <span className="text-[10px] font-mono text-gray-400">#ID:{cat.id}</span>
+                </div>
+
+                <div className="p-6">
+                  <h3 className="text-2xl font-black text-black mb-4 uppercase truncate">{cat.nome}</h3>
+
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                      <p className="text-[9px] font-bold text-gray-400 uppercase">Mínima</p>
+                      <p className="text-lg font-black text-black">{cat.idadeMin} <span className="text-xs font-normal">anos</span></p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                      <p className="text-[9px] font-bold text-gray-400 uppercase">Máxima</p>
+                      <p className="text-lg font-black text-black">{cat.idadeMax} <span className="text-xs font-normal">anos</span></p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center gap-2">
+                    <button
+                      onClick={() => handleAbrirEditar(cat)}
+                      className="flex-1 p-1 bg-black text-white font-bold py-2 rounded shadow-sm hover:bg-gray-800 transition-all text-xs uppercase"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleExcluirCategoria(cat.id)}
+                      className="flex-1 p-1 border-2 border-red-600 text-red-600 font-bold py-2 rounded hover:bg-red-600 hover:text-white transition-all text-xs uppercase"
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-200">
+            <p className="text-gray-400 font-medium">Nenhuma categoria encontrada com esses filtros.</p>
+          </div>
         )}
       </div>
 

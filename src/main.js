@@ -1,7 +1,7 @@
 
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('node:path');
-const CategoriaControl = require("./Controls/Categoria").default
+const CategoriaControl = require("./Control/Categoria").default
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
