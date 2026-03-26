@@ -79,6 +79,7 @@ const Home = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState(DEFAULT_FORM);
   const [scheduleFilterName, setScheduleFilterName] = useState('');
+  const [scheduleSortBy, setScheduleSortBy] = useState('date');
 
   const showToast = (type, text) => {
     showToastMessage(setToasts, type, text);
@@ -112,7 +113,7 @@ const Home = () => {
     const source = [...upcomingTournaments, ...finishedTournaments];
     const normalizedName = scheduleFilterName.trim().toLowerCase();
 
-    return source.filter((item) => {
+    const filtered = source.filter((item) => {
       const matchName =
         normalizedName.length === 0 ||
         String(item.name || '')
@@ -121,7 +122,19 @@ const Home = () => {
 
       return matchName;
     });
-  }, [finishedTournaments, scheduleFilterName, upcomingTournaments]);
+
+    if (scheduleSortBy === 'name') {
+      return [...filtered].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR', { sensitivity: 'base' }));
+    }
+
+    const getTimeValue = (item) => {
+      const primaryDate = item.startDate || item.endDate || item.date;
+      const parsed = primaryDate ? new Date(primaryDate).getTime() : Number.NaN;
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+
+    return [...filtered].sort((a, b) => getTimeValue(a) - getTimeValue(b));
+  }, [finishedTournaments, scheduleFilterName, scheduleSortBy, upcomingTournaments]);
 
   const selectedTournament = tournaments.find((item) => item.id === selectedTournamentId) || null;
 
@@ -388,6 +401,13 @@ const Home = () => {
                 placeholder="Filtrar por nome"
                 className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-red-500"
               />
+              <button
+                type="button"
+                onClick={() => setScheduleSortBy((prev) => (prev === 'date' ? 'name' : 'date'))}
+                className="shrink-0 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-black uppercase tracking-wider text-zinc-600 hover:border-red-500 hover:text-red-600 transition-colors"
+              >
+                Ordenar: {scheduleSortBy === 'date' ? 'Data' : 'Nome (A-Z)'}
+              </button>
             </div>
           </div>
 
