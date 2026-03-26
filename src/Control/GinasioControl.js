@@ -1,5 +1,5 @@
 import GinasioModel from "../Model/GinasioModel";
-
+//chamar o singleton aqui para garantir que o banco de dados seja inicializado antes de qualquer operação
 const GinasioControl = {
 	async cadastrarDados(dados) {
 		try {

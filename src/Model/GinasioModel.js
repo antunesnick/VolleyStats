@@ -2,6 +2,19 @@ import db from "../db/db.js";
 
 class GinasioModel {
 	constructor(id = null, nome = null, estado = null, cidade = null, endereco = null) {
+		//colocar a validacao aqui para evitar de criar o objeto com dados invalidos
+		if (!id || !String(id).trim()) {
+			throw new Error("ID do ginasio e obrigatorio.");
+		}
+		if (!nome || !String(nome).trim()) {
+			throw new Error("Nome do ginasio e obrigatorio.");
+		}
+		if (!estado || !String(estado).trim()) {
+			throw new Error("Estado do ginasio e obrigatorio.");
+		}
+		if (!cidade || !String(cidade).trim()) {
+			throw new Error("Cidade do ginasio e obrigatória.");
+		}
 		this.id = id;
 		this.nome = nome;
 		this.estado = estado;
@@ -9,21 +22,6 @@ class GinasioModel {
 		this.endereco = endereco;
 	}
 
-	validarCamposObrigatorios() {
-		if (!this.nome || !String(this.nome).trim()) {
-			return "Nome do ginasio e obrigatorio.";
-		}
-
-		if (!this.estado || !String(this.estado).trim()) {
-			return "Estado do ginasio e obrigatorio.";
-		}
-
-		if (!this.cidade || !String(this.cidade).trim()) {
-			return "Cidade do ginasio e obrigatoria.";
-		}
-
-		return null;
-	}
 
 	validarNomeCidadeDuplicados(idAtual = null) {
 		const nomeNormalizado = String(this.nome).trim();
@@ -127,6 +125,7 @@ class GinasioModel {
 		try {
 			const conditions = [];
 			const params = [];
+			let joinOperator = " OR ";
 
 			if (typeof filter === "string") {
 				const termo = filter.trim();
@@ -139,6 +138,8 @@ class GinasioModel {
 					params.push(`%${termo}%`, `%${termo}%`, `%${termo}%`, `%${termo}%`);
 				}
 			} else if (filter && typeof filter === "object") {
+				joinOperator = " AND ";
+
 				if (filter.nome) {
 					conditions.push("nome LIKE ?");
 					params.push(`%${filter.nome}%`);
@@ -165,7 +166,7 @@ class GinasioModel {
 				return sqlAll.all();
 			}
 
-			const query = `SELECT * FROM Ginasios WHERE ${conditions.join(" OR ")}`;
+			const query = `SELECT * FROM Ginasios WHERE ${conditions.join(joinOperator)}`;
 			const sql = db.prepare(query);
 			return sql.all(...params);
 		} catch (e) {
