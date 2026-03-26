@@ -1,3 +1,5 @@
+import { Tournament } from '../Model/Tournament.js';
+
 export class HomeController {
   constructor({ tournamentApi }) {
     this.tournamentApi = tournamentApi;
@@ -7,22 +9,36 @@ export class HomeController {
     return this.tournamentApi.list();
   }
 
-  buildTournamentPayload(formData) {
-    return {
-      id: formData.id,
-      name: formData.name,
-      type: Number(formData.type),
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-    };
+  buildTournamentEntity(formData) {
+    return new Tournament(
+      formData.id || null,
+      formData.name,
+      Number(formData.type),
+      formData.startDate,
+      formData.endDate
+    );
   }
 
   async createTournament(payload) {
-    return this.tournamentApi.create(payload);
+    const tournament = this.buildTournamentEntity(payload);
+    return this.tournamentApi.create({
+      id: tournament.id,
+      name: tournament.name,
+      type: tournament.type,
+      startDate: tournament.startDate,
+      endDate: tournament.endDate,
+    });
   }
 
   async updateTournament(payload) {
-    return this.tournamentApi.update(payload);
+    const tournament = this.buildTournamentEntity(payload);
+    return this.tournamentApi.update({
+      id: tournament.id,
+      name: tournament.name,
+      type: tournament.type,
+      startDate: tournament.startDate,
+      endDate: tournament.endDate,
+    });
   }
 
   async deleteTournamentById(id) {

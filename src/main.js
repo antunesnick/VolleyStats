@@ -1,17 +1,16 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('node:path');
 const { initDatabase } = require('./db/db');
-const { TournamentDAO } = require('./Model/Tournament');
+const { TournamentDAO } = require('./Model/TournamentDAO');
+const { Tournament } = require('./Model/Tournament');
 
 const tournamentDAO = new TournamentDAO();
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
   app.quit();
 }
 
 const createWindow = () => {
-  // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 1680,
     height: 1020,
@@ -22,39 +21,50 @@ const createWindow = () => {
     },
   });
 
-  // and load the index.html of the app.
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
-
-  // Open the DevTools.
-  // mainWindow.webContents.openDevTools();
 };
 
 function registerTournamentIpcHandlers() {
   ipcMain.handle('tournaments:list', async () => tournamentDAO.getAllTournaments());
 
   ipcMain.handle('tournaments:create', async (_event, payload) => {
-    return tournamentDAO.createFromPayload(payload);
+    const tournament = new Tournament(
+      null,
+      payload.name,
+      payload.type,
+      payload.startDate,
+      payload.endDate
+    );
+    return tournamentDAO.createTournament(tournament);
   });
 
   ipcMain.handle('tournaments:update', async (_event, payload) => {
-    return tournamentDAO.updateFromPayload(payload);
+    const tournament = new Tournament(
+      payload.id,
+      payload.name,
+      payload.type,
+      payload.startDate,
+      payload.endDate
+    );
+    return tournamentDAO.modifyTournament(tournament);
   });
 
   ipcMain.handle('tournaments:delete', async (_event, id) => {
-    return tournamentDAO.deleteById(id);
+    const numericId = Number(id);
+    if (!numericId || Number.isNaN(numericId)) {
+      throw new Error('ID do torneio invalido.');
+    }
+    tournamentDAO.deleteTournament(numericId);
+    return true;
   });
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
+
 app.whenReady().then(() => {
   initDatabase();
   registerTournamentIpcHandlers();
   createWindow();
 
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -62,14 +72,8 @@ app.whenReady().then(() => {
   });
 });
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.

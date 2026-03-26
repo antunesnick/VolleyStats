@@ -11,7 +11,6 @@ function getUserDataDirectory() {
     try {
         return app.getPath('userData');
     } catch (_error) {
-        // Fallback for non-Electron execution contexts.
         return path.resolve(process.cwd(), '.data');
     }
 }

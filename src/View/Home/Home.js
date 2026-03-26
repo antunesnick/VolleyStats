@@ -172,13 +172,11 @@ const Home = () => {
     setIsSubmitting(true);
 
     try {
-      const payload = homeController.buildTournamentPayload(formData);
-
-      if (payload.id) {
-        await homeController.updateTournament(payload);
+      if (formData.id) {
+        await homeController.updateTournament(formData);
         showToast('success', 'Torneio atualizado com sucesso.');
       } else {
-        const created = await homeController.createTournament(payload);
+        const created = await homeController.createTournament(formData);
         setSelectedTournamentId(created.id);
         showToast('success', 'Torneio criado com sucesso.');
       }
