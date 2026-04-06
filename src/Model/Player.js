@@ -55,7 +55,7 @@ class Player {
   findAllPlayers(db) {
     try {
       // 👇 Alterado para ordenar pelo número da camisa
-      const sql = db.prepare('SELECT * FROM Jogadores ORDER BY numCamisa ASC');
+      const sql = db.prepare('SELECT * FROM Jogadores ORDER BY nome ASC');
       return sql.all();
     } catch (e) {
       throw e;
@@ -82,8 +82,8 @@ class Player {
         params.push(filtro.posicaoId);
       }
 
-      // 👇 Alterado para ordenar pelo número da camisa
-      sqlQuery += ` ORDER BY j.numCamisa ASC`;
+      // 👇 Alterado para ordenar pelo nome
+      sqlQuery += ` ORDER BY j.nome ASC`;
 
       const sql = db.prepare(sqlQuery);
       return sql.all(...params);
