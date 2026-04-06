@@ -2,8 +2,7 @@ const { app } = require('electron');
 const path = require('path');
 const Database = require('better-sqlite3');
 
-const userDataPath = app.getPath('userData');
-const dbPath = path.join(userDataPath, 'developVS.db');
+const dbPath = path.join(process.cwd(), 'developVS.db');
 console.log('Caminho do banco de dados:', dbPath);
 
 const db = new Database(dbPath, {verbose: console.log});
@@ -19,12 +18,14 @@ function inicializarBanco() {
                 idadeMin INTEGER NOT NULL,
                 idadeMax INTEGER NOT NULL
             );
+
             CREATE TABLE IF NOT EXISTS Times(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome VARCHAR(80) NOT NULL,
                 imagem VARCHAR(255),
                 cidade VARCHAR(45) NOT NULL
             );
+
             CREATE TABLE IF NOT EXISTS Torneios(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome VARCHAR(80) NOT NULL,
@@ -38,6 +39,7 @@ function inicializarBanco() {
                 cidade VARCHAR(80) NOT NULL,
                 endereco VARCHAR(255)
             );
+
             CREATE TABLE IF NOT EXISTS Partidas(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 pontosTime1 INTEGER,
@@ -55,6 +57,34 @@ function inicializarBanco() {
                 FOREIGN KEY (time1) REFERENCES Times (id),
                 FOREIGN KEY (time2) REFERENCES Times (id)
             );
+
+            -- POSICOES CRIADA ANTES DE JOGADORES
+            CREATE TABLE IF NOT EXISTS Posicoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome VARCHAR(45) UNIQUE NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS Jogadores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cpf VARCHAR(14) UNIQUE, 
+                nome VARCHAR(70),
+                dataNasc DATE,
+                numCamisa INTEGER,
+                rg VARCHAR(14) UNIQUE, 
+                altura FLOAT,
+                posicao_id INTEGER NOT NULL,
+                categoria_id INTEGER,  
+                foto VARCHAR(255),
+                FOREIGN KEY (posicao_id) REFERENCES Posicoes (id),
+                FOREIGN KEY (categoria_id) REFERENCES Categorias (id)
+            );
+
+            INSERT OR IGNORE INTO Posicoes (nome) VALUES 
+                ('Levantador'),
+                ('Ponteiro'),
+                ('Central'),
+                ('Oposto'),
+                ('Líbero');
 
             -- INSERINDO DADOS MOCK PARA TESTAR AS CHAVES ESTRANGEIRAS
             -- O "INSERT OR IGNORE" com o ID fixo garante que ele só insere na primeira vez que o sistema roda

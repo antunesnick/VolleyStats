@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-const Swal = require('sweetalert2');
+import Swal from 'sweetalert2';
 
 const GerenciarCategorias = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
