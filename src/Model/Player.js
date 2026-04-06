@@ -13,12 +13,10 @@ class Player {
     this.foto = foto;
   }
 
-    #validarCPF(cpfString) {
+  #validarCPF(cpfString) {
     if (!cpfString) return false;
     return cpf.isValid(cpfString); 
   }
-
-   
 
   insertPlayer(db) {
     if (!this.#validarCPF(this.cpf)) {
@@ -43,9 +41,9 @@ class Player {
   }
 
   updatePlayer(db) {
-        if (!this.#validarCPF(this.cpf)) {
-            throw new Error("CPF inválido. Por favor, insira um CPF válido.");
-        }
+    if (!this.#validarCPF(this.cpf)) {
+      throw new Error("CPF inválido. Por favor, insira um CPF válido.");
+    }
     try {
       const sql = db.prepare('UPDATE Jogadores SET cpf = ?, nome = ?, dataNasc = ?, numCamisa = ?, rg = ?, altura = ?, posicao_id = ?, foto = ? WHERE id = ?');
       sql.run(this.cpf, this.nome, this.dataNasc, this.numCamisa, this.rg, this.altura, this.posicaoId, this.foto, this.id);
@@ -54,43 +52,41 @@ class Player {
     }
   }
 
-    findAllPlayers(db) {
+  findAllPlayers(db) {
     try {
-      const sql = db.prepare('SELECT * FROM Jogadores');
+      // 👇 Alterado para ordenar pelo número da camisa
+      const sql = db.prepare('SELECT * FROM Jogadores ORDER BY nome ASC');
       return sql.all();
     } catch (e) {
       throw e;
     }
   }
 
-    findPlayerFiltered(filtro, db) {
+  findPlayerFiltered(filtro, db) {
     try {
-      // Começamos a query trazendo o jogador e o nome da posição dele
-      // O "WHERE 1=1" é um truque para facilitar a adição de "AND" dinamicamente
-      let query = `
+      let sqlQuery = `
         SELECT j.*, p.nome as posicao 
         FROM Jogadores j 
-        INNER JOIN Posicoes p ON j.posicao_id = p.id 
+        LEFT JOIN Posicoes p ON j.posicao_id = p.id 
         WHERE 1=1
       `;
       const params = [];
 
-      // Se o usuário digitou algum nome, adiciona na query
       if (filtro.nome) {
-        query += ` AND j.nome LIKE ?`;
+        sqlQuery += ` AND j.nome LIKE ?`;
         params.push(`%${filtro.nome}%`);
       }
 
-      // Se o usuário selecionou alguma posição no select, adiciona na query
       if (filtro.posicaoId) {
-        query += ` AND j.posicao_id = ?`;
+        sqlQuery += ` AND j.posicao_id = ?`;
         params.push(filtro.posicaoId);
       }
 
-      // Prepara e executa passando o array de parâmetros
-      const sql = db.prepare(query);
-      return sql.all(...params);
+      // 👇 Alterado para ordenar pelo nome
+      sqlQuery += ` ORDER BY j.nome ASC`;
 
+      const sql = db.prepare(sqlQuery);
+      return sql.all(...params);
     } catch (e) {
       throw e;
     }       

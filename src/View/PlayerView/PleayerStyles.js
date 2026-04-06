@@ -2,46 +2,51 @@ import styled, { css } from "styled-components";
 
 export const Container = styled.div`
   min-height: 100vh;
-  background-color: #fafafa;
-  font-family: 'Inter', sans-serif;
-  padding: 40px;
+  background-color: #f9fafb; /* bg-gray-50 do Tailwind */
+  color: #111827; /* text-gray-900 */
+  font-family: 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
+  padding: 32px;
   padding-bottom: 80px;
 `;
 
 export const TopBar = styled.div`
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 40px;
+  margin-bottom: 20px;
 `;
 
 export const ManageButton = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 24px;
-  border-radius: 50px;
-  font-weight: 900;
-  font-size: 13px;
+  padding: 12px 24px;
+  border-radius: 8px; /* Arredondamento padrão do Tailwind (rounded-lg) */
+  font-weight: 700;
+  font-size: 14px;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
   cursor: pointer;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 
   ${(props) =>
     props.$isEditing
       ? css`
-          background-color: #00ff2f;
+          background-color: #dc2626; /* red-600 */
           color: white;
-          border: 2px solid #00ff2f;
-          box-shadow: 0 10px 15px -3px rgba(0, 255, 47, 0.2);
+          border: 2px solid #dc2626;
+          
+          &:hover {
+            background-color: #b91c1c; /* hover:bg-red-700 */
+            border-color: #b91c1c;
+          }
         `
       : css`
           background-color: white;
-          color: #00ff2f;
-          border: 2px solid #00ff2f;
+          color: #dc2626;
+          border: 2px solid #dc2626;
 
           &:hover {
-            background-color: #00ff2f;
+            background-color: #dc2626;
             color: white;
           }
         `}
@@ -59,68 +64,63 @@ export const SectionHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #f3f4f6;
-  padding-bottom: 24px;
+  border-bottom: 2px solid #dc2626; /* border-b-2 border-red-600 */
+  padding-bottom: 16px;
+  margin-bottom: 20px;
 `;
 
 export const TitleGroup = styled.div`
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 16px;
 `;
 
 export const Title = styled.h2`
-  font-size: 36px;
-  font-weight: 900;
-  color: #111827;
+  font-size: 36px; /* text-4xl */
+  font-weight: 900; /* font-black */
+  color: #000000;
   text-transform: uppercase;
-  letter-spacing: -1px;
-  font-style: italic;
+  letter-spacing: -0.025em; /* tracking-tight */
   margin: 0;
 `;
 
 export const TitleDivider = styled.div`
-  height: 1px;
-  width: 96px;
-  background-color: #00ff2f;
-  opacity: 0.3;
-  margin-top: 8px;
+  display: none; /* Removido para manter a estética limpa do border-bottom vermelho */
 `;
 
 export const AthleteCount = styled.span`
-  font-size: 12px;
-  font-weight: 900;
-  color: #d1d5db;
+  font-size: 14px;
+  font-weight: 700;
+  color: #6b7280; /* text-gray-500 */
   text-transform: uppercase;
-  letter-spacing: 2px;
-  margin-top: 8px;
+  letter-spacing: 1px;
 `;
 
 export const Grid = styled.div`
   display: grid;
-  /* Cria colunas responsivas que se adaptam ao tamanho da tela */
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 24px;
 `;
 
 export const PlayerInfo = styled.div`
   margin-top: 16px;
   text-align: center;
+  padding: 0 8px;
 `;
 
 export const PlayerNumber = styled.p`
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
-  color: #00ff2f;
+  color: #dc2626; /* Vermelho padrão da sua nova interface */
   text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 1px;
   margin: 0 0 4px 0;
 `;
 
 export const PlayerName = styled.h4`
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 900;
-  color: #111827;
+  color: #000000;
   text-transform: uppercase;
   letter-spacing: -0.5px;
   margin: 0;
@@ -135,19 +135,20 @@ export const ImageWrapper = styled.div`
   width: 100%;
   aspect-ratio: 4 / 5;
   background-color: white;
-  border: 2px solid rgba(0, 255, 47, 0.2);
-  border-radius: 16px;
-  padding: 8px;
+  border: 1px solid #e5e7eb; /* border-gray-200 */
+  border-radius: 12px; /* rounded-xl */
+  padding: 6px;
   transition: all 0.3s ease;
   overflow: hidden;
   box-sizing: border-box;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
 `;
 
 export const PlayerImage = styled.img`
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: 8px;
   filter: grayscale(100%);
   transition: all 0.5s ease;
 `;
@@ -158,14 +159,14 @@ export const Overlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent, transparent);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent, transparent);
   opacity: 0;
   transition: opacity 0.3s ease;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   padding: 16px;
-  border-radius: 16px;
+  border-radius: 12px;
 `;
 
 export const OverlayText = styled.div`
@@ -173,17 +174,16 @@ export const OverlayText = styled.div`
   align-items: center;
   justify-content: space-between;
   color: white;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
-  opacity: 0.7;
+  letter-spacing: 1px;
 `;
 
 export const ActionButtons = styled.div`
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 12px;
+  right: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -194,8 +194,8 @@ export const ActionButtons = styled.div`
 
 export const IconButton = styled.button`
   padding: 8px;
-  border-radius: 8px;
-  border: none;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -206,32 +206,35 @@ export const IconButton = styled.button`
   ${(props) =>
     props.$variant === "danger"
       ? css`
-          background-color: #ef4444;
+          background-color: #dc2626; /* red-600 */
           color: white;
+          border-color: #dc2626;
           &:hover {
-            background-color: #dc2626;
+            background-color: #920A13; /* Tom mais escuro */
           }
         `
       : css`
           background-color: white;
-          color: #111827;
+          color: #000000;
           &:hover {
-            background-color: #f3f4f6;
+            background-color: #000000;
+            color: white;
+            border-color: #000000;
           }
         `}
 `;
 
-/* O Card inteiro do jogador. Usamos isso para referenciar os hovers nos elementos filhos */
 export const PlayerCard = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   cursor: pointer;
 
+  /* Efeitos de Hover adaptados para a nova estética */
   &:hover ${ImageWrapper} {
-    border-color: #00ff2f;
-    box-shadow: 0 20px 40px -10px rgba(0, 255, 47, 0.2);
-    transform: translateY(-8px);
+    border-color: #000000; /* Fica preto no hover, lembrando a barra preta da categoria */
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+    transform: translateY(-4px);
   }
 
   &:hover ${PlayerImage} {
@@ -247,35 +250,35 @@ export const PlayerCard = styled.div`
   }
 
   &:hover ${PlayerName} {
-    color: #00ff2f;
+    color: #dc2626; /* Fica vermelho no hover */
   }
 `;
 
 export const AddPlayerBtn = styled.button`
   width: 100%;
   aspect-ratio: 4 / 5;
-  background-color: white;
-  border: 2px dashed #e5e7eb;
-  border-radius: 16px;
+  background-color: #ffffff;
+  border: 2px dashed #d1d5db; /* gray-300 */
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  color: #d1d5db;
+  gap: 12px;
+  color: #9ca3af; /* gray-400 */
   cursor: pointer;
   transition: all 0.2s ease;
 
   span {
     font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
-    font-size: 10px;
+    letter-spacing: 1px;
+    font-size: 12px;
   }
 
   &:hover {
-    border-color: #00ff2f;
-    color: #00ff2f;
-    background-color: #f0fff4;
+    border-color: #dc2626;
+    color: #dc2626;
+    background-color: #fef2f2; /* red-50 */
   }
 `;

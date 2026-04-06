@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Settings, Trash2, Pencil, ChevronRight, Plus, Search } from "lucide-react";
 import * as Style from "./PleayerStyles"; 
-import PlayerControl from "../../Control/PlayerControl";
+import PlayerControl from "../../Control/PlayerControl"; 
 import PositionControl from "../../Control/PositionControl"; 
 import { PlayerRegView } from "../PlayerRegister/PlayerRegView";
 
@@ -11,26 +11,27 @@ export function PlayerView() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
 
-  // Estados dos filtros
+  // 👇 Novos Estados para os Filtros 👇
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPosition, setSelectedPosition] = useState("");
   const [positions, setPositions] = useState([]);
 
-  // Carrega as posições no Select ao abrir
+  // 👇 Carrega as Posições no Select quando a tela abre 👇
   useEffect(() => {
     const positionControl = new PositionControl();
     positionControl.findAllPositions().then((data) => setPositions(data));
   }, []);
 
-  // Busca inicial e também quando o filtro muda
+  // 👇 Busca Inicial e Re-Busca quando o usuário digita/seleciona algo 👇
   useEffect(() => {
     fetchPlayers(searchTerm, selectedPosition);
-  }, [searchTerm, selectedPosition]); 
+  }, [searchTerm, selectedPosition]);
 
-  // Função com os filtros
+  // 👇 Modificado para aceitar os parâmetros do filtro 👇
   function fetchPlayers(nome = "", posicaoId = "") {
     const playerControl = new PlayerControl();
     
+    // Passando o objeto de filtro que a Model agora entende
     playerControl.findPlayerFiltered({ nome, posicaoId }).then((data) => {
       const formattedPlayers = data.map((p) => ({
         id: p.id,
@@ -41,7 +42,7 @@ export function PlayerView() {
         rg: p.rg,
         altura: p.altura, 
         posicaoId: p.posicao_id,
-        posicaoNome: p.posicao, 
+        posicaoNome: p.posicao, // Veio do INNER JOIN
         dataNasc: p.dataNasc, 
       }));
       setPlayers(formattedPlayers);
@@ -103,7 +104,7 @@ export function PlayerView() {
           </Style.TitleGroup>
         </Style.SectionHeader>
 
-        {/* BARRA DE FILTROS AQUI */}
+        {/* 👇 BARRA DE FILTROS ADICIONADA AQUI 👇 */}
         <div style={{ display: 'flex', gap: '15px', marginBottom: '25px' }}>
           <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#fff', borderRadius: '8px', padding: '10px 15px', flex: 1, border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
             <Search size={18} color="#94a3b8" />
@@ -127,6 +128,7 @@ export function PlayerView() {
             ))}
           </select>
         </div>
+        {/* ☝️ FIM DA BARRA DE FILTROS ☝️ */}
 
         <Style.Grid>
           {players.length === 0 ? (
@@ -164,6 +166,7 @@ export function PlayerView() {
                 <Style.PlayerInfo>
                   <Style.PlayerNumber>#{p.numCamisa}</Style.PlayerNumber>
                   <Style.PlayerName>{p.nome}</Style.PlayerName>
+                  {/* 👇 Posição do jogador aparecendo no Card 👇 */}
                   <span style={{ fontSize: '12px', color: '#64748b' }}>{p.posicaoNome}</span>
                 </Style.PlayerInfo>
               </Style.PlayerCard>
@@ -179,12 +182,15 @@ export function PlayerView() {
         </Style.Grid>
       </Style.Section>
 
-      <PlayerRegView 
-        open={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSave={handleSavePlayer} 
-        player={selectedPlayer}
-      />
+      {isModalOpen && (
+        <PlayerRegView 
+          open={isModalOpen} 
+          onClose={() => setIsModalOpen(false)} 
+          onSave={handleSavePlayer} 
+          player={selectedPlayer}
+          categories={[]} 
+        />
+      )}
 
     </Style.Container>
   );

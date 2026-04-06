@@ -1,7 +1,7 @@
 
 const { app, BrowserWindow, ipcMain, protocol } = require('electron');
 const path = require('node:path');
-const CategoriaControl = require("./Control/Categoria").default
+const CategoriaControl = require("./Control/CategoriaControl").default;
 const GinasioControlModule = require('./Control/GinasioControl');
 const GinasioControl = GinasioControlModule.default || GinasioControlModule;
 const PartidaControl = require('./Control/PartidaControl');
@@ -25,18 +25,17 @@ protocol.registerSchemesAsPrivileged([
 
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1024,
+    height: 768,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
-      nodeIntegration: true,
-      contextIsolation: false,
+      nodeIntegration: true,     
+      contextIsolation: false,   
       webSecurity: false 
     },
   });
 
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
-
 };
 
 // Rotas IPC para Partidas

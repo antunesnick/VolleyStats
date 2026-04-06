@@ -1,7 +1,8 @@
-// USE REQUIRE, NÃO IMPORT!
-const { contextBridge, ipcRenderer } = require("electron");
+// ATENÇÃO: Como tiramos o contextIsolation, não usamos mais o contextBridge!
+const { ipcRenderer } = require("electron");
 
-contextBridge.exposeInMainWorld("ElectronAPI", {
+// Injetamos direto no objeto window do navegador
+window.ElectronAPI = {
     salvarCategoria: (dados) => ipcRenderer.invoke('salvar-categoria', dados),
     listarCategorias: () => ipcRenderer.invoke('listar-categorias'),
     editarCategoria: (id, dados) => ipcRenderer.invoke('editar-categoria', id, dados),
@@ -12,9 +13,9 @@ contextBridge.exposeInMainWorld("ElectronAPI", {
     editarGinasio: (id, dados) => ipcRenderer.invoke("ginasio:editar", id, dados),
     excluirGinasio: (id) => ipcRenderer.invoke("ginasio:excluir", id),
     pesquisarGinasio: (filtro) => ipcRenderer.invoke("ginasio:pesquisar", filtro),
-});
+};
 
-contextBridge.exposeInMainWorld('api', {
+window.api = {
     partidas: {
         create: (data) => ipcRenderer.invoke('partidas:create', data),
         update: (data) => ipcRenderer.invoke('partidas:update', data),
@@ -22,4 +23,4 @@ contextBridge.exposeInMainWorld('api', {
         findAll: () => ipcRenderer.invoke('partidas:findAll'),
         finalizar: (id, pts1, pts2) => ipcRenderer.invoke('partidas:finalizar', id, pts1, pts2)
     }
-});
+};

@@ -1,6 +1,5 @@
 import styled, { css } from "styled-components";
 
-
 export const Overlay = styled.div`
   position: fixed;
   top: 0;
@@ -11,35 +10,35 @@ export const Overlay = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.6); /* Um pouco mais escuro para dar contraste */
   backdrop-filter: blur(4px);
   padding: 20px;
 `;
 
 export const Modal = styled.div`
   background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  border-radius: 16px; /* Arredondamento padrão Tailwind (2xl) */
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   width: 100%;
   max-width: 650px;
   max-height: 90vh;
   overflow-y: auto;
-  padding: 30px;
+  padding: 32px;
   position: relative;
 `;
 
 export const CloseIcon = styled.button`
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: 24px;
+  right: 24px;
   background: none;
   border: none;
-  color: #999;
+  color: #9ca3af; /* gray-400 */
   cursor: pointer;
   transition: color 0.2s;
 
   &:hover {
-    color: #333;
+    color: #dc2626; /* Fica vermelho ao passar o mouse */
   }
 `;
 
@@ -47,10 +46,12 @@ export const Title = styled.h2`
   font-size: 24px;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: -1px;
-  color: #111;
+  letter-spacing: 0.5px;
+  color: #111827; /* gray-900 */
   margin-bottom: 24px;
   margin-top: 0;
+  border-bottom: 2px solid #dc2626; /* Linha vermelha para combinar com a identidade */
+  padding-bottom: 12px;
 `;
 
 export const Form = styled.form`
@@ -72,34 +73,35 @@ export const Row = styled.div`
 export const InputGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 `;
 
 export const Label = styled.label`
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: #777;
+  letter-spacing: 1px;
+  color: #374151; /* gray-700 */
 `;
 
 /* Estilo base compartilhado entre Input e Select */
 const baseInputStyles = css`
   width: 100%;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  padding: 10px 14px;
+  border: 1px solid #d1d5db; /* gray-300 */
+  border-radius: 8px;
+  padding: 12px 14px;
   font-size: 14px;
-  font-weight: bold;
-  color: #333;
-  background-color: #fff;
+  font-weight: 500;
+  color: #111827;
+  background-color: #f9fafb; /* gray-50 - Fundo levemente cinza */
   transition: all 0.2s ease-in-out;
   box-sizing: border-box;
 
   &:focus {
     outline: none;
-    border-color: #00ff2f;
-    box-shadow: 0 0 0 3px rgba(0, 255, 47, 0.2);
+    border-color: #dc2626; /* Borda vermelha ao clicar */
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15); /* Brilho vermelho suave */
+    background-color: #ffffff;
   }
 `;
 
@@ -116,43 +118,42 @@ export const Footer = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 10px;
-  padding-top: 20px;
-  border-top: 1px solid #eee;
+  margin-top: 16px;
+  padding-top: 24px;
+  border-top: 1px solid #e5e7eb; /* gray-200 */
 `;
 
 export const Button = styled.button`
-  padding: 12px 20px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
   
-  /* Se receber a prop 'variant="cancel"', fica com estilo de borda */
+  /* Se receber a prop 'variant="cancel"', fica cinza claro */
   ${(props) =>
     props.$variant === "cancel"
       ? css`
-          background-color: transparent;
-          border: 1px solid #ccc;
-          color: #555;
+          background-color: #f3f4f6; /* gray-100 */
+          border: 1px solid transparent;
+          color: #4b5563; /* gray-600 */
 
           &:hover {
-            background-color: #f9f9f9;
-            color: #111;
+            background-color: #e5e7eb; /* gray-200 */
+            color: #111827;
           }
         `
       : css`
-          background-color: #00ff2f;
-          border: 1px solid #00ff2f;
-          color: #fff;
-          box-shadow: 0 2px 4px rgba(0, 255, 47, 0.2);
+          background-color: #dc2626; /* red-600 */
+          border: 1px solid #dc2626;
+          color: #ffffff;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 
           &:hover {
-            background-color: #00dd29;
-            border-color: #00dd29;
+            background-color: #b91c1c; /* red-700 */
+            border-color: #b91c1c;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
           }
         `}
 `;
