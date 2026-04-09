@@ -24,3 +24,10 @@ window.api = {
         finalizar: (id, pts1, pts2) => ipcRenderer.invoke('partidas:finalizar', id, pts1, pts2)
     }
 };
+
+window.tournamentAPI = {
+    list: () => ipcRenderer.invoke('tournaments:list'),
+    create: (payload) => ipcRenderer.invoke('tournaments:create', payload),
+    update: (payload) => ipcRenderer.invoke('tournaments:update', payload),
+    delete: (id) => ipcRenderer.invoke('tournaments:delete', id),
+};

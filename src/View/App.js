@@ -3,10 +3,13 @@ import { HashRouter, Routes, Route } from 'react-router-dom';
 
 import MenuNav from './MenuNav/MenuNav';
 import Home from './Home/Home';
+import Home2 from './Home/Home2';
 import Ginasio from './Ginasios/ginasio';
 import Partida from './Partida/GerenciarPartidas';
 import PlayerView from './PlayerView/PlayerView';
 import GerenciarCategorias from './Categoria/GerenciarCategorias';
+
+const SIDEBAR_WIDTH = 260;
 
 function App() {
   return (
@@ -24,12 +27,10 @@ function App() {
 
         {/* 2. Área Principal: O 'flex: 1' faz ocupe AUTOMATICAMENTE o resto da tela, sem precisar de width 100% */}
         <main style={{ 
-          flex: 1, 
-          
-          /* ⚠️ ATENÇÃO AQUI: 
-             Se o seu MenuNav no arquivo MenuNavStyles.js tiver "position: fixed", DESCOMENTE a linha abaixo.
-             Se ele NÃO for fixed, deixe do jeito que está! */
-          // marginLeft: '260px', 
+          flex: 1,
+          marginLeft: `${SIDEBAR_WIDTH}px`,
+          width: `calc(100vw - ${SIDEBAR_WIDTH}px)`,
+          minWidth: 0,
           
           padding: '40px', 
           display: 'flex', 
@@ -41,6 +42,7 @@ function App() {
           <div style={{ width: '100%', maxWidth: '1200px' }}>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/torneios" element={<Home2/>} />
               <Route path="/ginasios" element={<Ginasio />} />
               <Route path="/partidas" element={<Partida />} />
               <Route path="/jogadores" element={<PlayerView />} />  

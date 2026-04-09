@@ -1,4 +1,3 @@
-const { app } = require('electron');
 const path = require('path');
 const Database = require('better-sqlite3');
 
@@ -9,7 +8,39 @@ const db = new Database(dbPath, {verbose: console.log});
 
 db.pragma('foreign_keys = ON');
 
-function inicializarBanco() {
+function getDatabase() {
+    return db;
+}
+
+function ensureTournamentColumns() {
+    const columns = db.prepare("PRAGMA table_info(Torneios)").all().map((column) => column.name);
+
+    if (!columns.includes('inicio')) {
+        db.exec('ALTER TABLE Torneios ADD COLUMN inicio DATE');
+    }
+
+    if (!columns.includes('termino')) {
+        db.exec('ALTER TABLE Torneios ADD COLUMN termino DATE');
+    }
+
+    if (columns.includes('startDate')) {
+        db.exec('UPDATE Torneios SET inicio = COALESCE(inicio, startDate)');
+    }
+
+    if (columns.includes('endDate')) {
+        db.exec('UPDATE Torneios SET termino = COALESCE(termino, endDate)');
+    }
+
+    if (columns.includes('dataInicio')) {
+        db.exec('UPDATE Torneios SET inicio = COALESCE(inicio, dataInicio)');
+    }
+
+    if (columns.includes('dataTermino')) {
+        db.exec('UPDATE Torneios SET termino = COALESCE(termino, dataTermino)');
+    }
+}
+
+function initDatabase() {
     try {
         db.exec(`
             CREATE TABLE IF NOT EXISTS Categorias(
@@ -29,7 +60,9 @@ function inicializarBanco() {
             CREATE TABLE IF NOT EXISTS Torneios(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome VARCHAR(80) NOT NULL,
-                tipo INTEGER NOT NULL
+                tipo INTEGER NOT NULL,
+                inicio DATE,
+                termino DATE
             );
             
             CREATE TABLE IF NOT EXISTS Ginasios(
@@ -94,6 +127,8 @@ function inicializarBanco() {
             INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (2, 'Sada Cruzeiro', 'Belo Horizonte');
             INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (3, 'Vôlei Renata', 'Campinas');
         `);
+
+        ensureTournamentColumns();
         console.log('Banco de dados inicializado com sucesso (com dados mockados para testes).');
     } catch (e) {
         console.error("Erro ao inicializar o banco de dados:", e);
@@ -101,6 +136,10 @@ function inicializarBanco() {
     }
 }
 
-inicializarBanco();
+initDatabase();
+
+db.getDatabase = getDatabase;
+db.initDatabase = initDatabase;
+db.inicializarBanco = initDatabase;
 
 module.exports = db;
