@@ -2,6 +2,19 @@ import db from "../db/db.js";
 
 class GinasioModel {
 	constructor(id = null, nome = null, estado = null, cidade = null, endereco = null) {
+		//colocar a validacao aqui para evitar de criar o objeto com dados invalidos
+		if (!id || !String(id).trim()) {
+			throw new Error("ID do ginasio e obrigatorio.");
+		}
+		if (!nome || !String(nome).trim()) {
+			throw new Error("Nome do ginasio e obrigatorio.");
+		}
+		if (!estado || !String(estado).trim()) {
+			throw new Error("Estado do ginasio e obrigatorio.");
+		}
+		if (!cidade || !String(cidade).trim()) {
+			throw new Error("Cidade do ginasio e obrigatória.");
+		}
 		this.id = id;
 		this.nome = nome;
 		this.estado = estado;
@@ -9,17 +22,28 @@ class GinasioModel {
 		this.endereco = endereco;
 	}
 
-	validarCamposObrigatorios() {
-		if (!this.nome || !String(this.nome).trim()) {
-			return "Nome do ginasio e obrigatorio.";
+
+	validarNomeCidadeDuplicados(idAtual = null) {
+		const nomeNormalizado = String(this.nome).trim();
+		const cidadeNormalizada = String(this.cidade).trim();
+
+		let sql;
+		let existente;
+
+		if (idAtual !== null && idAtual !== undefined) {
+			sql = db.prepare(
+				"SELECT id FROM Ginasios WHERE lower(nome) = lower(?) AND lower(cidade) = lower(?) AND id <> ? LIMIT 1"
+			);
+			existente = sql.get(nomeNormalizado, cidadeNormalizada, idAtual);
+		} else {
+			sql = db.prepare(
+				"SELECT id FROM Ginasios WHERE lower(nome) = lower(?) AND lower(cidade) = lower(?) LIMIT 1"
+			);
+			existente = sql.get(nomeNormalizado, cidadeNormalizada);
 		}
 
-		if (!this.estado || !String(this.estado).trim()) {
-			return "Estado do ginasio e obrigatorio.";
-		}
-
-		if (!this.cidade || !String(this.cidade).trim()) {
-			return "Cidade do ginasio e obrigatoria.";
+		if (existente) {
+			return "Ja existe um ginasio com esse nome nesta cidade.";
 		}
 
 		return null;
@@ -29,6 +53,11 @@ class GinasioModel {
 		const erroValidacao = this.validarCamposObrigatorios();
 		if (erroValidacao) {
 			throw new Error(erroValidacao);
+		}
+
+		const erroDuplicado = this.validarNomeCidadeDuplicados();
+		if (erroDuplicado) {
+			throw new Error(erroDuplicado);
 		}
 
 		try {
@@ -62,6 +91,11 @@ class GinasioModel {
 			throw new Error(erroValidacao);
 		}
 
+		const erroDuplicado = this.validarNomeCidadeDuplicados(id);
+		if (erroDuplicado) {
+			throw new Error(erroDuplicado);
+		}
+
 		try {
 			const sql = db.prepare(
 				"UPDATE Ginasios SET nome = ?, estado = ?, cidade = ?, endereco = ? WHERE id = ?"
@@ -91,6 +125,7 @@ class GinasioModel {
 		try {
 			const conditions = [];
 			const params = [];
+			let joinOperator = " OR ";
 
 			if (typeof filter === "string") {
 				const termo = filter.trim();
@@ -103,6 +138,8 @@ class GinasioModel {
 					params.push(`%${termo}%`, `%${termo}%`, `%${termo}%`, `%${termo}%`);
 				}
 			} else if (filter && typeof filter === "object") {
+				joinOperator = " AND ";
+
 				if (filter.nome) {
 					conditions.push("nome LIKE ?");
 					params.push(`%${filter.nome}%`);
@@ -129,7 +166,7 @@ class GinasioModel {
 				return sqlAll.all();
 			}
 
-			const query = `SELECT * FROM Ginasios WHERE ${conditions.join(" OR ")}`;
+			const query = `SELECT * FROM Ginasios WHERE ${conditions.join(joinOperator)}`;
 			const sql = db.prepare(query);
 			return sql.all(...params);
 		} catch (e) {

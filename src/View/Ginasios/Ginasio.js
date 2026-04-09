@@ -12,19 +12,37 @@ const swalBaseOptions = {
   backdrop: false,
 };
 
+const ESTADOS_UF = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
+  "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN",
+  "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+];
+
 const Ginasio = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [ginasios, setGinasios] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
-  const [filtroPesquisa, setFiltroPesquisa] = useState("");
+  const [filtrosPesquisa, setFiltrosPesquisa] = useState({
+    nome: "",
+    estado: "",
+    cidade: "",
+  });
 
   const [novoGinasio, setNovoGinasio] = useState(initialFormData);
+
+  const ordenarPorNome = (lista) => {
+    return [...(lista || [])].sort((a, b) =>
+      String(a?.nome || "").localeCompare(String(b?.nome || ""), "pt-BR", {
+        sensitivity: "base",
+      })
+    );
+  };
 
   const carregarGinasios = async () => {
     try {
       const dadosDoBanco = await window.ElectronAPI.listarGinasios();
-      setGinasios(dadosDoBanco || []);
+      setGinasios(ordenarPorNome(dadosDoBanco || []));
     } catch (e) {
       await Swal.fire({
         ...swalBaseOptions,
@@ -43,16 +61,20 @@ const Ginasio = () => {
   const handlePesquisar = async (e) => {
     e.preventDefault();
 
-    const termo = filtroPesquisa.trim();
+    const filtro = {
+      nome: filtrosPesquisa.nome.trim(),
+      estado: filtrosPesquisa.estado.trim(),
+      cidade: filtrosPesquisa.cidade.trim(),
+    };
 
-    if (!termo) {
+    if (!filtro.nome && !filtro.estado && !filtro.cidade) {
       await carregarGinasios();
       return;
     }
 
     try {
-      const resultado = await window.ElectronAPI.pesquisarGinasio(termo);
-      setGinasios(resultado || []);
+      const resultado = await window.ElectronAPI.pesquisarGinasio(filtro);
+      setGinasios(ordenarPorNome(resultado || []));
     } catch (e) {
       await Swal.fire({
         ...swalBaseOptions,
@@ -65,8 +87,16 @@ const Ginasio = () => {
   };
 
   const handleLimparPesquisa = async () => {
-    setFiltroPesquisa("");
+    setFiltrosPesquisa({ nome: "", estado: "", cidade: "" });
     await carregarGinasios();
+  };
+
+  const handleFiltroPesquisaChange = (e) => {
+    const { name, value } = e.target;
+    setFiltrosPesquisa((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleInputChange = (e) => {
@@ -123,7 +153,7 @@ const Ginasio = () => {
       nome: ginasio.nome,
       cidade: ginasio.cidade,
       endereco: ginasio.endereco || "",
-      estado: ginasio.estado,
+      estado: String(ginasio.estado || "").toUpperCase(),
     });
     setFieldErrors({});
     setIsModalOpen(true);
@@ -148,7 +178,7 @@ const Ginasio = () => {
 
     try {
       await window.ElectronAPI.excluirGinasio(id);
-      setGinasios(ginasios.filter((ginasio) => ginasio.id !== id));
+      setGinasios(ordenarPorNome(ginasios.filter((ginasio) => ginasio.id !== id)));
 
       if (editingId === id) {
         setEditingId(null);
@@ -216,8 +246,10 @@ const Ginasio = () => {
         await window.ElectronAPI.editarGinasio(editingId, dados);
 
         setGinasios(
-          ginasios.map((ginasio) =>
-            ginasio.id === editingId ? { ...ginasio, ...dados, id: editingId } : ginasio
+          ordenarPorNome(
+            ginasios.map((ginasio) =>
+              ginasio.id === editingId ? { ...ginasio, ...dados, id: editingId } : ginasio
+            )
           )
         );
 
@@ -244,12 +276,16 @@ const Ginasio = () => {
 
         if (resultado) {
           setGinasios([
-            ...ginasios,
+            ...ordenarPorNome(ginasios),
             {
               ...dados,
               id: resultado,
             },
-          ]);
+          ].sort((a, b) =>
+            String(a?.nome || "").localeCompare(String(b?.nome || ""), "pt-BR", {
+              sensitivity: "base",
+            })
+          ));
         }
       } catch (e) {
         await Swal.fire({
@@ -284,24 +320,49 @@ const Ginasio = () => {
         </button>
       </div>
 
-      <form onSubmit={handlePesquisar} className="mb-6 flex flex-col md:flex-row gap-3">
+      <form
+        onSubmit={handlePesquisar}
+        className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-stretch"
+      >
         <input
           type="text"
-          value={filtroPesquisa}
-          onChange={(e) => setFiltroPesquisa(e.target.value)}
-          placeholder="Pesquisar por nome, estado ou cidade"
-          className="flex-1 bg-white border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 p-3"
+          name="nome"
+          value={filtrosPesquisa.nome}
+          onChange={handleFiltroPesquisaChange}
+          placeholder="Pesquisar por nome"
+          className="sm:col-span-2 lg:col-span-4 bg-white border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 p-3"
+        />
+        <select
+          name="estado"
+          value={filtrosPesquisa.estado}
+          onChange={handleFiltroPesquisaChange}
+          className="lg:col-span-2 bg-white border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 p-3"
+        >
+          <option value="">Todos os estados</option>
+          {ESTADOS_UF.map((uf) => (
+            <option key={uf} value={uf}>
+              {uf}
+            </option>
+          ))}
+        </select>
+        <input
+          type="text"
+          name="cidade"
+          value={filtrosPesquisa.cidade}
+          onChange={handleFiltroPesquisaChange}
+          placeholder="Pesquisar por cidade"
+          className="lg:col-span-2 bg-white border border-gray-300 text-black rounded-lg focus:ring-red-500 focus:border-red-500 p-3"
         />
         <button
           type="submit"
-          className="bg-black hover:bg-gray-800 text-white font-semibold py-3 px-5 rounded-lg transition-colors"
+          className="lg:col-span-2 bg-black hover:bg-gray-800 text-white font-semibold py-3 px-5 rounded-lg transition-colors whitespace-nowrap"
         >
           Pesquisar
         </button>
         <button
           type="button"
           onClick={handleLimparPesquisa}
-          className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-5 rounded-lg transition-colors"
+          className="lg:col-span-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-5 rounded-lg transition-colors whitespace-nowrap"
         >
           Limpar
         </button>
@@ -426,18 +487,23 @@ const Ginasio = () => {
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">
                     Estado *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="estado"
                     value={novoGinasio.estado}
                     onChange={handleInputChange}
-                    maxLength={2}
                     className={`w-full bg-gray-50 text-black rounded-lg block p-3 uppercase ${
                       fieldErrors.estado
                         ? "border border-red-500 focus:ring-red-500 focus:border-red-500"
                         : "border border-gray-300 focus:ring-red-500 focus:border-red-500"
                     }`}
-                  />
+                  >
+                    <option value="">Selecione o estado</option>
+                    {ESTADOS_UF.map((uf) => (
+                      <option key={uf} value={uf}>
+                        {uf}
+                      </option>
+                    ))}
+                  </select>
                   {fieldErrors.estado && (
                     <p className="text-xs text-red-600 mt-1">{fieldErrors.estado}</p>
                   )}
