@@ -53,6 +53,16 @@ const getTournamentStatusByDates = (startDate, endDate) => {
   return 'finished';
 };
 
+const getTournamentStatusLabel = (status) => {
+  const labels = {
+    ongoing: 'Em andamento',
+    upcoming: 'Em breve',
+    finished: 'Finalizado',
+  };
+
+  return labels[status] || status;
+};
+
 const decorateTournaments = (tournaments) => {
   return tournaments.map((item, index) => {
     const status = getTournamentStatusByDates(item.startDate, item.endDate);
@@ -270,7 +280,7 @@ const Home = () => {
                 : 'bg-white border-2 border-[#000000] text-[#000000] hover:bg-[#000000] hover:text-white'
             }`}
           >
-            {isEditing ? 'Done Managing' : 'Manage Assets'}
+            {isEditing ? 'Concluir gerenciamento' : 'Gerenciar torneios'}
           </button>
         </div>
       </header>
@@ -279,7 +289,7 @@ const Home = () => {
         <section className="space-y-6">
           <div className="flex items-center gap-3">
             <div className="size-2 bg-red-500 rounded-full animate-pulse" />
-            <h2 className="text-[12px] font-black text-gray-400 uppercase tracking-[0.3em]">Live Now</h2>
+            <h2 className="text-[12px] font-black text-gray-400 uppercase tracking-[0.3em]">Ao vivo agora</h2>
           </div>
 
           {isLoading ? (
@@ -296,7 +306,7 @@ const Home = () => {
 
                   <div className="flex justify-between items-start mb-8">
                     <div className="bg-red-50 text-[#B91C1C] px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">
-                      {tournament.year} Season
+                      {tournament.year} Temporada
                     </div>
                     <button
                       onClick={(event) => {
@@ -305,12 +315,12 @@ const Home = () => {
                       }}
                       className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest hover:bg-black transition-all group-hover:translate-x-1"
                     >
-                      View Details
+                      Ver detalhes
                     </button>
                   </div>
 
                   <h3 className="text-3xl font-black text-gray-900 leading-tight mb-2 uppercase tracking-tighter">{tournament.name}</h3>
-                  <p className="text-gray-400 font-bold text-[13px]">LIVE EVENT • Ends {tournament.date}</p>
+                  <p className="text-gray-400 font-bold text-[13px]">EVENTO AO VIVO • Termina em {tournament.date}</p>
 
                   {isEditing && (
                     <div className="mt-5 flex justify-end gap-2">
@@ -321,7 +331,7 @@ const Home = () => {
                         }}
                         className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-white hover:shadow-md transition-all"
                       >
-                        Edit
+                        Editar
                       </button>
                       <button
                         onClick={(event) => {
@@ -330,7 +340,7 @@ const Home = () => {
                         }}
                         className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all"
                       >
-                        Del
+                        Excluir
                       </button>
                     </div>
                   )}
@@ -347,7 +357,7 @@ const Home = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
                     </svg>
                   </div>
-                  <span className="font-black uppercase tracking-widest text-[12px]">New Tournament</span>
+                  <span className="font-black uppercase tracking-widest text-[12px]">Novo torneio</span>
                 </button>
               )}
             </div>
@@ -357,9 +367,9 @@ const Home = () => {
         <section className="space-y-8">
           <div className="flex items-center justify-between border-b border-gray-100 pb-6">
             <div className="flex items-center gap-4">
-              <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tighter italic">Roster</h2>
+              <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tighter italic">Elenco</h2>
               <div className="h-px w-24 bg-[#000000] opacity-30 mt-2" />
-              <span className="text-[12px] font-black text-gray-300 mt-2 uppercase tracking-[0.2em]">{MOCK_PLAYERS.length} Athletes</span>
+              <span className="text-[12px] font-black text-gray-300 mt-2 uppercase tracking-[0.2em]">{MOCK_PLAYERS.length} Atletas</span>
             </div>
           </div>
 
@@ -387,7 +397,7 @@ const Home = () => {
         <section className="space-y-8">
           <div className="flex items-center justify-between border-b border-gray-100 pb-6">
             <div className="flex items-center gap-4">
-              <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tighter italic">Schedule</h2>
+              <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tighter italic">Agenda</h2>
               <div className="h-px w-24 bg-[#DC2626] opacity-30 mt-2" />
             </div>
 
@@ -428,7 +438,7 @@ const Home = () => {
                           tournament.status === 'finished' ? 'bg-gray-100 text-gray-400' : 'bg-red-50 text-red-600'
                         }`}
                       >
-                        {tournament.status}
+                        {getTournamentStatusLabel(tournament.status)}
                       </span>
                       <span className="text-[11px] font-black text-gray-400">{tournament.year}</span>
                     </div>
@@ -456,11 +466,11 @@ const Home = () => {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-2xl bg-white rounded-2xl overflow-hidden shadow-2xl border border-zinc-200">
             <div className="px-7 pt-6 pb-5 border-b border-zinc-100">
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-2">Tournament Dialog</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-2">Cadastro de Torneio</p>
               <h2 className="text-2xl text-zinc-900 font-black uppercase tracking-tighter">
                 {formData.id ? 'Editar Torneio' : 'Novo Torneio'}
               </h2>
-              <p className="text-sm font-semibold text-zinc-400 mt-2">Defina o formato e periodo do torneio.</p>
+              <p className="text-sm font-semibold text-zinc-400 mt-2">Defina o formato e o período do torneio.</p>
             </div>
 
             <form onSubmit={handleSubmitTournament} className="p-7 space-y-6">
@@ -516,7 +526,7 @@ const Home = () => {
 
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-2">
-                  <label className="block text-[11px] font-black uppercase tracking-widest text-zinc-500">Data de inicio *</label>
+                  <label className="block text-[11px] font-black uppercase tracking-widest text-zinc-500">Data de início *</label>
                   <input
                     type="date"
                     name="startDate"
@@ -527,7 +537,7 @@ const Home = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-[11px] font-black uppercase tracking-widest text-zinc-500">Data de termino *</label>
+                  <label className="block text-[11px] font-black uppercase tracking-widest text-zinc-500">Data de término *</label>
                   <input
                     type="date"
                     name="endDate"

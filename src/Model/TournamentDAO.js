@@ -1,5 +1,5 @@
 const { getDatabase } = require('../db/db');
-const { Tournament, TournamentType } = require('./Tournament');
+const { Tournament } = require('./Tournament');
 
 class TournamentDAO {
 

@@ -12,6 +12,10 @@ class Tournament {
     endDate; // YYYY-MM-DD
 
     constructor(id, name, type, startDate, endDate) {
+        if (startDate && endDate && startDate > endDate) {
+            throw new Error('A data de início não pode ser maior que a de término.');
+        }
+
         this.id = id;
         this.name = name;
         this.type = type;
