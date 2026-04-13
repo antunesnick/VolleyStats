@@ -7,6 +7,9 @@ const GinasioControl = GinasioControlModule.default || GinasioControlModule;
 const PartidaControl = require('./Control/PartidaControl');
 const url = require('url');
 
+const { initDatabase } = require('./db/db');
+const TournamentControl = require('./Control/TournamentControl').default;
+
 if (require('electron-squirrel-startup')) {
   app.quit();
 }
@@ -25,8 +28,10 @@ protocol.registerSchemesAsPrivileged([
 
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
-    width: 1024,
-    height: 768,
+    width: 1680,
+    height: 1020,
+    minWidth: 1280,
+    minHeight: 800,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       nodeIntegration: true,     
@@ -74,6 +79,8 @@ app.whenReady().then(() => {
       callback({ error: -2 });
     }
   });
+
+  initDatabase();
 
 
   ipcMain.handle('salvar-categoria', async (event, dados) => {
@@ -130,12 +137,22 @@ app.whenReady().then(() => {
     return GinasioControl.pesquisarGinasio(filtro);
   });
 
+  ipcMain.handle('tournaments:list', async () => TournamentControl.listTournaments());
+
+  ipcMain.handle('tournaments:create', async (_event, payload) => {
+    return TournamentControl.createTournament(payload);
+  });
+
+  ipcMain.handle('tournaments:update', async (_event, payload) => {
+    return TournamentControl.updateTournament(payload);
+  });
+
+  ipcMain.handle('tournaments:delete', async (_event, id) => {
+    return TournamentControl.deleteTournament(id);
+  });
+
   createWindow();
 
-
-
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
