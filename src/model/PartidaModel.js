@@ -23,6 +23,27 @@ class PartidaModel {
         return stmt.all(filter.status);
     }
 
+    findPartidaByDateAndTeam(filters, db) {
+        let query = 'SELECT * FROM Partidas WHERE 1=1';
+        const params = [];
+
+        // Filtro por data
+        if (filters.dataPartida && filters.dataPartida.trim() !== '') {
+            query += ' AND dataPartida = ?';
+            params.push(filters.dataPartida);
+        }
+
+        // Filtro por time (pode ser time1 ou time2)
+        if (filters.timeId && filters.timeId !== '') {
+            query += ' AND (time1 = ? OR time2 = ?)';
+            params.push(parseInt(filters.timeId), parseInt(filters.timeId));
+        }
+
+        query += ' ORDER BY dataPartida DESC';
+        const stmt = db.prepare(query);
+        return stmt.all(...params);
+    }
+
     insert(partida, db) {
         const stmt = db.prepare(`
             INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2)
