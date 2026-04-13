@@ -39,6 +39,7 @@ class PartidaModel {
             params.push(parseInt(filters.timeId), parseInt(filters.timeId));
         }
 
+        query += ' ORDER BY dataPartida DESC';
         const stmt = db.prepare(query);
         return stmt.all(...params);
     }
