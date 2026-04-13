@@ -40,6 +40,13 @@ function ensureTournamentColumns() {
     }
 }
 
+function ensurePartidaColumns() {
+    const columns = db.prepare("PRAGMA table_info(Partidas)").all().map((column) => column.name);
+    if (!columns.includes('nome')) {
+        db.exec('ALTER TABLE Partidas ADD COLUMN nome VARCHAR(100)');
+    }
+}
+
 function initDatabase() {
     try {
         db.exec(`
@@ -75,16 +82,9 @@ function initDatabase() {
 
             CREATE TABLE IF NOT EXISTS Partidas(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome VARCHAR(100),
                 pontosTime1 INTEGER,
                 pontosTime2 INTEGER,
-                dataPartida DATE NOT NULL,
-                tipo VARCHAR(45) NOT NULL,
-                status VARCHAR(45) DEFAULT 'AGENDADA',
-                externa BOOLEAN DEFAULT 0,
-
-                ginasio_id INTEGER,
-                time1 INTEGER,
-                time2 INTEGER,
 
                 FOREIGN KEY (ginasio_id) REFERENCES Ginasios (id),
                 FOREIGN KEY (time1) REFERENCES Times (id),
@@ -129,6 +129,7 @@ function initDatabase() {
         `);
 
         ensureTournamentColumns();
+        ensurePartidaColumns();
         console.log('Banco de dados inicializado com sucesso (com dados mockados para testes).');
     } catch (e) {
         console.error("Erro ao inicializar o banco de dados:", e);
