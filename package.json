@@ -44,10 +44,17 @@
     "tailwindcss": "^4.2.1"
   },
   "dependencies": {
-    "better-sqlite3": "^12.6.2",
+    "better-sqlite3": "^12.8.0",
+    "cpf-cnpj-validator": "^1.0.3",
     "electron-squirrel-startup": "^1.0.1",
+    "lucide-react": "^0.577.0",
+    "path": "^0.12.7",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.1",
+    "styled": "^1.0.0",
+    "styled-components": "^6.3.12",
+    "sweetalert2": "^11.26.24",
     "xlsx": "^0.18.5"
   }
 }

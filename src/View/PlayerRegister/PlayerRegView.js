@@ -1,0 +1,232 @@
+import React, { useEffect, useState } from "react";
+import * as Style from "./PlayerRegStyle"; 
+import PositionControl from "../../Control/PositionControl";
+// 1. IMPORTANDO O CONTROL DAS CATEGORIAS (Verifique se o caminho da pasta está correto)
+import CategoriaControl from "../../Control/CategoriaControl"; 
+
+export function PlayerRegView({ open, onClose, onSave, player }) {
+  const [formData, setFormData] = useState(
+    player || {
+      nome: "",
+      numCamisa: "",
+      altura: "",
+      cpf: "",
+      rg: "",
+      posicaoId: "",
+      categoria_id: "", // Ajustado para ser consistente com IDs
+      dataNasc: "",
+      foto: "", 
+    }
+  );
+
+  const [positions, setPositions] = useState([]);
+  // 2. ESTADO PARA GUARDAR AS CATEGORIAS
+  const [categories, setCategories] = useState([]); 
+
+  useEffect(() => {
+    if (open) {
+      // Busca as Posições
+      const positionControl = new PositionControl();
+      positionControl.findAllPositions().then((data) => {
+        setPositions(data);
+      });
+
+      // 3. BUSCA AS CATEGORIAS
+      // Como o CategoriaControl é um objeto e não uma classe, não usamos 'new'
+      CategoriaControl.listarCategorias()
+        .then((data) => {
+          setCategories(data);
+        })
+        .catch((error) => console.error("Erro ao carregar categorias:", error));
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (player) {
+      setFormData(player);
+    }
+  }, [player]);
+
+  const maskCPF = (value) => {
+    return value
+      .replace(/\D/g, "") 
+      .slice(0, 11) 
+      .replace(/(\d{3})(\d)/, "$1.$2") 
+      .replace(/(\d{3})(\d)/, "$1.$2") 
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2"); 
+  };
+
+  const maskRG = (value) => {
+    return value
+      .replace(/[^a-zA-Z0-9]/g, "") 
+      .toUpperCase()
+      .slice(0, 9) 
+      .replace(/^(\d{2})(\d)/, "$1.$2") 
+      .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3") 
+      .replace(/\.(\d{3})([a-zA-Z0-9]+)$/, ".$1-$2"); 
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (onSave) onSave(formData);
+    if (onClose) onClose();
+  };
+
+  if (!open) return null;
+
+  return (
+    <Style.Overlay>
+      <Style.Modal>
+        <Style.CloseIcon onClick={onClose} type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </Style.CloseIcon>
+
+        <Style.Title>
+          {player ? "Editar Jogador" : "Novo Jogador"}
+        </Style.Title>
+        
+        <Style.Form onSubmit={handleSubmit}>
+          <Style.Row>
+            <Style.InputGroup>
+              <Style.Label>Nome *</Style.Label>
+              <Style.Input
+                type="text"
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                required
+              />
+            </Style.InputGroup>
+
+            <Style.InputGroup>
+              <Style.Label>Número *</Style.Label>
+              <Style.Input
+                type="text"
+                value={formData.numCamisa}
+                onChange={(e) => setFormData({ ...formData, numCamisa: e.target.value })}
+                required
+              />
+            </Style.InputGroup>
+          </Style.Row>
+
+          <Style.Row>
+            <Style.InputGroup>
+              <Style.Label>Categoria</Style.Label>
+              {/* 4. ATUALIZANDO O SELECT PARA USAR OS DADOS DO BANCO */}
+              <Style.Select
+                value={formData.categoria_id} 
+                onChange={(e) => setFormData({ ...formData, categoria_id: e.target.value })}
+              >
+                <option value="">Selecione...</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.nome}
+                  </option>
+                ))}
+              </Style.Select>
+            </Style.InputGroup>
+
+            <Style.InputGroup>
+              <Style.Label>Posição *</Style.Label>
+              <Style.Select
+                value={formData.posicaoId}
+                onChange={(e) => setFormData({ ...formData, posicaoId: e.target.value })}
+                required
+              >
+                <option value="">Selecione...</option>
+                {positions.map((pos) => (
+                  <option key={pos.id} value={pos.id}>
+                    {pos.nome}
+                  </option>
+                ))}
+              </Style.Select>
+            </Style.InputGroup>
+          </Style.Row>
+
+          {/* ... resto do seu código de Altura, Nascimento, CPF, RG e Foto continua perfeitamente igual ... */}
+          
+          <Style.Row>
+            <Style.InputGroup>
+              <Style.Label>Altura (m)</Style.Label>
+              <Style.Input
+                type="text"
+                placeholder="Ex: 1.85"
+                value={formData.altura}
+                onChange={(e) => setFormData({ ...formData, altura: e.target.value })}
+              />
+            </Style.InputGroup>
+
+            <Style.InputGroup>
+              <Style.Label>Data de Nascimento</Style.Label>
+              <Style.Input
+                type="date"
+                value={formData.dataNasc}
+                onChange={(e) => setFormData({ ...formData, dataNasc: e.target.value })}
+              />
+            </Style.InputGroup>
+          </Style.Row>
+
+          <Style.Row>
+            <Style.Row>
+            <Style.InputGroup>
+              <Style.Label>CPF</Style.Label>
+              <Style.Input
+                type="text"
+                placeholder="000.000.000-00"
+                value={formData.cpf}
+                onChange={(e) => setFormData({ ...formData, cpf: maskCPF(e.target.value) })}
+              />
+            </Style.InputGroup>
+
+            <Style.InputGroup>
+              <Style.Label>RG</Style.Label>
+              <Style.Input
+                type="text"
+                placeholder="00.000.000-0"
+                value={formData.rg}
+                onChange={(e) => setFormData({ ...formData, rg: maskRG(e.target.value) })}
+              />
+            </Style.InputGroup>
+          </Style.Row>
+          </Style.Row>
+          <Style.Row>
+            <Style.InputGroup style={{ gridColumn: "span 2" }}>
+              <Style.Label>Foto do Jogador</Style.Label>
+              {formData.foto && (
+                <img 
+                  src={formData.foto} 
+                  alt="Preview da Foto" 
+                  style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', marginBottom: '10px', border: '1px solid #ccc' }} 
+                />
+              )}
+              <Style.Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setFormData({ ...formData, foto: reader.result });
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+              />
+            </Style.InputGroup>
+          </Style.Row>
+
+          <Style.Footer>
+            <Style.Button type="button" onClick={onClose} $variant="cancel">
+              Cancelar
+            </Style.Button>
+            <Style.Button type="submit">
+              {player ? "Salvar" : "Criar Jogador"}
+            </Style.Button>
+          </Style.Footer>
+        </Style.Form>
+      </Style.Modal>
+    </Style.Overlay>
+  );
+}
+
+export default PlayerRegView;
