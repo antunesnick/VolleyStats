@@ -1,11 +1,10 @@
 import React from 'react';
-import GerenciarPartidas from '../Partida/GerenciarPartidas'; // Ajuste o caminho se necessário
-import MenuNav from '../MenuNav/MenuNav';
+import GerenciarPartidas from '../Partida/GerenciarPartidas';
 
 const Home = () => {
   return (
-    <div>
-      <MenuNav />
+    <div className="w-full">
+      <GerenciarPartidas />
     </div>
   );
 };

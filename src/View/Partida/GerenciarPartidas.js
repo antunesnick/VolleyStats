@@ -34,6 +34,11 @@ const GerenciarPartidas = () => {
   const [editandoId, setEditandoId] = useState(null);
   const [partidaAtiva, setPartidaAtiva] = useState(null);
 
+  // Estados para filtros
+  const [filtros, setFiltros] = useState({
+    dataPartida: '',
+    timeId: ''
+  });
 
   const estadoInicialForm = { 
     nome: '', 
@@ -48,7 +53,6 @@ const GerenciarPartidas = () => {
   const [placar, setPlacar] = useState({ pontosTime1: '', pontosTime2: '' });
 
   // 1. CARREGAMENTO INICIAL DE DADOS
-// 1. CARREGAMENTO INICIAL DE DADOS
   useEffect(() => {
     carregarTudo();
   }, []);
@@ -58,7 +62,6 @@ const GerenciarPartidas = () => {
         const dadosPartidas = await window.api.partidas.findAll();
         setPartidas(dadosPartidas);
 
-        // MOCK DE DADOS PARA TIMES E GINÁSIOS (Temporário para testes)
         const mockTimes = [
             { id: 1, nome: 'Vôlei Prudente', cidade: 'Presidente Prudente' },
             { id: 2, nome: 'Sada Cruzeiro', cidade: 'Belo Horizonte' },
@@ -70,7 +73,6 @@ const GerenciarPartidas = () => {
             { id: 2, nome: 'Arena Sabiá', estado: 'SP', cidade: 'Presidente Prudente' }
         ];
 
-        // Alimenta os estados do React com os mocks
         setTimesCadastrados(mockTimes);
         setGinasiosCadastrados(mockGinasios);
 
@@ -79,17 +81,31 @@ const GerenciarPartidas = () => {
     }
   };
 
-  // Auxiliares para renderização
-  const getNomeTime = (id) => timesCadastrados.find(t => t.id === id)?.nome || `Time ${id}`;
-  const getNomeGinasio = (id) => ginasiosCadastrados.find(g => g.id === id)?.nome || `Ginásio ${id}`;
+  const getNomeTime = (id) => timesCadastrados.find(t => t.id === Number(id))?.nome || `Time ${id}`;
+  const getNomeGinasio = (id) => ginasiosCadastrados.find(g => g.id === Number(id))?.nome || `Ginásio ${id}`;
 
-  // 2. LÓGICA DO FORMULÁRIO
+  const handleFiltroChange = (e) => {
+    const { name, value } = e.target;
+    setFiltros({ ...filtros, [name]: value });
+  };
+
+  const handleAplicarFiltros = async () => {
+    try {
+      const partidasFiltradas = await window.api.partidas.findByDateAndTeam(filtros);
+      setPartidas(partidasFiltradas);
+    } catch (error) {
+      console.error("Erro ao aplicar filtros.", error);
+    }
+  };
+
+  const handleLimparFiltros = async () => {
+    setFiltros({ dataPartida: '', timeId: '' });
+    await carregarTudo();
+  };
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? checked : value
-    });
+    setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
   };
 
   const handleSalvarPartida = async (e) => {
@@ -112,7 +128,6 @@ const GerenciarPartidas = () => {
     }
   };
 
-  // 3. AÇÕES
   const handleDeletar = async (id) => {
     if (window.confirm("Esta ação é irreversível. Deseja realmente apagar esta partida?")) {
         try {
@@ -135,7 +150,6 @@ const GerenciarPartidas = () => {
       }
   };
 
-  // 4. CONTROLE DE MODAIS
   const abrirModalCriar = () => {
     setFormData(estadoInicialForm);
     setEditandoId(null);
@@ -153,134 +167,167 @@ const GerenciarPartidas = () => {
     setIsModalOpen(true);
   };
 
-  const fecharModal = () => {
-    setIsModalOpen(false);
-  };
+  const fecharModal = () => setIsModalOpen(false);
 
-  // Renderização
   return (
-    <div className="min-h-screen bg-gray-100 text-neutral-900 font-sans">
+    <div className="w-full text-neutral-900 font-sans">
       
-      <header className="bg-black text-white shadow-xl sticky top-0 z-40 border-b-2 border-neutral-800">
-        <div className="w-full max-w-[2200px] mx-auto p-4 md:p-6 flex justify-between items-center responsividade-header gap-6">
-          <div className="flex items-center gap-5">
-            <div className="w-16 h-16 flex items-center justify-center">
-                <img src={logoTime} alt="Logo Vôlei Prudente" className="w-full h-full object-contain drop-shadow-lg" />
-            </div>
-            <div>
-                <h1 className="text-3xl font-black tracking-tighter uppercase flex items-center gap-2">
-                    <span className="text-red-600">Volley</span>Stats
-                </h1>
-                <p className="text-gray-400 text-sm font-medium -mt-1 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 block shadow-lg"></span> 
-                    Temporada 2026
-                </p>
-            </div>
+      {/* TÍTULO E BOTÃO NOVA PARTIDA INTEGRADOS */}
+      <div className="mb-10 pb-6 border-b-4 border-neutral-900 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+              <div className="w-2.5 h-12 bg-red-600 rounded-full shadow-lg"></div>
+              <div>
+                  <h2 className="text-4xl font-black text-black tracking-tighter uppercase">Cronograma de Jogos</h2>
+                  <p className="text-gray-600 text-sm font-medium mt-1">Gerencie, edite e acompanhe os confrontos agendados</p>
+              </div>
           </div>
-
           <button 
             onClick={abrirModalCriar} 
-            className="bg-red-600 hover:bg-red-700 text-white font-extrabold py-3 px-6 rounded-2xl shadow-lg transition-all transform hover:scale-105 flex items-center gap-2.5 active:scale-95 text-base"
+            className="bg-red-600 hover:bg-red-700 text-white font-extrabold py-3 px-8 rounded-2xl shadow-lg transition-all transform hover:scale-105 flex items-center gap-2.5 active:scale-95 text-base whitespace-nowrap"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
             NOVA PARTIDA
           </button>
-        </div>
-      </header>
+      </div>
 
-      <main className="w-full max-w-[2200px] mx-auto p-6 md:p-12">
-        
-        <div className="mb-12 pb-5 border-b-4 border-neutral-900 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-                <div className="w-2.5 h-12 bg-red-600 rounded-full shadow-lg"></div>
-                <div>
-                    <h2 className="text-4xl font-black text-black tracking-tighter uppercase">Cronograma de Jogos</h2>
-                    <p className="text-gray-600 text-sm font-medium mt-1">Gerencie, edite e acompanhe os confrontos agendados</p>
-                </div>
+      {/* SEÇÃO DE FILTROS - GRID ESTÁTICO */}
+      <div className="mb-10 bg-white rounded-3xl shadow-lg p-8 border-2 border-gray-200">
+        <div className="flex items-center gap-3 mb-6">
+          <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+          <h3 className="text-xl font-bold text-black uppercase tracking-wide">Filtros de Busca</h3>
+        </div>
+
+        <div className="grid grid-cols-4 gap-6">
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              Data da Partida
+            </label>
+            <input 
+              type="date" 
+              name="dataPartida" 
+              value={filtros.dataPartida} 
+              onChange={handleFiltroChange}
+              className="w-full bg-white border-2 border-gray-200 text-black rounded-xl p-3 shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all text-sm font-semibold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.856-1.487M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 0a1 1 0 11-2 0 1 1 0 012 0zM5 20a6 6 0 1112 0v-2a6 6 0 00-12 0v2z"></path></svg>
+              Time
+            </label>
+            <div className="relative">
+              <select
+                name="timeId"
+                value={filtros.timeId}
+                onChange={handleFiltroChange}
+                className="w-full appearance-none bg-white border-2 border-gray-200 text-black rounded-xl p-3 pr-10 shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all cursor-pointer text-sm font-semibold"
+              >
+                <option value="">Selecionar Time...</option>
+                {timesCadastrados.map((time) => (
+                  <option key={time.id} value={time.id}>{time.nome}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
             </div>
-        </div>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
-          {partidas.map((partida) => (
-            // APLICANDO DETALHE EM AMARELO NO CARD ATIVO
-            <div key={partida.id} className={`bg-white rounded-3xl shadow-lg border-2 ${partida.status === 'AGENDADA' ? 'border-yellow-400' : 'border-gray-200'} overflow-hidden hover:shadow-2xl transition-all group flex flex-col transform hover:-translate-y-2`}>
+          <div className="flex gap-3 items-end col-span-2">
+            <button onClick={handleAplicarFiltros} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              Aplicar Filtros
+            </button>
+            <button onClick={handleLimparFiltros} className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 text-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              Limpar Filtros
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* GRID DE CARDS ESTÁTICO */}
+      <div className="grid grid-cols-2 gap-10">
+        {partidas.map((partida) => (
+          <div key={partida.id} className={`bg-white rounded-3xl shadow-lg border-2 ${partida.status === 'AGENDADA' ? 'border-yellow-400' : 'border-gray-200'} overflow-hidden hover:shadow-2xl transition-all group flex flex-col`}>
+            
+            <div className={`px-7 py-4 flex justify-between items-center ${partida.status === 'FINALIZADA' ? 'bg-neutral-800' : 'bg-black'} text-white`}>
+              <span className={`text-xs font-bold uppercase tracking-widest ${partida.status === 'FINALIZADA' ? 'text-gray-400' : 'text-red-500'} bg-red-950/30 px-3 py-1.5 rounded-full`}>{partida.tipo}</span>
+              <span className={`text-xs font-semibold ${partida.status === 'FINALIZADA' ? 'text-gray-300' : 'text-yellow-400'} flex items-center gap-2`}>
+                  <div className={`w-2 h-2 rounded-full ${partida.status === 'FINALIZADA' ? 'bg-gray-500' : 'bg-yellow-400'}`}></div>
+                  {partida.status}
+              </span>
+            </div>
+
+            <div className="p-8 flex-grow flex flex-col">
+              <div className="flex justify-between items-baseline mb-3">
+                  <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">{partida.dataPartida}</p>
+                  <span className="text-xs text-gray-400">ID: {partida.id}</span>
+              </div>
+              <h3 className="text-3xl font-black text-black mb-7 leading-tight group-hover:text-red-600 transition-colors">{partida.nome}</h3>
               
-              <div className={`px-7 py-4 flex justify-between items-center ${partida.status === 'FINALIZADA' ? 'bg-neutral-800' : 'bg-black'} text-white`}>
-                <span className={`text-xs font-bold uppercase tracking-widest ${partida.status === 'FINALIZADA' ? 'text-gray-400' : 'text-red-500'} bg-red-950/30 px-3 py-1.5 rounded-full`}>{partida.tipo}</span>
-                <span className={`text-xs font-semibold ${partida.status === 'FINALIZADA' ? 'text-gray-300' : 'text-yellow-400'} flex items-center gap-2`}>
-                    <div className={`w-2 h-2 rounded-full ${partida.status === 'FINALIZADA' ? 'bg-gray-500' : 'bg-yellow-400 animate-pulse'}`}></div>
-                    {partida.status}
-                </span>
+              <div className="flex items-center gap-6 bg-neutral-900 p-6 rounded-2xl border-2 border-neutral-800 mb-7 shadow-lg">
+                  <div className="flex-1 text-center font-bold text-xl text-white truncate">{getNomeTime(partida.time1)}</div>
+                  <div className="text-3xl font-black text-red-500 flex items-center gap-1.5">
+                      <span className="w-1 h-5 bg-yellow-400 rounded-full"></span>
+                      VS
+                      <span className="w-1 h-5 bg-yellow-400 rounded-full"></span>
+                  </div>
+                  <div className="flex-1 text-center font-bold text-xl text-white truncate">{getNomeTime(partida.time2)}</div>
               </div>
 
-              <div className="p-8 flex-grow flex flex-col">
-                <div className="flex justify-between items-baseline mb-3">
-                    <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">{partida.dataPartida}</p>
-                    <span className="text-xs text-gray-400">ID: {partida.id}</span>
-                </div>
-                <h3 className="text-3xl font-black text-black mb-7 leading-tight group-hover:text-red-600 transition-colors">{partida.nome}</h3>
-                
-                <div className="flex items-center gap-6 bg-neutral-900 p-6 rounded-2xl border-2 border-neutral-800 mb-7 shadow-lg flex-1">
-                    <div className="flex-1 text-center font-bold text-xl text-white truncate px-1">{getNomeTime(partida.time1)}</div>
-                    <div className="text-3xl font-black text-red-500 flex items-center gap-1.5">
-                        <span className="w-1 h-5 bg-yellow-400 rounded-full"></span>
-                        VS
-                        <span className="w-1 h-5 bg-yellow-400 rounded-full"></span>
-                    </div>
-                    <div className="flex-1 text-center font-bold text-xl text-white truncate px-1">{getNomeTime(partida.time2)}</div>
-                </div>
+              {partida.status === 'FINALIZADA' && (
+                  <div className="bg-black p-5 rounded-xl text-center mb-7 border-2 border-red-800 shadow-xl">
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Placar Final</p>
+                      <p className="text-5xl font-black text-white tracking-tighter">{partida.pontosTime1} <span className="text-red-500">x</span> {partida.pontosTime2}</p>
+                  </div>
+              )}
 
-                {partida.status === 'FINALIZADA' && (
-                    <div className="bg-black p-5 rounded-xl text-center mb-7 border-2 border-red-800 shadow-xl">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Placar Final</p>
-                        <p className="text-5xl font-black text-white tracking-tighter">{partida.pontosTime1} <span className="text-red-500">x</span> {partida.pontosTime2}</p>
-                    </div>
+              <div className="flex items-center text-gray-700 text-sm mb-7 gap-2.5 mt-auto border-t pt-5 border-gray-100">
+                  <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                  <span className="truncate font-medium">{getNomeGinasio(partida.ginasio_id)}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-2 border-t pt-6 border-gray-100">
+                {partida.status !== 'FINALIZADA' && (
+                    <button onClick={() => abrirModalEditar(partida)} className="col-span-2 bg-black hover:bg-neutral-800 text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 border-2 border-neutral-800 hover:border-yellow-400">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        Editar Confronto
+                    </button>
                 )}
-
-                <div className="flex items-center text-gray-700 text-sm mb-7 gap-2.5 mt-auto border-t pt-5 border-gray-100">
-                    <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    <span className="truncate font-medium">{getNomeGinasio(partida.ginasio_id)}</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mt-2 border-t pt-6 border-gray-100">
-                  {partida.status !== 'FINALIZADA' && (
-                      <button onClick={() => abrirModalEditar(partida)} className="col-span-2 bg-black hover:bg-neutral-800 text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 border-2 border-neutral-800 hover:border-yellow-400 transition-colors">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                          Editar Confronto
-                      </button>
-                  )}
-                   <button onClick={() => handleDeletar(partida.id)} className="bg-gray-100 hover:bg-red-100 text-gray-700 hover:text-red-700 font-semibold py-3.5 rounded-xl text-sm transition-colors flex-1">
-                    Apagar
-                  </button>
-                  <button className="bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all transform hover:scale-105 active:scale-95 flex-1 hover:shadow-lg">
-                    Iniciar Controle
-                  </button>
-                </div>
+                 <button onClick={() => handleDeletar(partida.id)} className="bg-gray-100 hover:bg-red-100 text-gray-700 hover:text-red-700 font-semibold py-3.5 rounded-xl text-sm transition-colors">
+                  Apagar
+                </button>
+                <button className="bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all transform hover:scale-105 active:scale-95 shadow-lg">
+                  Iniciar Controle
+                </button>
               </div>
             </div>
-          ))}
-        </div>
-        
-        {/* Renderização Vazia */}
-        {partidas.length === 0 && (
-            <div className="col-span-full text-center py-24 text-gray-400 bg-white rounded-3xl border-2 border-dashed border-gray-300 shadow-sm">
-                <svg className="w-16 h-16 mx-auto mb-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                <p className="text-xl font-bold">Nenhuma partida cadastrada atualmente.</p>
-                <p className="mt-2">Clique em "NOVA PARTIDA" para começar o cronograma.</p>
-            </div>
-        )}
-      </main>
+          </div>
+        ))}
+      </div>
+      
+      {partidas.length === 0 && (
+          <div className="text-center py-24 text-gray-400 bg-white rounded-3xl border-2 border-dashed border-gray-300 shadow-sm">
+              <svg className="w-16 h-16 mx-auto mb-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+              <p className="text-xl font-bold">Nenhuma partida cadastrada atualmente.</p>
+              <p className="mt-2">Clique em "NOVA PARTIDA" para começar o cronograma.</p>
+          </div>
+      )}
 
+      {/* MODAL - AJUSTADO PARA NÃO SER TAMPADO */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4 md:p-10 animate-fade-in overflow-y-auto">
-          <div className="bg-white rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl transform animate-scale-in my-auto">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-[2000] p-10 overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl my-auto">
             
             <div className="bg-black px-8 py-5 flex justify-between items-center border-b-4 border-red-600 shadow-lg">
               <h2 className="text-2xl font-black text-white tracking-wide uppercase">{editandoId ? 'Atualizar Confronto' : 'Cadastrar Confronto Temporada'}</h2>
               <button onClick={fecharModal} className="text-gray-400 hover:text-red-500 transition-colors text-3xl font-light p-2">✕</button>
             </div>
 
-            <form onSubmit={handleSalvarPartida} className="p-8 md:p-10 space-y-8">
+            <form onSubmit={handleSalvarPartida} className="p-10 space-y-8">
               
               <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -290,7 +337,7 @@ const GerenciarPartidas = () => {
                   <input type="text" name="nome" value={formData.nome} onChange={handleInputChange} required placeholder="Ex: Semifinal - Jogo 1 ou Amistoso de Verão" className="w-full bg-white border-2 border-gray-200 text-black rounded-xl p-4 shadow-inner focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm font-semibold transition-all" />
               </div>
 
-              <div className="flex flex-wrap gap-6 border-2 border-dashed border-gray-200 p-6 rounded-2xl bg-gray-50 shadow-inner">
+              <div className="flex gap-6 border-2 border-dashed border-gray-200 p-6 rounded-2xl bg-gray-50 shadow-inner items-end">
                 <CustomSelect 
                     label="Time 1 (Mandante/Principal)" 
                     name="time1" 
@@ -305,7 +352,7 @@ const GerenciarPartidas = () => {
                     ))}
                 </CustomSelect>
 
-                <div className="text-3xl font-black text-red-600 self-end pb-3 flex items-center gap-1.5 responsividade-vs-modal">
+                <div className="text-3xl font-black text-red-600 pb-3 flex items-center gap-1.5">
                     <span className="w-1.5 h-6 bg-yellow-400 rounded-full"></span>
                     VS
                     <span className="w-1.5 h-6 bg-yellow-400 rounded-full"></span>
@@ -326,8 +373,8 @@ const GerenciarPartidas = () => {
                 </CustomSelect>
               </div>
 
-              <div className="flex flex-wrap gap-6">
-                <div className="flex-1 min-w-[200px]">
+              <div className="grid grid-cols-3 gap-6">
+                <div>
                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
                         <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                         Data do Confronto *
@@ -336,7 +383,7 @@ const GerenciarPartidas = () => {
                 </div>
 
                 <CustomSelect 
-                    label="Tipo de Competição (ERS)" 
+                    label="Tipo de Competição" 
                     name="tipo" 
                     value={formData.tipo} 
                     onChange={handleInputChange} 
@@ -344,7 +391,7 @@ const GerenciarPartidas = () => {
                     icon={<svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>}
                 >
                     <option value="">Selecione a fase...</option>
-                    <option value="Fase de Grupos">Fase de Grupos / Classificatória</option>
+                    <option value="Fase de Grupos">Fase de Grupos</option>
                     <option value="Oitavas de Final">Oitavas de Final</option>
                     <option value="Quartas de Final">Quartas de Final</option>
                     <option value="Semifinal">Semifinal</option>
@@ -353,7 +400,7 @@ const GerenciarPartidas = () => {
                 </CustomSelect>
 
                 <CustomSelect 
-                    label="Local (Ginásio Mandante)" 
+                    label="Local (Ginásio)" 
                     name="ginasio_id" 
                     value={formData.ginasio_id} 
                     onChange={handleInputChange} 
@@ -370,22 +417,22 @@ const GerenciarPartidas = () => {
               <div className="flex items-center gap-4 bg-red-50 border-2 border-dashed border-red-100 p-5 rounded-2xl shadow-inner">
                     <label className="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" name="externa" checked={formData.externa} onChange={handleInputChange} className="sr-only peer" />
-                        <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-red-600 shadow-inner"></div>
+                        <div className="w-14 h-7 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-red-600 shadow-inner"></div>
                     </label>
                     <div>
                         <h4 className="font-extrabold text-black text-sm uppercase tracking-wider flex items-center gap-2">
                             <span className="w-1.5 h-4 bg-yellow-400 rounded-full block shadow"></span>
                             Partida Externa
                         </h4>
-                        <p className="text-xs text-gray-600 font-medium">Ative se esta partida ocorrer fora dos domínios do Vôlei Prudente (Registrar resultado de terceiros).</p>
+                        <p className="text-xs text-gray-600 font-medium">Ative se esta partida ocorrer fora dos domínios do Vôlei Prudente.</p>
                     </div>
               </div>
 
-              <div className="mt-12 flex justify-end gap-4 pt-7 border-t-2 border-gray-100 responsividade-footer-modal">
-                <button type="button" onClick={fecharModal} className="px-8 py-3.5 font-extrabold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-base flex-1 md:flex-none border border-gray-200 hover:border-gray-300">
-                  cancelar
+              <div className="mt-12 flex justify-end gap-4 pt-7 border-t-2 border-gray-100">
+                <button type="button" onClick={fecharModal} className="px-8 py-3.5 font-extrabold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-base border border-gray-200">
+                  Cancelar
                 </button>
-                <button type="submit" className="px-10 py-3.5 font-black text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 text-base flex-1 md:flex-none">
+                <button type="submit" className="px-10 py-3.5 font-black text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 text-base">
                   {editandoId ? 'SALVAR ALTERAÇÕES' : 'CONFIRMAR CADASTRO'}
                 </button>
               </div>
@@ -395,8 +442,8 @@ const GerenciarPartidas = () => {
       )}
 
       {isFinalizarModalOpen && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-              <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-in border-4 border-black">
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
+              <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border-4 border-black">
                   <div className="bg-green-600 px-6 py-4 border-b-4 border-green-800 shadow-lg">
                       <h2 className="text-xl font-black text-white tracking-wide uppercase text-center">Registrar Placar Final</h2>
                   </div>
@@ -407,9 +454,9 @@ const GerenciarPartidas = () => {
                               <input type="number" min="0" required value={placar.pontosTime1} onChange={(e) => setPlacar({...placar, pontosTime1: e.target.value})} className="w-full text-center text-5xl font-black bg-white border-2 border-gray-300 rounded-2xl p-4 shadow-inner focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all" />
                           </div>
                           <span className="text-3xl font-black text-gray-300 self-end pb-5 flex items-center gap-1">
-                            <span className="w-1 h-6 bg-yellow-400 rounded-full block animation-pulse"></span>
+                            <span className="w-1 h-6 bg-yellow-400 rounded-full block"></span>
                             X
-                            <span className="w-1 h-6 bg-yellow-400 rounded-full block animation-pulse"></span>
+                            <span className="w-1 h-6 bg-yellow-400 rounded-full block"></span>
                           </span>
                           <div className="text-center flex-1">
                               <label className="block text-xs font-bold text-gray-700 uppercase mb-3 truncate">{getNomeTime(partidaAtiva?.time2)}</label>
