@@ -123,7 +123,7 @@ const PlayerDetailsModal = ({ player, onClose }) => {
 };
 
 const ControlePartida = ({ partida, aoVoltar }) => {
-  const [score, setScore] = useState({ home: 6, away: 3 });
+  const [score, setScore] = useState({ home: 0, away: 0 });
   const [formation, setFormation] = useState('Padrão 6-6');
   const [liveStatus, setLiveStatus] = useState('Aguardando');
   const [activityText, setActivityText] = useState('Bloqueio na rede, saque potente, ponto do time!');
