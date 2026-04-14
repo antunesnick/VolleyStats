@@ -32,8 +32,8 @@ export function PlayerRegView({ open, onClose, onSave, player }) {
       });
 
       // 3. BUSCA AS CATEGORIAS
-      // Como o CategoriaControl é um objeto e não uma classe, não usamos 'new'
-      CategoriaControl.listarCategorias()
+      // Como o CategoriaControl é um singleton, usamos getInstance()
+      CategoriaControl.getInstance().listarCategorias()
         .then((data) => {
           setCategories(data);
         })
