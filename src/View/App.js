@@ -4,7 +4,7 @@ import { HashRouter, Routes, Route } from 'react-router-dom';
 import MenuNav from './MenuNav/MenuNav';
 import Home from './Home/Home';
 import Home2 from './Home/Home2';
-import Ginasio from './Ginasios/ginasio';
+import Ginasio from './Ginasios/Ginasio';
 import Partida from './Partida/GerenciarPartidas';
 import PlayerView from './PlayerView/PlayerView';
 import GerenciarCategorias from './Categoria/GerenciarCategorias';
