@@ -3,6 +3,10 @@ import TournamentView from '../Tournament/Tournament';
 import vsLogo from '../../assets/vslogo.jpeg';
 import TournamentControl from '../../Control/TournamentControl';
 
+// Importe o componente PlayerView (Ajuste o caminho da pasta conforme a estrutura do seu projeto)
+import { PlayerRegView } from '../PlayerRegister/PlayerRegView';
+import PlayerView from '../PlayerView/PlayerView';
+
 const TOURNAMENT_TYPES = [
   { value: 1, label: 'Pontos Corridos' },
   { value: 2, label: 'Mata-Mata' },
@@ -16,13 +20,6 @@ const DEFAULT_FORM = {
   startDate: '',
   endDate: '',
 };
-
-const MOCK_PLAYERS = Array.from({ length: 12 }).map((_, index) => ({
-  id: index + 1,
-  number: String(index + 1).padStart(2, '0'),
-  name: `Jogador ${index + 1}`,
-  role: index % 2 === 0 ? 'Titular' : 'Reserva',
-}));
 
 const showToastMessage = (setToasts, type, text, duration = 3200) => {
   const id = `${Date.now()}-${Math.random()}`;
@@ -119,6 +116,7 @@ const Home = () => {
   const ongoingTournaments = decoratedTournaments.filter((item) => item.status === 'ongoing');
   const upcomingTournaments = decoratedTournaments.filter((item) => item.status === 'upcoming');
   const finishedTournaments = decoratedTournaments.filter((item) => item.status === 'finished');
+  
   const scheduleTournaments = useMemo(() => {
     const source = [...upcomingTournaments, ...finishedTournaments];
     const normalizedName = scheduleFilterName.trim().toLowerCase();
@@ -202,15 +200,11 @@ const Home = () => {
 
   const handleDeleteTournament = async (id) => {
     const shouldDelete = window.confirm('Deseja realmente excluir este torneio?');
-    if (!shouldDelete) {
-      return;
-    }
+    if (!shouldDelete) return;
 
     try {
       await TournamentControl.deleteTournamentById(id);
-      if (selectedTournamentId === id) {
-        setSelectedTournamentId(null);
-      }
+      if (selectedTournamentId === id) setSelectedTournamentId(null);
       showToast('success', 'Torneio excluido com sucesso.');
       await loadTournaments();
     } catch (error) {
@@ -280,12 +274,14 @@ const Home = () => {
                 : 'bg-white border-2 border-[#000000] text-[#000000] hover:bg-[#000000] hover:text-white'
             }`}
           >
-            {isEditing ? 'Concluir' : 'Gerenciar'}
+            {isEditing ? 'Concluir' : 'Gerenciar Torneios'}
           </button>
         </div>
       </header>
 
       <main className="max-w-400 mx-auto px-8 pt-12 space-y-16">
+        
+        {/* --- SESSÃO: TORNEIOS AO VIVO --- */}
         <section className="space-y-6">
           <div className="flex items-center gap-3">
             <div className="size-2 bg-red-500 rounded-full animate-pulse" />
@@ -364,36 +360,12 @@ const Home = () => {
           )}
         </section>
 
+        {/* --- SESSÃO: ELENCO DINÂMICO (COMPONENTIZADA) --- */}
         <section className="space-y-8">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-6">
-            <div className="flex items-center gap-4">
-              <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tighter italic">Elenco</h2>
-              <div className="h-px w-24 bg-[#000000] opacity-30 mt-2" />
-              <span className="text-[12px] font-black text-gray-300 mt-2 uppercase tracking-[0.2em]">{MOCK_PLAYERS.length} Atletas</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-            {MOCK_PLAYERS.map((player) => (
-              <article key={player.id} className="group relative flex flex-col items-center">
-                <div className="relative w-full aspect-4/5 bg-white border-2 border-[#000000]/20 rounded-2xl p-2 transition-all duration-300 overflow-hidden group-hover:-translate-y-1 group-hover:shadow-xl">
-                  <div className="w-full h-full rounded-xl bg-linear-to-br from-zinc-200 via-zinc-100 to-red-100 flex flex-col items-center justify-center gap-3">
-                    <div className="size-16 rounded-full bg-white/70 border border-zinc-300 flex items-center justify-center text-zinc-700 font-black text-lg">
-                      {player.number}
-                    </div>
-                    <span className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-500">{player.role}</span>
-                  </div>
-                </div>
-
-                <div className="mt-4 text-center">
-                  <p className="text-[10px] font-black text-[#000000] uppercase tracking-widest mb-1">#{player.number}</p>
-                  <h4 className="font-black text-gray-900 uppercase tracking-tight line-clamp-1">{player.name}</h4>
-                </div>
-              </article>
-            ))}
-          </div>
+          <PlayerView />
         </section>
 
+        {/* --- SESSÃO: AGENDA --- */}
         <section className="space-y-8">
           <div className="flex items-center justify-between border-b border-gray-100 pb-6">
             <div className="flex items-center gap-4">
@@ -462,6 +434,7 @@ const Home = () => {
         </section>
       </main>
 
+      {/* --- MODAL DE TORNEIO --- */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-2xl bg-white rounded-2xl overflow-hidden shadow-2xl border border-zinc-200">
@@ -569,6 +542,7 @@ const Home = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };
