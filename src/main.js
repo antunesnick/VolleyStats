@@ -64,6 +64,10 @@ ipcMain.handle('partidas:findByDateAndTeam', async (event, filters) => {
     return await PartidaControl.findPartidaByDateAndTeam(filters);
 });
 
+ipcMain.handle('partidas:findById', async (event, id) => {
+    return await PartidaControl.findPartidaById(id);
+});
+
 ipcMain.handle('partidas:finalizar', async (event, id, pontosTime1, pontosTime2) => {
     return await PartidaControl.finalizarPartida(id, pontosTime1, pontosTime2);
 });
