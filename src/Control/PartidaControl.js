@@ -105,6 +105,12 @@ class PartidaControl {
             throw error;
         }
     }
-}
 
-module.exports = new PartidaControl();
+    static getInstance() {
+        if (!PartidaControl.instance) {
+            PartidaControl.instance = new PartidaControl();
+        }
+        return PartidaControl.instance;
+    }
+}   
+module.exports = PartidaControl;

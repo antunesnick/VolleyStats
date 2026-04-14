@@ -1,4 +1,3 @@
-
 const { app, BrowserWindow, ipcMain, protocol } = require('electron');
 const path = require('node:path');
 const CategoriaControl = require("./Control/CategoriaControl").default;
@@ -45,23 +44,23 @@ const createWindow = () => {
 
 // Rotas IPC para Partidas
 ipcMain.handle('partidas:create', async (event, data) => {
-    return await PartidaControl.createPartida(data);
+    return await PartidaControl.getInstance().createPartida(data);
 });
 
 ipcMain.handle('partidas:update', async (event, data) => {
-    return await PartidaControl.updatePartida(data);
+    return await PartidaControl.getInstance().updatePartida(data);
 });
 
 ipcMain.handle('partidas:delete', async (event, id) => {
-    return await PartidaControl.deletePartida(id);
+    return await PartidaControl.getInstance().deletePartida(id);
 });
 
 ipcMain.handle('partidas:findAll', async () => {
-    return await PartidaControl.findAllPartidas();
+    return await PartidaControl.getInstance().findAllPartidas();
 });
 
 ipcMain.handle('partidas:findByDateAndTeam', async (event, filters) => {
-    return await PartidaControl.findPartidaByDateAndTeam(filters);
+    return await PartidaControl.getInstance().findPartidaByDateAndTeam(filters);
 });
 
 ipcMain.handle('partidas:findById', async (event, id) => {
@@ -69,7 +68,7 @@ ipcMain.handle('partidas:findById', async (event, id) => {
 });
 
 ipcMain.handle('partidas:finalizar', async (event, id, pontosTime1, pontosTime2) => {
-    return await PartidaControl.finalizarPartida(id, pontosTime1, pontosTime2);
+    return await PartidaControl.getInstance().finalizarPartida(id, pontosTime1, pontosTime2);
 });
 
 
