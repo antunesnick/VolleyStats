@@ -23,7 +23,7 @@ export function PlayerRegView({ open, onClose, onSave, player }) {
 
   useEffect(() => {
     if (open) {
-      const positionControl = new PositionControl();
+      const positionControl = PositionControl.getInstance();
       positionControl.findAllPositions().then((data) => {
         setPositions(data);
       });

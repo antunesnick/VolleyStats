@@ -8,7 +8,7 @@ const url = require('url');
 class PlayerControl {
     static #instance;
 
-    #getInstance() {    
+    static getInstance() {    
         if (!PlayerControl.#instance) {
             PlayerControl.#instance = new PlayerControl();
         }   

@@ -16,7 +16,7 @@ export function PlayerView() {
   const [positions, setPositions] = useState([]);
 
   useEffect(() => {
-    const positionControl = PlayerControl.#getInstance();
+    const positionControl = PositionControl.getInstance();
     positionControl.findAllPositions().then((data) => setPositions(data));
   }, []);
 
@@ -25,7 +25,7 @@ export function PlayerView() {
   }, [searchTerm, selectedPosition]);
 
   function fetchPlayers(nome = "", posicaoId = "") {
-    const playerControl = PlayerControl.#getInstance();
+    const playerControl = PlayerControl.getInstance();
     playerControl.findPlayerFiltered({ nome, posicaoId }).then((data) => {
       const formattedPlayers = data.map((p) => ({
         id: p.id,
@@ -45,7 +45,7 @@ export function PlayerView() {
 
   const deletePlayer = (id) => {
     if (window.confirm("Tem certeza que deseja excluir este jogador?")) {
-      const playerControl = PlayerControl.#getInstance();
+      const playerControl = PlayerControl.getInstance();
       playerControl.deletePlayer(id).then(() => {
         fetchPlayers(searchTerm, selectedPosition); 
       });
@@ -63,7 +63,7 @@ export function PlayerView() {
   };
 
   const handleSavePlayer = (formData) => {
-    const playerControl = PlayerControl.#getInstance();
+    const playerControl = PlayerControl.getInstance();
 
     if (formData.id) {
       playerControl.updatePlayer(formData).then(() => {

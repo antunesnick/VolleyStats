@@ -85,7 +85,9 @@ function initDatabase() {
                 nome VARCHAR(100),
                 pontosTime1 INTEGER,
                 pontosTime2 INTEGER,
-
+                ginasio_id INTEGER,
+                time1 INTEGER,
+                time2 INTEGER,  
                 FOREIGN KEY (ginasio_id) REFERENCES Ginasios (id),
                 FOREIGN KEY (time1) REFERENCES Times (id),
                 FOREIGN KEY (time2) REFERENCES Times (id)
