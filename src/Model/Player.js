@@ -18,6 +18,8 @@ class Player {
     return cpf.isValid(cpfString); 
   }
 
+  
+
   insertPlayer(db) {
     if (!this.#validarCPF(this.cpf)) {
       throw new Error("CPF inválido. Por favor, insira um CPF válido.");
@@ -54,7 +56,6 @@ class Player {
 
   findAllPlayers(db) {
     try {
-      // 👇 Alterado para ordenar pelo número da camisa
       const sql = db.prepare('SELECT * FROM Jogadores ORDER BY nome ASC');
       return sql.all();
     } catch (e) {
@@ -81,8 +82,6 @@ class Player {
         sqlQuery += ` AND j.posicao_id = ?`;
         params.push(filtro.posicaoId);
       }
-
-      // 👇 Alterado para ordenar pelo nome
       sqlQuery += ` ORDER BY j.nome ASC`;
 
       const sql = db.prepare(sqlQuery);

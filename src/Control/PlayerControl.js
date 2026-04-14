@@ -6,6 +6,14 @@ const { Buffer } = require('buffer');
 const url = require('url');
 
 class PlayerControl {
+    static #instance;
+
+    #getInstance() {    
+        if (!PlayerControl.#instance) {
+            PlayerControl.#instance = new PlayerControl();
+        }   
+        return PlayerControl.#instance;
+    }
 
     #salvarFotoLocalmente(base64Image, nomeJogador) {
         if (!base64Image || !base64Image.startsWith('data:image')) {

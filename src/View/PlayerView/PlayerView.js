@@ -11,27 +11,21 @@ export function PlayerView() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
 
-  // 👇 Novos Estados para os Filtros 👇
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPosition, setSelectedPosition] = useState("");
   const [positions, setPositions] = useState([]);
 
-  // 👇 Carrega as Posições no Select quando a tela abre 👇
   useEffect(() => {
-    const positionControl = new PositionControl();
+    const positionControl = PlayerControl.#getInstance();
     positionControl.findAllPositions().then((data) => setPositions(data));
   }, []);
 
-  // 👇 Busca Inicial e Re-Busca quando o usuário digita/seleciona algo 👇
   useEffect(() => {
     fetchPlayers(searchTerm, selectedPosition);
   }, [searchTerm, selectedPosition]);
 
-  // 👇 Modificado para aceitar os parâmetros do filtro 👇
   function fetchPlayers(nome = "", posicaoId = "") {
-    const playerControl = new PlayerControl();
-    
-    // Passando o objeto de filtro que a Model agora entende
+    const playerControl = PlayerControl.#getInstance();
     playerControl.findPlayerFiltered({ nome, posicaoId }).then((data) => {
       const formattedPlayers = data.map((p) => ({
         id: p.id,
@@ -42,7 +36,7 @@ export function PlayerView() {
         rg: p.rg,
         altura: p.altura, 
         posicaoId: p.posicao_id,
-        posicaoNome: p.posicao, // Veio do INNER JOIN
+        posicaoNome: p.posicao, 
         dataNasc: p.dataNasc, 
       }));
       setPlayers(formattedPlayers);
@@ -51,7 +45,7 @@ export function PlayerView() {
 
   const deletePlayer = (id) => {
     if (window.confirm("Tem certeza que deseja excluir este jogador?")) {
-      const playerControl = new PlayerControl();
+      const playerControl = PlayerControl.#getInstance();
       playerControl.deletePlayer(id).then(() => {
         fetchPlayers(searchTerm, selectedPosition); 
       });
@@ -69,7 +63,7 @@ export function PlayerView() {
   };
 
   const handleSavePlayer = (formData) => {
-    const playerControl = new PlayerControl();
+    const playerControl = PlayerControl.#getInstance();
 
     if (formData.id) {
       playerControl.updatePlayer(formData).then(() => {
