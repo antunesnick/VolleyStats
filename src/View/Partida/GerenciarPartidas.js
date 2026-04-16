@@ -25,11 +25,9 @@ const CustomSelect = ({ label, icon, children, ...props }) => (
 const GerenciarPartidas = () => {
   const [partidas, setPartidas] = useState([]);
 
-  // Estados para carregar dados do Banco de Dados para os select
   const [timesCadastrados, setTimesCadastrados] = useState([]);
   const [ginasiosCadastrados, setGinasiosCadastrados] = useState([]);
 
-  // Estados de controle da UI
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFinalizarModalOpen, setIsFinalizarModalOpen] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
@@ -38,7 +36,6 @@ const GerenciarPartidas = () => {
   const [partidaParaControlar, setPartidaParaControlar] = useState(null);
   const [isControleCarregado, setIsControleCarregado] = useState(false);
 
-  // Estados para filtros
   const [filtros, setFiltros] = useState({
     dataPartida: '',
     timeId: ''
@@ -56,7 +53,6 @@ const GerenciarPartidas = () => {
   const [formData, setFormData] = useState(estadoInicialForm);
   const [placar, setPlacar] = useState({ pontosTime1: '', pontosTime2: '' });
 
-  // 1. CARREGAMENTO INICIAL DE DADOS
   useEffect(() => {
     carregarTudo();
   }, []);
