@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import TournamentView from '../Tournament/Tournament';
 import vsLogo from '../../assets/vslogo.jpeg';
-import TournamentControl from '../../Control/TournamentControl';
+import TournamentControl from '../../Control/TournamentControl'; 
 
 // Importe o componente PlayerView (Ajuste o caminho da pasta conforme a estrutura do seu projeto)
 import { PlayerRegView } from '../PlayerRegister/PlayerRegView';
@@ -76,6 +77,7 @@ const decorateTournaments = (tournaments) => {
 };
 
 const Home = () => {
+  const navigate = useNavigate();
   const [activePage, setActivePage] = useState('home');
   const [selectedTournamentId, setSelectedTournamentId] = useState(null);
   const [tournaments, setTournaments] = useState([]);
@@ -256,8 +258,10 @@ const Home = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          <button className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
-            Categorias
+          <button 
+            onClick={() => navigate('/categorias')}
+            className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
+             Categorias
           </button>
           <button className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
             Importar
