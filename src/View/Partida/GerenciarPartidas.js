@@ -72,13 +72,10 @@ const GerenciarPartidas = () => {
         { id: 3, nome: 'Vôlei Renata', cidade: 'Campinas' }
       ];
 
-      const mockGinasios = [
-        { id: 1, nome: 'Ginásio Watal Ishibashi', estado: 'SP', cidade: 'Presidente Prudente' },
-        { id: 2, nome: 'Arena Sabiá', estado: 'SP', cidade: 'Presidente Prudente' }
-      ];
+      const dadosGinasios = await window.ElectronAPI.listarGinasios();
 
       setTimesCadastrados(mockTimes);
-      setGinasiosCadastrados(mockGinasios);
+      setGinasiosCadastrados(dadosGinasios);
 
     } catch (error) {
       console.error("Erro na integração visual:", error);
