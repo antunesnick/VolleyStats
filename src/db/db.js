@@ -47,6 +47,14 @@ function ensurePartidaColumns() {
     }
 }
 
+function ensureGinasioColumns() {
+    const columns = db.prepare("PRAGMA table_info(Ginasios)").all().map((column) => column.name);
+
+    if (!columns.includes('endereco')) {
+        db.exec('ALTER TABLE Ginasios ADD COLUMN endereco VARCHAR(255)');
+    }
+}
+
 function initDatabase() {
     try {
         db.exec(`
@@ -128,6 +136,7 @@ function initDatabase() {
         `);
 
         ensureTournamentColumns();
+        ensureGinasioColumns();
         ensurePartidaColumns();
         console.log('Banco de dados inicializado com sucesso (com dados mockados para testes).');
     } catch (e) {

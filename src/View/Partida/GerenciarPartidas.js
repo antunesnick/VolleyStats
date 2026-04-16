@@ -188,9 +188,22 @@ const GerenciarPartidas = () => {
 
   const fecharModal = () => setIsModalOpen(false);
 
+  // ==========================================
+  // FIX: RENDERIZAÇÃO CONDICIONAL DA PÁGINA
+  // ==========================================
+  // Se houver uma partida selecionada para controle, a tela inteira vira o ControlePartida
+  if (partidaParaControlar) {
+    return (
+      <ControlePartida
+        partida={partidaParaControlar}
+        aoVoltar={() => setPartidaParaControlar(null)}
+      />
+    );
+  }
+
+  // Caso contrário, renderiza a tela de listagem padrão
   return (
     <div className="w-full text-neutral-900 font-sans">
-
       {/* TÍTULO E BOTÃO NOVA PARTIDA INTEGRADOS */}
       <div className="mb-10 pb-6 border-b-4 border-neutral-900 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -312,7 +325,7 @@ const GerenciarPartidas = () => {
               <div className="grid grid-cols-2 gap-4 mt-2 border-t pt-6 border-gray-100">
                 {partida.status !== 'FINALIZADA' && (
                   <button onClick={() => abrirModalEditar(partida)} className="col-span-2 bg-black hover:bg-neutral-800 text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 border-2 border-neutral-800 hover:border-yellow-400">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2-2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                     Editar Confronto
                   </button>
                 )}
@@ -338,7 +351,7 @@ const GerenciarPartidas = () => {
         </div>
       )}
 
-      {/* MODAL - AJUSTADO PARA NÃO SER TAMPADO */}
+      {/* MODAL CRIAR/EDITAR */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-[2000] p-10 overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl my-auto">
@@ -462,6 +475,7 @@ const GerenciarPartidas = () => {
         </div>
       )}
 
+      {/* MODAL FINALIZAR PARTIDA */}
       {isFinalizarModalOpen && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
           <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border-4 border-black">
@@ -491,12 +505,6 @@ const GerenciarPartidas = () => {
             </form>
           </div>
         </div>
-      )}
-      {partidaParaControlar && (
-        <ControlePartida
-          partida={partidaParaControlar}
-          aoVoltar={() => setPartidaParaControlar(null)}
-        />
       )}
     </div>
   );

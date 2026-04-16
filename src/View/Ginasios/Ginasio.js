@@ -416,7 +416,7 @@ const Ginasio = () => {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-[2000] p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="bg-black px-6 py-4 flex justify-between items-center">
               <h2 className="text-2xl font-black text-white tracking-wide uppercase">
