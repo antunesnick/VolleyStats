@@ -27,7 +27,10 @@ export function PlayerRegView({ open, onClose, onSave, player }) {
       positionControl.findAllPositions().then((data) => {
         setPositions(data);
       });
-      CategoriaControl.listarCategorias()
+
+      // 3. BUSCA AS CATEGORIAS
+      // Como o CategoriaControl é um singleton, usamos getInstance()
+      CategoriaControl.getInstance().listarCategorias()
         .then((data) => {
           setCategories(data);
         })

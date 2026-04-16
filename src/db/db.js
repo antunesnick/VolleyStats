@@ -87,7 +87,8 @@ function initDatabase() {
                 pontosTime2 INTEGER,
                 ginasio_id INTEGER,
                 time1 INTEGER,
-                time2 INTEGER,  
+                time2 INTEGER,
+
                 FOREIGN KEY (ginasio_id) REFERENCES Ginasios (id),
                 FOREIGN KEY (time1) REFERENCES Times (id),
                 FOREIGN KEY (time2) REFERENCES Times (id)
@@ -120,10 +121,6 @@ function initDatabase() {
                 ('Central'),
                 ('Oposto'),
                 ('Líbero');
-
-            -- INSERINDO DADOS MOCK PARA TESTAR AS CHAVES ESTRANGEIRAS
-            -- O "INSERT OR IGNORE" com o ID fixo garante que ele só insere na primeira vez que o sistema roda
-            INSERT OR IGNORE INTO Ginasios (id, nome, estado, cidade) VALUES (1, 'Ginásio de Esportes Watal Ishibashi', 'SP', 'Presidente Prudente');
             
             INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (1, 'Vôlei Prudente', 'Presidente Prudente');
             INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (2, 'Sada Cruzeiro', 'Belo Horizonte');

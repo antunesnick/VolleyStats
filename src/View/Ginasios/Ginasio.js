@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Swal from 'sweetalert2';
+import GinasioControl from "../../Control/GinasioControl";
 
 const initialFormData = {
   nome: "",
@@ -41,7 +42,7 @@ const Ginasio = () => {
 
   const carregarGinasios = async () => {
     try {
-      const dadosDoBanco = await window.ElectronAPI.listarGinasios();
+      const dadosDoBanco = await GinasioControl.listarGinasios();
       setGinasios(ordenarPorNome(dadosDoBanco || []));
     } catch (e) {
       await Swal.fire({
@@ -73,7 +74,7 @@ const Ginasio = () => {
     }
 
     try {
-      const resultado = await window.ElectronAPI.pesquisarGinasio(filtro);
+      const resultado = await GinasioControl.pesquisarGinasio(filtro);
       setGinasios(ordenarPorNome(resultado || []));
     } catch (e) {
       await Swal.fire({
@@ -177,7 +178,7 @@ const Ginasio = () => {
     }
 
     try {
-      await window.ElectronAPI.excluirGinasio(id);
+      await GinasioControl.excluirGinasio(id);
       setGinasios(ordenarPorNome(ginasios.filter((ginasio) => ginasio.id !== id)));
 
       if (editingId === id) {
@@ -243,7 +244,7 @@ const Ginasio = () => {
       }
 
       try {
-        await window.ElectronAPI.editarGinasio(editingId, dados);
+        await GinasioControl.editarGinasio(editingId, dados);
 
         setGinasios(
           ordenarPorNome(
@@ -272,7 +273,7 @@ const Ginasio = () => {
       }
     } else {
       try {
-        const resultado = await window.ElectronAPI.salvarGinasio(dados);
+        const resultado = await GinasioControl.cadastrarDados(dados);
 
         if (resultado) {
           setGinasios([

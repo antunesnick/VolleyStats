@@ -1,4 +1,3 @@
-
 const { app, BrowserWindow, ipcMain, protocol } = require('electron');
 const path = require('node:path');
 const CategoriaControl = require("./Control/CategoriaControl").default;
@@ -45,27 +44,31 @@ const createWindow = () => {
 
 // Rotas IPC para Partidas
 ipcMain.handle('partidas:create', async (event, data) => {
-    return await PartidaControl.createPartida(data);
+    return await PartidaControl.getInstance().createPartida(data);
 });
 
 ipcMain.handle('partidas:update', async (event, data) => {
-    return await PartidaControl.updatePartida(data);
+    return await PartidaControl.getInstance().updatePartida(data);
 });
 
 ipcMain.handle('partidas:delete', async (event, id) => {
-    return await PartidaControl.deletePartida(id);
+    return await PartidaControl.getInstance().deletePartida(id);
 });
 
 ipcMain.handle('partidas:findAll', async () => {
-    return await PartidaControl.findAllPartidas();
+    return await PartidaControl.getInstance().findAllPartidas();
 });
 
 ipcMain.handle('partidas:findByDateAndTeam', async (event, filters) => {
-    return await PartidaControl.findPartidaByDateAndTeam(filters);
+    return await PartidaControl.getInstance().findPartidaByDateAndTeam(filters);
+});
+
+ipcMain.handle('partidas:findById', async (event, id) => {
+    return await PartidaControl.getInstance().findPartidaById(id);
 });
 
 ipcMain.handle('partidas:finalizar', async (event, id, pontosTime1, pontosTime2) => {
-    return await PartidaControl.finalizarPartida(id, pontosTime1, pontosTime2);
+    return await PartidaControl.getInstance().finalizarPartida(id, pontosTime1, pontosTime2);
 });
 
 
@@ -89,7 +92,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('salvar-categoria', async (event, dados) => {
     try {
-      return await CategoriaControl.cadastrarDados(dados);
+      return await CategoriaControl.getInstance().cadastrarDados(dados);
     } catch (e) {
       throw e;
     }
@@ -97,7 +100,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('listar-categorias', async () => {
     try {
-      return await CategoriaControl.listarCategorias();
+      return await CategoriaControl.getInstance().listarCategorias();
     } catch (e) {
       throw e;
     }
@@ -105,7 +108,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('editar-categoria', async (event, id, dados) => {
     try {
-      await CategoriaControl.editarCategoria(id, dados);
+      await CategoriaControl.getInstance().editarCategoria(id, dados);
     } catch (e) {
       throw e;
     }
@@ -113,7 +116,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('excluir-categoria', async (event, id) => {
     try {
-      await CategoriaControl.excluirCategoria(id);
+      await CategoriaControl.getInstance().excluirCategoria(id);
     } catch (e) {
       throw e;
     }
