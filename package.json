@@ -52,6 +52,7 @@
     "path": "^0.12.7",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-hotkeys-hook": "^5.2.4",
     "react-router-dom": "^7.13.1",
     "sonner": "^2.0.7",
     "styled": "^1.0.0",
