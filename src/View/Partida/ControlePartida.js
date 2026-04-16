@@ -148,6 +148,7 @@
       const qualidadeDigitada = event.key.toUpperCase();
       const codigoScout = `${buffer.numero}${buffer.acao}${qualidadeDigitada}`;
       
+      //Mandar o Buffer para o Banco
       
       setBuffer({ numero: '', acao: '', qualidade: '' });
     }, {}, [buffer]);
