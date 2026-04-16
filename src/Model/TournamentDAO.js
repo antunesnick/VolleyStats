@@ -1,5 +1,4 @@
 const { getDatabase } = require('../db/db');
-const { Tournament } = require('./Tournament');
 
 class TournamentDAO {
 
@@ -14,7 +13,7 @@ class TournamentDAO {
         `);
 
         const result = stmt.run(tournament.name, tournament.type, tournament.startDate, tournament.endDate);
-        return new Tournament(result.lastInsertRowid, tournament.name, tournament.type, tournament.startDate, tournament.endDate);
+        return this.getTournamentById(result.lastInsertRowid);
     }
 
     modifyTournament(tournament) {
@@ -45,17 +44,15 @@ class TournamentDAO {
             return null;
         }
 
-        return new Tournament(row.id, row.nome, row.tipo, row.inicio, row.termino);
+        return row;
     }
 
     getAllTournaments() {
         const stmt = this.db.prepare('SELECT id, nome, tipo, inicio, termino FROM Torneios ORDER BY id DESC');
         const rows = stmt.all();
 
-        return rows.map((row) => new Tournament(row.id, row.nome, row.tipo, row.inicio, row.termino));
+        return rows;
     }
-
-
 }
 
 module.exports = {
