@@ -22,6 +22,7 @@ window.api = {
         delete: (id) => ipcRenderer.invoke('partidas:delete', id),
         findAll: () => ipcRenderer.invoke('partidas:findAll'),
         findByDateAndTeam: (filters) => ipcRenderer.invoke('partidas:findByDateAndTeam', filters),
+        findById: (id) => ipcRenderer.invoke('partidas:findById', id),
         finalizar: (id, pts1, pts2) => ipcRenderer.invoke('partidas:finalizar', id, pts1, pts2)
     }
 };

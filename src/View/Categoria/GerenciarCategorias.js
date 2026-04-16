@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 
 const GerenciarCategorias = () => {
+  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editandoId, setEditandoId] = useState(null); // Novo: Controla se é edição
   const [categorias, setCategorias] = useState([]); // Carrega categorias do banco
@@ -157,15 +159,26 @@ const GerenciarCategorias = () => {
             <h1 className="text-4xl font-black text-black tracking-tight uppercase">Categorias</h1>
             <p className="text-gray-500 text-sm">Gerencie as divisões por faixa etária</p>
           </div>
-          <button
-            onClick={handleAbrirNovo}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all transform hover:scale-105 flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
-            </svg>
-            NOVA CATEGORIA
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/torneios')}
+              className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all transform hover:scale-105 flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+              </svg>
+              VOLTAR
+            </button>
+            <button
+              onClick={handleAbrirNovo}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all transform hover:scale-105 flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+              </svg>
+              NOVA CATEGORIA
+            </button>
+          </div>
         </div>
 
         {/* Barra de Filtros Centralizada/Alinhada */}
