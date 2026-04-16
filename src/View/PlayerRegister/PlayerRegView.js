@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import * as Style from "./PlayerRegStyle"; 
 import PositionControl from "../../Control/PositionControl";
-// 1. IMPORTANDO O CONTROL DAS CATEGORIAS (Verifique se o caminho da pasta está correto)
 import CategoriaControl from "../../Control/CategoriaControl"; 
 
 export function PlayerRegView({ open, onClose, onSave, player }) {
@@ -13,20 +12,18 @@ export function PlayerRegView({ open, onClose, onSave, player }) {
       cpf: "",
       rg: "",
       posicaoId: "",
-      categoria_id: "", // Ajustado para ser consistente com IDs
+      categoria_id: "",
       dataNasc: "",
       foto: "", 
     }
   );
 
   const [positions, setPositions] = useState([]);
-  // 2. ESTADO PARA GUARDAR AS CATEGORIAS
   const [categories, setCategories] = useState([]); 
 
   useEffect(() => {
     if (open) {
-      // Busca as Posições
-      const positionControl = new PositionControl();
+      const positionControl = PositionControl.getInstance();
       positionControl.findAllPositions().then((data) => {
         setPositions(data);
       });
