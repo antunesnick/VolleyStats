@@ -85,7 +85,7 @@
   };
 
   const ControlePartida = ({ partida, aoVoltar }) => {
-    const [score, setScore] = useState({ home: 6, away: 3 });
+    const [score, setScore] = useState({ home: 0, away: 0 });
     const [formation, setFormation] = useState('Padrão 6-6');
     const [isFormationOpen, setIsFormationOpen] = useState(false);
     const [liveStatus, setLiveStatus] = useState('Aguardando');
@@ -200,6 +200,15 @@
         setEscalados({ home: players.slice(0, 6), away: players.slice(6, 12) });
       }
     }, [players, escalados.home.length, escalados.away.length]);
+
+  useEffect(() => {
+    const loadScore = async () => {
+      if(partida?.pontosTime1 !== null && partida?.pontosTime2 !== null) {
+        setScore({ home: partida.pontosTime1, away: partida.pontosTime2 });
+      }
+    }
+    loadScore();
+  },[]);
 
     const benchPlayers = useMemo(() => {
       const escaladosIds = new Set(escalados.home.map((player) => player?.id));
