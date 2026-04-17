@@ -150,10 +150,8 @@
     }
     if (['A', 'B', 'C'].includes(tecla)) {
       const codigoScout = `${buffer.numero}${buffer.acao}${tecla}`;
-      
+      setBuffer((prev) => ({ ...prev, qualidade: tecla }));
       console.log("Scout registrado com sucesso:", codigoScout);
-      alert(`Enviando para o BD: ${codigoScout}`);
-      
       // -> MANDAR O BUFFER PARA O BANCO AQUI <-
       
       // Limpa o buffer para o próximo rally
