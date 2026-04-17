@@ -40,6 +40,38 @@ function ensureTournamentColumns() {
     }
 }
 
+function ensurePartidaColumns() {
+    const columns = db.prepare("PRAGMA table_info(Partidas)").all().map((column) => column.name);
+    
+    if (!columns.includes('nome')) {
+        db.exec('ALTER TABLE Partidas ADD COLUMN nome VARCHAR(100)');
+    }
+    // Adicionando as colunas que faltam para o PartidaModel funcionar
+    if (!columns.includes('dataPartida')) {
+        db.exec('ALTER TABLE Partidas ADD COLUMN dataPartida DATE');
+    }
+    if (!columns.includes('tipo')) {
+        db.exec('ALTER TABLE Partidas ADD COLUMN tipo INTEGER');
+    }
+    if (!columns.includes('status')) {
+        db.exec("ALTER TABLE Partidas ADD COLUMN status VARCHAR(50) DEFAULT 'AGENDADA'");
+    }
+    if (!columns.includes('externa')) {
+        db.exec('ALTER TABLE Partidas ADD COLUMN externa INTEGER DEFAULT 0');
+    }
+    if (!columns.includes('torneio_id')) {
+        db.exec('ALTER TABLE Partidas ADD COLUMN torneio_id INTEGER REFERENCES Torneios(id)');
+    }
+}
+
+function ensureGinasioColumns() {
+    const columns = db.prepare("PRAGMA table_info(Ginasios)").all().map((column) => column.name);
+
+    if (!columns.includes('endereco')) {
+        db.exec('ALTER TABLE Ginasios ADD COLUMN endereco VARCHAR(255)');
+    }
+}
+
 function initDatabase() {
     try {
         db.exec(`
@@ -75,17 +107,19 @@ function initDatabase() {
 
             CREATE TABLE IF NOT EXISTS Partidas(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome VARCHAR(100),
+                dataPartida DATE,
+                tipo INTEGER,
+                status VARCHAR(50) DEFAULT 'AGENDADA',
+                externa INTEGER DEFAULT 0,
                 pontosTime1 INTEGER,
                 pontosTime2 INTEGER,
-                dataPartida DATE NOT NULL,
-                tipo VARCHAR(45) NOT NULL,
-                status VARCHAR(45) DEFAULT 'AGENDADA',
-                externa BOOLEAN DEFAULT 0,
-
+                torneio_id INTEGER,
                 ginasio_id INTEGER,
                 time1 INTEGER,
                 time2 INTEGER,
 
+                FOREIGN KEY (torneio_id) REFERENCES Torneios (id),
                 FOREIGN KEY (ginasio_id) REFERENCES Ginasios (id),
                 FOREIGN KEY (time1) REFERENCES Times (id),
                 FOREIGN KEY (time2) REFERENCES Times (id)
@@ -118,10 +152,6 @@ function initDatabase() {
                 ('Central'),
                 ('Oposto'),
                 ('Líbero');
-
-            -- INSERINDO DADOS MOCK PARA TESTAR AS CHAVES ESTRANGEIRAS
-            -- O "INSERT OR IGNORE" com o ID fixo garante que ele só insere na primeira vez que o sistema roda
-            INSERT OR IGNORE INTO Ginasios (id, nome, estado, cidade) VALUES (1, 'Ginásio de Esportes Watal Ishibashi', 'SP', 'Presidente Prudente');
             
             INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (1, 'Vôlei Prudente', 'Presidente Prudente');
             INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (2, 'Sada Cruzeiro', 'Belo Horizonte');
@@ -129,6 +159,8 @@ function initDatabase() {
         `);
 
         ensureTournamentColumns();
+        ensureGinasioColumns();
+        ensurePartidaColumns();
         console.log('Banco de dados inicializado com sucesso (com dados mockados para testes).');
     } catch (e) {
         console.error("Erro ao inicializar o banco de dados:", e);

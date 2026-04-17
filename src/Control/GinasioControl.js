@@ -1,20 +1,38 @@
+import db from "../db/db";
 import GinasioModel from "../Model/GinasioModel";
-//chamar o singleton aqui para garantir que o banco de dados seja inicializado antes de qualquer operação
-const GinasioControl = {
-	async cadastrarDados(dados) {
-		try {
-			const ginasio = new GinasioModel(
-				null,
-				dados.nome,
-				dados.estado,
-				dados.cidade,
-				dados.endereco
-			);
-			return await ginasio.criarGinasio();
-		} catch (e) {
-			throw e;
+
+class GinasioControl {
+	static #instance;
+
+	static getInstance() {
+		if (!GinasioControl.#instance) {
+			GinasioControl.#instance = new GinasioControl();
 		}
-	},
+
+		return GinasioControl.#instance;
+	}
+
+	async cadastrarDados(dados) {
+		const ginasio = new GinasioModel(
+			null,
+			dados.nome,
+			dados.estado,
+			dados.cidade,
+			dados.endereco
+		);
+
+		const insertTransaction = db.transaction((ginasioObj) => {
+			return ginasioObj.criarGinasio();
+		});
+
+		try {
+			const result = insertTransaction(ginasio);
+			return result;
+		} catch (error) {
+			console.error("Falha ao cadastrar ginasio. Transacao revertida (Rollback).", error);
+			throw error;
+		}
+	} 
 
 	async listarGinasios() {
 		try {
@@ -22,30 +40,45 @@ const GinasioControl = {
 		} catch (e) {
 			throw e;
 		}
-	},
+	}
 
 	async editarGinasio(id, dados) {
+		const ginasio = new GinasioModel(
+			id,
+			dados.nome,
+			dados.estado,
+			dados.cidade,
+			dados.endereco
+		);
+
+		const updateTransaction = db.transaction((ginasioObj) => {
+			return ginasioObj.editarGinasio(id);
+		});
+
 		try {
-			const ginasio = new GinasioModel(
-				id,
-				dados.nome,
-				dados.estado,
-				dados.cidade,
-				dados.endereco
-			);
-			await ginasio.editarGinasio(id);
-		} catch (e) {
-			throw e;
+			const result = updateTransaction(ginasio);
+			return result;
+		} catch (error) {
+			console.error("Falha ao atualizar ginasio. Transacao revertida (Rollback).", error);
+			throw error;
 		}
-	},
+	}
 
 	async excluirGinasio(id) {
+		const ginasio = new GinasioModel();
+
+		const deleteTransaction = db.transaction((ginasioId) => {
+			return ginasio.excluirGinasio(ginasioId);
+		});
+
 		try {
-			await new GinasioModel().excluirGinasio(id);
-		} catch (e) {
-			throw e;
+			const result = deleteTransaction(id);
+			return result;
+		} catch (error) {
+			console.error("Falha ao excluir ginasio. Transacao revertida (Rollback).", error);
+			throw error;
 		}
-	},
+	}
 
 	async pesquisarGinasio(filtro) {
 		try {
@@ -53,8 +86,8 @@ const GinasioControl = {
 		} catch (e) {
 			throw e;
 		}
-	},
-};
+	}
+}
 
-export default GinasioControl;
+export default GinasioControl.getInstance();
     

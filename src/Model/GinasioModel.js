@@ -2,24 +2,25 @@ import db from "../db/db.js";
 
 class GinasioModel {
 	constructor(id = null, nome = null, estado = null, cidade = null, endereco = null) {
-		//colocar a validacao aqui para evitar de criar o objeto com dados invalidos
-		if (!id || !String(id).trim()) {
-			throw new Error("ID do ginasio e obrigatorio.");
-		}
-		if (!nome || !String(nome).trim()) {
-			throw new Error("Nome do ginasio e obrigatorio.");
-		}
-		if (!estado || !String(estado).trim()) {
-			throw new Error("Estado do ginasio e obrigatorio.");
-		}
-		if (!cidade || !String(cidade).trim()) {
-			throw new Error("Cidade do ginasio e obrigatória.");
-		}
 		this.id = id;
 		this.nome = nome;
 		this.estado = estado;
 		this.cidade = cidade;
 		this.endereco = endereco;
+	}
+
+	validarCamposObrigatorios() {
+		if (!this.nome || !String(this.nome).trim()) {
+			return "Nome do ginasio e obrigatorio.";
+		}
+		if (!this.estado || !String(this.estado).trim()) {
+			return "Estado do ginasio e obrigatorio.";
+		}
+		if (!this.cidade || !String(this.cidade).trim()) {
+			return "Cidade do ginasio e obrigatoria.";
+		}
+
+		return null;
 	}
 
 
@@ -30,7 +31,7 @@ class GinasioModel {
 		let sql;
 		let existente;
 
-		if (idAtual !== null && idAtual !== undefined) {
+		if (idAtual != null) {
 			sql = db.prepare(
 				"SELECT id FROM Ginasios WHERE lower(nome) = lower(?) AND lower(cidade) = lower(?) AND id <> ? LIMIT 1"
 			);
@@ -49,7 +50,7 @@ class GinasioModel {
 		return null;
 	}
 
-	async criarGinasio() {
+	criarGinasio() {
 		const erroValidacao = this.validarCamposObrigatorios();
 		if (erroValidacao) {
 			throw new Error(erroValidacao);
@@ -76,7 +77,7 @@ class GinasioModel {
 		}
 	}
 
-	async excluirGinasio(id) {
+	excluirGinasio(id) {
 		try {
 			const sql = db.prepare("DELETE FROM Ginasios WHERE id = ?");
 			sql.run(id);
@@ -85,7 +86,7 @@ class GinasioModel {
 		}
 	}
 
-	async editarGinasio(id = this.id) {
+	editarGinasio(id = this.id) {
 		const erroValidacao = this.validarCamposObrigatorios();
 		if (erroValidacao) {
 			throw new Error(erroValidacao);
@@ -112,7 +113,7 @@ class GinasioModel {
 		}
 	}
 
-	async buscarTodos() {
+	buscarTodos() {
 		try {
 			const sql = db.prepare("SELECT * FROM Ginasios");
 			return sql.all();
@@ -121,7 +122,7 @@ class GinasioModel {
 		}
 	}
 
-	async buscarFiltrado(filter) {
+	buscarFiltrado(filter) {
 		try {
 			const conditions = [];
 			const params = [];
@@ -174,7 +175,7 @@ class GinasioModel {
 		}
 	}
 
-	async insertGinasio(ginasio) {
+	insertGinasio(ginasio) {
 		this.nome = ginasio.nome;
 		this.estado = ginasio.estado;
 		this.cidade = ginasio.cidade;
@@ -182,11 +183,11 @@ class GinasioModel {
 		return this.criarGinasio();
 	}
 
-	async deleteGinasio(id) {
+	deleteGinasio(id) {
 		return this.excluirGinasio(id);
 	}
 
-	async updateGinasio(ginasio) {
+	updateGinasio(ginasio) {
 		this.id = ginasio.id;
 		this.nome = ginasio.nome;
 		this.estado = ginasio.estado;
@@ -195,11 +196,11 @@ class GinasioModel {
 		return this.editarGinasio(ginasio.id);
 	}
 
-	async findAllGinasios() {
+	findAllGinasios() {
 		return this.buscarTodos();
 	}
 
-	async findGinasioFiltered(filter) {
+	findGinasioFiltered(filter) {
 		return this.buscarFiltrado(filter);
 	}
 }

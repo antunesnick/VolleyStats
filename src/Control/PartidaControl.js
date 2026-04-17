@@ -69,6 +69,26 @@ class PartidaControl {
             throw e;
         }
     }
+
+    async findPartidaByDateAndTeam(filters) {
+        const partida = new PartidaModel();
+        try {
+            return partida.findPartidaByDateAndTeam(filters, db);
+        } catch (e) {
+            console.error("Falha ao buscar partidas filtradas.", e);
+            throw e;
+        }
+    }
+
+    async findPartidaById(id) {
+        const partida = new PartidaModel();
+        try {
+            return partida.findById(id, db);
+        } catch (e) {
+            console.error("Falha ao buscar partida por ID.", e);
+            throw e;
+        }
+    }
     
     async finalizarPartida(id, pontosTime1, pontosTime2) {
         const partida = new PartidaModel();
@@ -85,6 +105,12 @@ class PartidaControl {
             throw error;
         }
     }
-}
 
-module.exports = new PartidaControl();
+    static getInstance() {
+        if (!PartidaControl.instance) {
+            PartidaControl.instance = new PartidaControl();
+        }
+        return PartidaControl.instance;
+    }
+}   
+module.exports = PartidaControl;
