@@ -79,6 +79,16 @@ class PartidaControl {
             throw e;
         }
     }
+
+    async findPartidaById(id) {
+        const partida = new PartidaModel();
+        try {
+            return partida.findById(id, db);
+        } catch (e) {
+            console.error("Falha ao buscar partida por ID.", e);
+            throw e;
+        }
+    }
     
     async finalizarPartida(id, pontosTime1, pontosTime2) {
         const partida = new PartidaModel();

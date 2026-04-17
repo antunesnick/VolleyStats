@@ -63,6 +63,10 @@ ipcMain.handle('partidas:findByDateAndTeam', async (event, filters) => {
     return await PartidaControl.getInstance().findPartidaByDateAndTeam(filters);
 });
 
+ipcMain.handle('partidas:findById', async (event, id) => {
+    return await PartidaControl.getInstance().findPartidaById(id);
+});
+
 ipcMain.handle('partidas:finalizar', async (event, id, pontosTime1, pontosTime2) => {
     return await PartidaControl.getInstance().finalizarPartida(id, pontosTime1, pontosTime2);
 });
@@ -88,7 +92,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('salvar-categoria', async (event, dados) => {
     try {
-      return await CategoriaControl.cadastrarDados(dados);
+      return await CategoriaControl.getInstance().cadastrarDados(dados);
     } catch (e) {
       throw e;
     }
@@ -96,7 +100,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('listar-categorias', async () => {
     try {
-      return await CategoriaControl.listarCategorias();
+      return await CategoriaControl.getInstance().listarCategorias();
     } catch (e) {
       throw e;
     }
@@ -104,7 +108,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('editar-categoria', async (event, id, dados) => {
     try {
-      await CategoriaControl.editarCategoria(id, dados);
+      await CategoriaControl.getInstance().editarCategoria(id, dados);
     } catch (e) {
       throw e;
     }
@@ -112,7 +116,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('excluir-categoria', async (event, id) => {
     try {
-      await CategoriaControl.excluirCategoria(id);
+      await CategoriaControl.getInstance().excluirCategoria(id);
     } catch (e) {
       throw e;
     }
