@@ -88,12 +88,14 @@ const ControlePartida = ({ partida, aoVoltar }) => {
   const [formation, setFormation] = useState('Padrão 6-6');
   const [isFormationOpen, setIsFormationOpen] = useState(false);
   const [liveStatus, setLiveStatus] = useState('Aguardando');
+  const [partidaIniciada, setPartidaIniciada] = useState(false);
   const [activityText, setActivityText] = useState('');
   const [feed, setFeed] = useState([]);
   const [players, setPlayers] = useState([]);
   const [escalados, setEscalados] = useState({ home: [], away: [] });
   
   const [showSubstituicao, setShowSubstituicao] = useState(false);
+  const [showFinalizarPartida, setShowFinalizarPartida] = useState(false);
   const [selectedFieldPlayer, setSelectedFieldPlayer] = useState(null);
   const [selectedFieldTeam, setSelectedFieldTeam] = useState(null);
   const [selectedBenchPlayer, setSelectedBenchPlayer] = useState(null);
@@ -174,6 +176,39 @@ const ControlePartida = ({ partida, aoVoltar }) => {
     setShowSubstituicao(false);
   };
 
+  const abrirFinalizarPartida = () => {
+    setShowFinalizarPartida(true);
+  };
+
+  const fecharFinalizarPartida = () => {
+    setShowFinalizarPartida(false);
+  };
+
+  const confirmarFinalizacao = () => {
+    setFeed((current) => [
+      {
+        id: Date.now(),
+        text: `Partida finalizada: ${homeLabel} ${score.home} x ${score.away} ${awayLabel}`,
+      },
+      ...current,
+    ]);
+    setLiveStatus('Finalizada');
+    setPartidaIniciada(false);
+    setShowFinalizarPartida(false);
+  };
+
+  const handleAcaoPartida = () => {
+    if (liveStatus === 'Finalizada') return;
+
+    if (!partidaIniciada) {
+      setPartidaIniciada(true);
+      setLiveStatus('Em andamento');
+      return;
+    }
+
+    setShowFinalizarPartida(true);
+  };
+
   return (
     <div className="relative h-screen w-full bg-white overflow-hidden font-['Inter',sans-serif]">
       
@@ -229,15 +264,18 @@ const ControlePartida = ({ partida, aoVoltar }) => {
             </button>
 
             <button
-              onClick={() => setLiveStatus(liveStatus === 'Aguardando' ? 'Em andamento' : 'Aguardando')}
+              onClick={handleAcaoPartida}
               className={`border-2 px-5 py-3 rounded-full shadow-sm transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-2 ${
-                liveStatus === 'Aguardando' 
+                liveStatus === 'Finalizada'
+                  ? 'bg-gray-300 border-white text-gray-600 cursor-not-allowed'
+                  : !partidaIniciada
                   ? 'bg-[#00FF2F] hover:bg-[#00DD29] border-white text-white' 
-                  : 'bg-red-500 hover:bg-red-600 border-white text-white'
+                  : 'bg-black hover:bg-gray-900 border-white text-white'
               }`}
+              disabled={liveStatus === 'Finalizada'}
             >
-              {liveStatus === 'Aguardando' ? <Play size={14} /> : <Square size={14} />}
-              {liveStatus === 'Aguardando' ? 'Iniciar Partida' : 'Pausar Partida'}
+              {liveStatus === 'Finalizada' ? <Square size={14} /> : !partidaIniciada ? <Play size={14} /> : <Download size={14} />}
+              {liveStatus === 'Finalizada' ? 'Partida Finalizada' : !partidaIniciada ? 'Iniciar Partida' : 'Finalizar Partida'}
             </button>
 
       
@@ -443,6 +481,78 @@ const ControlePartida = ({ partida, aoVoltar }) => {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFinalizarPartida && (
+        <div className="fixed inset-0 z-[10000] bg-black/45 backdrop-blur-sm p-4 sm:p-6 overflow-auto flex items-center justify-center">
+          <div className="w-full max-w-3xl rounded-[2rem] bg-white p-8 shadow-2xl border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-widest text-gray-500">Encerramento da partida</p>
+                <h2 className="mt-1 text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Finalizar Partida</h2>
+              </div>
+              <button
+                type="button"
+                onClick={fecharFinalizarPartida}
+                className="rounded-full bg-gray-100 p-3 text-gray-600 hover:bg-gray-200 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-3xl border border-gray-100 bg-gray-50 p-6">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Dados da partida</p>
+                <div className="space-y-3 text-sm font-medium text-gray-700">
+                  <p><span className="font-black text-gray-900">Nome:</span> {matchInfo.name}</p>
+                  <p><span className="font-black text-gray-900">Data:</span> {matchInfo.date}</p>
+                  <p><span className="font-black text-gray-900">Ginásio:</span> {matchInfo.gymnasium}</p>
+                  <p><span className="font-black text-gray-900">Mandante:</span> {homeLabel}</p>
+                  <p><span className="font-black text-gray-900">Visitante:</span> {awayLabel}</p>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-gray-100 bg-gray-50 p-6">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Placar atual</p>
+                <div className="flex items-center justify-center gap-5">
+                  <div className="text-center">
+                    <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">{homeLabel}</p>
+                    <div className="text-5xl font-black text-gray-900 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm">{score.home}</div>
+                  </div>
+                  <div className="text-3xl font-black text-gray-300 pt-6">x</div>
+                  <div className="text-center">
+                    <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">{awayLabel}</p>
+                    <div className="text-5xl font-black text-gray-900 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm">{score.away}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 rounded-3xl border-2 border-dashed border-gray-200 bg-white p-6">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Próximo passo</p>
+              <p className="text-sm font-medium text-gray-700">
+                Aqui você pode abrir a sua parte de registro de resultado e estatísticas dos jogadores.
+              </p>
+            </div>
+
+            <div className="mt-8 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={fecharFinalizarPartida}
+                className="rounded-full bg-gray-100 px-6 py-3 text-sm font-black uppercase tracking-widest text-gray-700 hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarFinalizacao}
+                className="rounded-full bg-green-500 px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-green-600 transition-colors"
+              >
+                Confirmar e abrir minha parte
+              </button>
             </div>
           </div>
         </div>
