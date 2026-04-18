@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import TournamentControl from '../../Control/TournamentControl';
 
 const TOURNAMENT_TYPES = [
   { value: 1, label: 'Pontos Corridos' },
@@ -106,7 +105,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     setIsLoading(true);
 
     try {
-      const rows = await TournamentControl.listTournaments();
+      const rows = await window.tournamentAPI.list();
       const found = rows.find((item) => item.id === tournamentId) || rows[0] || null;
       setTournament(found);
 
@@ -258,7 +257,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     setTournamentSubmitting(true);
 
     try {
-      await TournamentControl.updateTournament({
+      await window.tournamentAPI.update({
         id: tournamentForm.id,
         name: tournamentForm.name,
         type: Number(tournamentForm.type),
@@ -291,7 +290,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     }
 
     try {
-      await TournamentControl.deleteTournamentById(tournament.id);
+      await window.tournamentAPI.delete(tournament.id);
       if (typeof onTournamentDeleted === 'function') {
         onTournamentDeleted();
       }
@@ -457,144 +456,10 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
             </section>
 
             <section className="space-y-8">
-              <div className="flex items-center justify-between border-b border-gray-100 pb-6">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tighter italic">
-                    {viewMode === 'standings' ? 'Classificacao' : viewMode === 'bracket' ? 'Chaveamento' : 'Jogos'}
-                  </h2>
-                  <div className="h-px w-24 bg-[#DC2626] opacity-30 mt-2" />
-                  <span className="text-[12px] font-black text-gray-300 mt-2 uppercase tracking-[0.2em]">
-                    {viewMode === 'standings' ? 'Tabela de Classificacao' : viewMode === 'bracket' ? 'Bracket de Mata-Mata' : 'Tournament Schedule'}
-                  </span>
-                </div>
-
-                <div className="flex gap-3">
-                  {canShowStandings && (
-                    <button
-                      onClick={() => setViewMode((prev) => (prev === 'standings' ? 'matches' : 'standings'))}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all ${
-                        viewMode === 'standings' ? 'bg-[#000000] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      Classificacao
-                    </button>
-                  )}
-
-                  {canShowBracket && (
-                    <button
-                      onClick={() => setViewMode((prev) => (prev === 'bracket' ? 'matches' : 'bracket'))}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all ${
-                        viewMode === 'bracket' ? 'bg-[#DC2626] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      Bracket
-                    </button>
-                  )}
-
-                  {viewMode === 'matches' && isManaging && (
-                    <button
-                      onClick={openMatchCreate}
-                      className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[12px] uppercase tracking-widest bg-[#DC2626] hover:bg-[#B91C1C] text-white transition-all shadow-sm"
-                    >
-                      Nova Partida
-                    </button>
-                  )}
-                </div>
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <GerenciarPartidas torneioId={tournamentId} isEmbedded={true} />
               </div>
-
-              {viewMode === 'matches' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {tournamentMatches.length > 0 ? (
-                    tournamentMatches.map((match) => (
-                      <article
-                        key={match.id}
-                        className="group relative bg-white border-2 border-gray-100 hover:border-[#DC2626] rounded-2xl p-8 transition-all hover:shadow-2xl hover:shadow-red-50 hover:-translate-y-1 overflow-hidden"
-                      >
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#DC2626] opacity-[0.03] rounded-bl-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
-
-                        <div className="flex justify-between items-start mb-6">
-                          <div
-                            className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
-                              match.status === 'live'
-                                ? 'bg-red-50 text-red-500 animate-pulse'
-                                : match.isExternal
-                                  ? 'bg-purple-50 text-purple-500'
-                                  : 'bg-gray-50 text-gray-400'
-                            }`}
-                          >
-                            {match.isExternal ? 'EXTERNA' : match.status}
-                          </div>
-
-                          {isManaging && (
-                            <div className="flex gap-2" onClick={(event) => event.preventDefault()}>
-                              <button
-                                onClick={() => openMatchEdit(match)}
-                                className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-white hover:shadow-md transition-all"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteMatch(match.id)}
-                                className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all"
-                              >
-                                Del
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-4 mb-4">
-                          <div className="size-12 bg-gray-50 rounded-xl flex items-center justify-center text-gray-300 border border-gray-100 transition-all">
-                            VS
-                          </div>
-                          <div>
-                            {match.isExternal ? (
-                              <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter leading-none mb-1">
-                                {match.team1} vs {match.team2}
-                              </h3>
-                            ) : (
-                              <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter leading-none mb-1">
-                                vs {match.opponent}
-                              </h3>
-                            )}
-                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                              {match.date || 'Sem data'} • {match.gymnasium || 'Sem ginasio'}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-6 border-t border-gray-50 mt-4">
-                          <div className="flex flex-col">
-                            <span className="text-[9px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1">Score</span>
-                            <span className="text-2xl font-black text-gray-900 tracking-tighter tabular-nums">{match.score || '0-0'}</span>
-                          </div>
-                          <div className="text-[11px] font-black text-gray-300 uppercase">Match</div>
-                        </div>
-                      </article>
-                    ))
-                  ) : (
-                    <div className="col-span-full py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400">
-                      <p className="font-black uppercase tracking-widest text-[12px]">No matches scheduled</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {viewMode === 'standings' && canShowStandings && (
-                <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-sm">
-                  <h4 className="text-xl font-black text-gray-900 uppercase tracking-tighter mb-4">Tabela de Classificacao</h4>
-                  <p className="text-gray-500 text-sm">Mock de classificacao por enquanto.</p>
-                </div>
-              )}
-
-              {viewMode === 'bracket' && canShowBracket && (
-                <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-sm">
-                  <h4 className="text-xl font-black text-gray-900 uppercase tracking-tighter mb-4">Bracket</h4>
-                  <p className="text-gray-500 text-sm">Mock de chaveamento por enquanto.</p>
-                </div>
-              )}
             </section>
-
             <section className="space-y-8">
               <div className="flex items-center justify-between border-b border-gray-100 pb-6">
                 <div className="flex items-center gap-4">
