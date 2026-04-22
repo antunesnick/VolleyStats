@@ -59,6 +59,14 @@ const GerenciarPartidas = ({tournamentId}) => {
       carregarTudo();
   }, [tournamentId]);
 
+const formatarDataBrasil = (dataString) => {
+  if (!dataString) return '';
+  
+  const [ano, mes, dia] = dataString.split('-');
+
+  return `${dia}/${mes}/${ano}`;
+};
+
   const carregarTudo = async () => {
     try {
       const dadosPartidas = await window.api.partidas.findByTournament(tournamentId);
@@ -97,6 +105,8 @@ const GerenciarPartidas = ({tournamentId}) => {
     }
   };
 
+  
+
   const handleLimparFiltros = async () => {
     setFiltros({ dataPartida: '', timeId: '' });
     await carregarTudo();
@@ -113,6 +123,17 @@ const GerenciarPartidas = ({tournamentId}) => {
       alert("O Time 1 não pode ser igual ao Time 2.");
       return;
     }
+    
+    try {
+      const torneio = await window.tournamentAPI.getById(tournamentId);
+      if(formData.dataPartida < torneio.startDate || formData.dataPartida > torneio.endDate) {
+        alert(`A data da partida deve estar entre ${formatarDataBrasil(torneio.startDate)} e ${formatarDataBrasil(torneio.endDate)} (Período do Torneio).`);
+        return;
+      }
+    }catch(error) {
+      alert("Erro ao validar dados do formulário. Verifique os campos e tente novamente.");
+    }
+
 
     try {
       if (editandoId) {
@@ -290,7 +311,7 @@ const GerenciarPartidas = ({tournamentId}) => {
 
             <div className="p-8 flex-grow flex flex-col">
               <div className="flex justify-between items-baseline mb-3">
-                <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">{partida.dataPartida}</p>
+                <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">{formatarDataBrasil(partida.dataPartida)}</p>
                 <span className="text-xs text-gray-400">ID: {partida.id}</span>
               </div>
               <h3 className="text-3xl font-black text-black mb-7 leading-tight group-hover:text-red-600 transition-colors">{partida.nome}</h3>
@@ -361,14 +382,14 @@ const GerenciarPartidas = ({tournamentId}) => {
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
                   <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                  Identificação da Partida (Nome/Descrição)
+                  Identificação da Partida (Nome/Descrição) *
                 </label>
                 <input type="text" name="nome" value={formData.nome} onChange={handleInputChange} required placeholder="Ex: Semifinal - Jogo 1 ou Amistoso de Verão" className="w-full bg-white border-2 border-gray-200 text-black rounded-xl p-4 shadow-inner focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm font-semibold transition-all" />
               </div>
 
               <div className="flex gap-6 border-2 border-dashed border-gray-200 p-6 rounded-2xl bg-gray-50 shadow-inner items-end">
                 <CustomSelect
-                  label="Time 1 (Mandante/Principal)"
+                  label="Time 1 (Mandante/Principal) *"
                   name="time1"
                   value={formData.time1}
                   onChange={handleInputChange}
@@ -388,7 +409,7 @@ const GerenciarPartidas = ({tournamentId}) => {
                 </div>
 
                 <CustomSelect
-                  label="Time 2 (Visitante/Adversário)"
+                  label="Time 2 (Visitante/Adversário) *"
                   name="time2"
                   value={formData.time2}
                   onChange={handleInputChange}
@@ -412,7 +433,7 @@ const GerenciarPartidas = ({tournamentId}) => {
                 </div>
 
                 <CustomSelect
-                  label="Tipo de Competição"
+                  label="Tipo de Competição *"
                   name="tipo"
                   value={formData.tipo}
                   onChange={handleInputChange}
@@ -429,7 +450,7 @@ const GerenciarPartidas = ({tournamentId}) => {
                 </CustomSelect>
 
                 <CustomSelect
-                  label="Local (Ginásio)"
+                  label="Local (Ginásio) *"
                   name="ginasio_id"
                   value={formData.ginasio_id}
                   onChange={handleInputChange}
@@ -442,21 +463,6 @@ const GerenciarPartidas = ({tournamentId}) => {
                   ))}
                 </CustomSelect>
               </div>
-
-              <div className="flex items-center gap-4 bg-red-50 border-2 border-dashed border-red-100 p-5 rounded-2xl shadow-inner">
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" name="externa" checked={formData.externa} onChange={handleInputChange} className="sr-only peer" />
-                  <div className="w-14 h-7 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-red-600 shadow-inner"></div>
-                </label>
-                <div>
-                  <h4 className="font-extrabold text-black text-sm uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-1.5 h-4 bg-yellow-400 rounded-full block shadow"></span>
-                    Partida Externa
-                  </h4>
-                  <p className="text-xs text-gray-600 font-medium">Ative se esta partida ocorrer fora dos domínios do Vôlei Prudente.</p>
-                </div>
-              </div>
-
               <div className="mt-12 flex justify-end gap-4 pt-7 border-t-2 border-gray-100">
                 <button type="button" onClick={fecharModal} className="px-8 py-3.5 font-extrabold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-base border border-gray-200">
                   Cancelar
