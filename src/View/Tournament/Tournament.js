@@ -1,6 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import TournamentControl from '../../Control/TournamentControl';
-import GerenciarPartidas from '../Partida/GerenciarPartidas';
 
 const TOURNAMENT_TYPES = [
   { value: 1, label: 'Pontos Corridos' },
@@ -107,7 +105,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     setIsLoading(true);
 
     try {
-      const rows = await TournamentControl.listTournaments();
+      const rows = await window.tournamentAPI.list();
       const found = rows.find((item) => item.id === tournamentId) || rows[0] || null;
       setTournament(found);
 
@@ -259,7 +257,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     setTournamentSubmitting(true);
 
     try {
-      await TournamentControl.updateTournament({
+      await window.tournamentAPI.update({
         id: tournamentForm.id,
         name: tournamentForm.name,
         type: Number(tournamentForm.type),
@@ -292,7 +290,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     }
 
     try {
-      await TournamentControl.deleteTournamentById(tournament.id);
+      await window.tournamentAPI.delete(tournament.id);
       if (typeof onTournamentDeleted === 'function') {
         onTournamentDeleted();
       }

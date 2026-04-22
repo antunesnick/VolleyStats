@@ -2,6 +2,7 @@
   import PlayerControl from '../../Control/PlayerControl';
   import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, RefreshCw, MapPin } from 'lucide-react';
   import { useHotkeys } from 'react-hotkeys-hook';
+  import EstatisticaModal from './EstatisticaModal';
 
   const VolleyballCourt = ({ players, formation, onPlayerClick }) => {
     const formationMap = {
@@ -89,13 +90,17 @@
     const [formation, setFormation] = useState('Padrão 6-6');
     const [isFormationOpen, setIsFormationOpen] = useState(false);
     const [liveStatus, setLiveStatus] = useState('Aguardando');
-    const [activityText, setActivityText] = useState('');
+    const [partidaIniciada, setPartidaIniciada] = useState(false);
+  const [activityText, setActivityText] = useState('');
     const [feed, setFeed] = useState([]);
     const [players, setPlayers] = useState([]);
     const [escalados, setEscalados] = useState({ home: [], away: [] });
     
     const [showSubstituicao, setShowSubstituicao] = useState(false);
-    const [selectedFieldPlayer, setSelectedFieldPlayer] = useState(null);
+    const [showFinalizarPartida, setShowFinalizarPartida] = useState(false);
+    const [editandoEncerramento, setEditandoEncerramento] = useState(false);
+    const [placarFinalDraft, setPlacarFinalDraft] = useState({ home: 0, away: 0 });
+  const [selectedFieldPlayer, setSelectedFieldPlayer] = useState(null);
     const [selectedFieldTeam, setSelectedFieldTeam] = useState(null);
     const [selectedBenchPlayer, setSelectedBenchPlayer] = useState(null);
     const [selectedPlayerDetails, setSelectedPlayerDetails] = useState(null);
@@ -135,23 +140,29 @@
     }, { enableOnFormTags: false }, [buffer])
 
     // 2. Soltou o Control e digitou a Ação (S=Saque, A=Ataque, B=Bloqueio, R=Recepção, D=Defesa)
-    useHotkeys('s, a, b, r, d', (event) => {
-      // Só aceita registrar a Ação se já tivermos um número guardado e se a ação ainda estiver vazia
-      if (!buffer.numero || buffer.acao) return;
-      setBuffer((prev) => ({ ...prev, acao: event.key.toUpperCase() }));
-    }, {}, [buffer]);
+   useHotkeys('s, a, b, c, r, d', (event) => {
+    // Se não digitou a camisa ainda, a gente ignora qualquer letra
+    if (!buffer.numero) return;
 
-    useHotkeys('A,B,C', (event) => {
-      // Só aceita a qualidade se o número e a ação já estiverem preenchidos
-      if (!buffer.numero || !buffer.acao) return;
+    const tecla = event.key.toUpperCase(); // Garante que 'a' vire 'A'
 
-      const qualidadeDigitada = event.key.toUpperCase();
-      const codigoScout = `${buffer.numero}${buffer.acao}${qualidadeDigitada}`;
+    // ESTÁGIO 1: Esperando a Ação
+    if (!buffer.acao) {
+      if (['S', 'A', 'B', 'R', 'D'].includes(tecla)) {
+        setBuffer((prev) => ({ ...prev, acao: tecla }));
+      }
+      return;
+    }
+    if (['A', 'B', 'C'].includes(tecla)) {
+      const codigoScout = `${buffer.numero}${buffer.acao}${tecla}`;
+      setBuffer((prev) => ({ ...prev, qualidade: tecla }));
+      console.log("Scout registrado com sucesso:", codigoScout);
+      // -> MANDAR O BUFFER PARA O BANCO AQUI <-
       
-      //Mandar o Buffer para o Banco
-      
+      // Limpa o buffer para o próximo rally
       setBuffer({ numero: '', acao: '', qualidade: '' });
-    }, {}, [buffer]);
+    }
+  }, { enableOnFormTags: false }, [buffer]);
 
     useHotkeys('esc', () => {
       setBuffer({ numero: '', acao: '', qualidade: '' });
@@ -239,6 +250,52 @@
       setSelectedBenchPlayer(null);
       setShowSubstituicao(false);
     };
+
+  const abrirFinalizarPartida = () => {
+    setPlacarFinalDraft({ home: score.home, away: score.away });
+    setEditandoEncerramento(false);
+    setShowFinalizarPartida(true);
+  };
+
+  const fecharFinalizarPartida = () => {
+    setShowFinalizarPartida(false);
+    setEditandoEncerramento(false);
+  };
+
+  const confirmarFinalizacao = () => {
+    setScore({ home: placarFinalDraft.home, away: placarFinalDraft.away });
+    setFeed((current) => [
+      {
+        id: Date.now(),
+        text: `Partida finalizada: ${homeLabel} ${placarFinalDraft.home} x ${placarFinalDraft.away} ${awayLabel}`,
+      },
+      ...current,
+    ]);
+    setLiveStatus('Finalizada');
+    setPartidaIniciada(false);
+    setShowFinalizarPartida(false);
+    setEditandoEncerramento(false);
+  };
+
+  const handleAcaoPartida = () => {
+    if (liveStatus === 'Finalizada') return;
+
+    if (!partidaIniciada) {
+      setPartidaIniciada(true);
+      setLiveStatus('Em andamento');
+      return;
+    }
+
+    setShowFinalizarPartida(true);
+  };
+
+  const handlePlacarFinalChange = (campo, valor) => {
+    const numero = Number(valor);
+    setPlacarFinalDraft((current) => ({
+      ...current,
+      [campo]: Number.isNaN(numero) ? 0 : Math.max(0, numero),
+    }));
+  };
 
     return (
 
@@ -328,17 +385,20 @@
                 Substituição
               </button>
 
-              <button
-                onClick={() => setLiveStatus(liveStatus === 'Aguardando' ? 'Em andamento' : 'Aguardando')}
-                className={`border-2 px-5 py-3 rounded-full shadow-sm transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-2 ${
-                  liveStatus === 'Aguardando' 
-                    ? 'bg-[#00FF2F] hover:bg-[#00DD29] border-white text-white' 
-                    : 'bg-red-500 hover:bg-red-600 border-white text-white'
-                }`}
-              >
-                {liveStatus === 'Aguardando' ? <Play size={14} /> : <Square size={14} />}
-                {liveStatus === 'Aguardando' ? 'Iniciar Partida' : 'Pausar Partida'}
-              </button>
+            <button
+              onClick={handleAcaoPartida}
+              className={`border-2 px-5 py-3 rounded-full shadow-sm transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-2 ${
+                liveStatus === 'Finalizada'
+                  ? 'bg-gray-300 border-white text-gray-600 cursor-not-allowed'
+                  : !partidaIniciada
+                  ? 'bg-[#00FF2F] hover:bg-[#00DD29] border-white text-white' 
+                  : 'bg-black hover:bg-gray-900 border-white text-white'
+              }`}
+              disabled={liveStatus === 'Finalizada'}
+            >
+              {liveStatus === 'Finalizada' ? <Square size={14} /> : !partidaIniciada ? <Play size={14} /> : <Download size={14} />}
+              {liveStatus === 'Finalizada' ? 'Partida Finalizada' : !partidaIniciada ? 'Iniciar Partida' : 'Finalizar Partida'}
+            </button>
 
         
             </div>
@@ -547,7 +607,21 @@
             </div>
           </div>
         )}
-      </div>
+  
+      <EstatisticaModal
+        open={showFinalizarPartida}
+        onClose={fecharFinalizarPartida}
+        homeLabel={homeLabel}
+        awayLabel={awayLabel}
+        matchInfo={matchInfo}
+        score={score}
+        draftScore={placarFinalDraft}
+        onDraftScoreChange={handlePlacarFinalChange}
+        onConfirm={confirmarFinalizacao}
+        onToggleEdit={() => setEditandoEncerramento((current) => !current)}
+        editMode={editandoEncerramento}
+      />
+    </div>
     );
   };
 

@@ -1,10 +1,20 @@
 import { Tournament } from '../Model/Tournament.js';
-import { TournamentDAO } from '../Model/TournamentDAO';
 
 class TournamentControl {
-  constructor({ tournamentApi, tournamentDAO } = {}) {
-    this.tournamentApi = tournamentApi || (typeof window !== 'undefined' ? window.tournamentAPI : null);
-    this.tournamentDAO = tournamentDAO || (this.tournamentApi ? null : new TournamentDAO());
+  constructor() {
+    if (TournamentControl.instance) {
+      return TournamentControl.instance;
+    }
+
+    TournamentControl.instance = this;
+  }
+
+  static getInstance() {
+    if (!TournamentControl.instance) {
+      TournamentControl.instance = new TournamentControl();
+    }
+
+    return TournamentControl.instance;
   }
 
   buildTournamentEntity(formData) {
@@ -18,27 +28,13 @@ class TournamentControl {
   }
 
   async listTournaments() {
-    if (this.tournamentApi) {
-      return this.tournamentApi.list();
-    }
-
-    return this.tournamentDAO.getAllTournaments();
+    return Tournament.getAllTournaments();
   }
 
   async createTournament(payload) {
     const tournament = this.buildTournamentEntity(payload);
 
-    if (this.tournamentApi) {
-      return this.tournamentApi.create({
-        id: tournament.id,
-        name: tournament.name,
-        type: tournament.type,
-        startDate: tournament.startDate,
-        endDate: tournament.endDate,
-      });
-    }
-
-    return this.tournamentDAO.createTournament(
+    return Tournament.createTournament(
       new Tournament(null, tournament.name, tournament.type, tournament.startDate, tournament.endDate)
     );
   }
@@ -46,17 +42,7 @@ class TournamentControl {
   async updateTournament(payload) {
     const tournament = this.buildTournamentEntity(payload);
 
-    if (this.tournamentApi) {
-      return this.tournamentApi.update({
-        id: tournament.id,
-        name: tournament.name,
-        type: tournament.type,
-        startDate: tournament.startDate,
-        endDate: tournament.endDate,
-      });
-    }
-
-    return this.tournamentDAO.modifyTournament(
+    return Tournament.modifyTournament(
       new Tournament(
         Number(tournament.id),
         tournament.name,
@@ -88,13 +74,11 @@ class TournamentControl {
       throw new Error('ID do torneio invalido.');
     }
 
-    if (this.tournamentApi) {
-      return this.tournamentApi.delete(numericId);
-    }
-
-    return this.tournamentDAO.deleteTournament(numericId);
+    return Tournament.deleteTournament(numericId);
   }
 }
 
-export default new TournamentControl();
+const tournamentControl = TournamentControl.getInstance();
+
+export default tournamentControl;
 
