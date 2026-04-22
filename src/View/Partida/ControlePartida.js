@@ -135,23 +135,29 @@
     }, { enableOnFormTags: false }, [buffer])
 
     // 2. Soltou o Control e digitou a Ação (S=Saque, A=Ataque, B=Bloqueio, R=Recepção, D=Defesa)
-    useHotkeys('s, a, b, r, d', (event) => {
-      // Só aceita registrar a Ação se já tivermos um número guardado e se a ação ainda estiver vazia
-      if (!buffer.numero || buffer.acao) return;
-      setBuffer((prev) => ({ ...prev, acao: event.key.toUpperCase() }));
-    }, {}, [buffer]);
+   useHotkeys('s, a, b, c, r, d', (event) => {
+    // Se não digitou a camisa ainda, a gente ignora qualquer letra
+    if (!buffer.numero) return;
 
-    useHotkeys('A,B,C', (event) => {
-      // Só aceita a qualidade se o número e a ação já estiverem preenchidos
-      if (!buffer.numero || !buffer.acao) return;
+    const tecla = event.key.toUpperCase(); // Garante que 'a' vire 'A'
 
-      const qualidadeDigitada = event.key.toUpperCase();
-      const codigoScout = `${buffer.numero}${buffer.acao}${qualidadeDigitada}`;
+    // ESTÁGIO 1: Esperando a Ação
+    if (!buffer.acao) {
+      if (['S', 'A', 'B', 'R', 'D'].includes(tecla)) {
+        setBuffer((prev) => ({ ...prev, acao: tecla }));
+      }
+      return;
+    }
+    if (['A', 'B', 'C'].includes(tecla)) {
+      const codigoScout = `${buffer.numero}${buffer.acao}${tecla}`;
+      setBuffer((prev) => ({ ...prev, qualidade: tecla }));
+      console.log("Scout registrado com sucesso:", codigoScout);
+      // -> MANDAR O BUFFER PARA O BANCO AQUI <-
       
-      //Mandar o Buffer para o Banco
-      
+      // Limpa o buffer para o próximo rally
       setBuffer({ numero: '', acao: '', qualidade: '' });
-    }, {}, [buffer]);
+    }
+  }, { enableOnFormTags: false }, [buffer]);
 
     useHotkeys('esc', () => {
       setBuffer({ numero: '', acao: '', qualidade: '' });
