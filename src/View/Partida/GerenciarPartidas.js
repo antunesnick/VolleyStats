@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import logoTime from '../assets/logoTransparent.png';
 import ControlePartida from './ControlePartida';
+import { Alertas } from '../../utils/Alertas';
 
 const CustomSelect = ({ label, icon, children, ...props }) => (
   <div className="flex-1 min-w-[260px]">
@@ -120,18 +121,18 @@ const formatarDataBrasil = (dataString) => {
   const handleSalvarPartida = async (e) => {
     e.preventDefault();
     if (formData.time1 === formData.time2) {
-      alert("O Time 1 não pode ser igual ao Time 2.");
+      Alertas.aviso("O Time 1 não pode ser igual ao Time 2.");
       return;
     }
     
     try {
       const torneio = await window.tournamentAPI.getById(tournamentId);
       if(formData.dataPartida < torneio.startDate || formData.dataPartida > torneio.endDate) {
-        alert(`A data da partida deve estar entre ${formatarDataBrasil(torneio.startDate)} e ${formatarDataBrasil(torneio.endDate)} (Período do Torneio).`);
+        Alertas.aviso(`A data da partida deve estar entre ${formatarDataBrasil(torneio.startDate)} e ${formatarDataBrasil(torneio.endDate)} (Período do Torneio).`);
         return;
       }
     }catch(error) {
-      alert("Erro ao validar dados do formulário. Verifique os campos e tente novamente.");
+      Alertas.erro("Erro ao validar dados do formulário. Verifique os campos e tente novamente.");
     }
 
 

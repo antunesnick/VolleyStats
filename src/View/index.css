@@ -15,3 +15,8 @@ body {
   width: 100%;
   min-height: 100vh;
 }
+
+/* Garante que os Toasts e Alertas do SweetAlert2 fiquem acima de qualquer Modal */
+.swal2-container {
+  z-index: 99999 !important;
+}
