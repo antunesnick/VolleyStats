@@ -459,7 +459,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
 
             <section className="space-y-8">
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <GerenciarPartidas torneioId={tournamentId} isEmbedded={true} />
+                  <GerenciarPartidas tournamentId={tournamentId} isEmbedded={true} />
               </div>
             </section>
             <section className="space-y-8">

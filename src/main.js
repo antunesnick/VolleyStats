@@ -59,12 +59,16 @@ ipcMain.handle('partidas:findAll', async () => {
     return await PartidaControl.getInstance().findAllPartidas();
 });
 
-ipcMain.handle('partidas:findByDateAndTeam', async (event, filters) => {
-    return await PartidaControl.getInstance().findPartidaByDateAndTeam(filters);
+ipcMain.handle('partidas:findByDateAndTeam', async (event, filters, tournamentId) => {
+    return await PartidaControl.getInstance().findPartidaByDateAndTeam(filters, tournamentId);
 });
 
 ipcMain.handle('partidas:findById', async (event, id) => {
     return await PartidaControl.getInstance().findPartidaById(id);
+});
+
+ipcMain.handle('partidas:findByTournament', async (event, tournamentId) => {
+    return await PartidaControl.getInstance().findPartidaByTournamentId(tournamentId);
 });
 
 ipcMain.handle('partidas:finalizar', async (event, id, pontosTime1, pontosTime2) => {

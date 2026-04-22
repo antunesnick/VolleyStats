@@ -4,7 +4,7 @@ const PartidaModel = require('../Model/PartidaModel');
 class PartidaControl {
 
     async createPartida(data) {
-        const partida = new PartidaModel(null, data.nome, data.pontosTime1, data.pontosTime2, data.dataPartida, data.tipo, data.status, data.externa, data.ginasio_id, data.time1, data.time2);
+        const partida = new PartidaModel(null, data.nome, data.pontosTime1, data.pontosTime2, data.dataPartida, data.tipo, data.status, data.externa, data.ginasio_id, data.time1, data.time2, data.torneio_id);
         
         const insertTransaction = db.transaction((partidaObj) => {
             return partida.insert(partidaObj, db); 
@@ -20,7 +20,7 @@ class PartidaControl {
     }
 
     async updatePartida(data) {
-        const partida = new PartidaModel(data.id, data.nome, data.pontosTime1, data.pontosTime2, data.dataPartida, data.tipo, data.status, data.externa, data.ginasio_id, data.time1, data.time2);    
+        const partida = new PartidaModel(data.id, data.nome, data.pontosTime1, data.pontosTime2, data.dataPartida, data.tipo, data.status, data.externa, data.ginasio_id, data.time1, data.time2, data.torneio_id);    
         
         const updateTransaction = db.transaction((partidaObj) => {
             return partida.update(partidaObj, db);
@@ -70,10 +70,10 @@ class PartidaControl {
         }
     }
 
-    async findPartidaByDateAndTeam(filters) {
+    async findPartidaByDateAndTeam(filters, tournamentId) {
         const partida = new PartidaModel();
         try {
-            return partida.findPartidaByDateAndTeam(filters, db);
+            return partida.findPartidaByDateAndTeam(filters, db, tournamentId);
         } catch (e) {
             console.error("Falha ao buscar partidas filtradas.", e);
             throw e;
@@ -86,6 +86,16 @@ class PartidaControl {
             return partida.findById(id, db);
         } catch (e) {
             console.error("Falha ao buscar partida por ID.", e);
+            throw e;
+        }
+    }
+
+    async findPartidaByTournamentId(tournamentId) {
+        const partida = new PartidaModel(); 
+        try {
+            return partida.findByTournamentId(tournamentId, db);
+        } catch (e) {
+            console.error("Falha ao buscar partidas por ID do torneio.", e);
             throw e;
         }
     }

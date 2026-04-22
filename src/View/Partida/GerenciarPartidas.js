@@ -22,7 +22,7 @@ const CustomSelect = ({ label, icon, children, ...props }) => (
   </div>
 );
 
-const GerenciarPartidas = () => {
+const GerenciarPartidas = ({tournamentId}) => {
   const [partidas, setPartidas] = useState([]);
 
   const [timesCadastrados, setTimesCadastrados] = useState([]);
@@ -48,18 +48,20 @@ const GerenciarPartidas = () => {
     externa: false,
     ginasio_id: '',
     time1: '',
-    time2: ''
+    time2: '',
+    torneio_id: tournamentId
   };
   const [formData, setFormData] = useState(estadoInicialForm);
   const [placar, setPlacar] = useState({ pontosTime1: '', pontosTime2: '' });
 
   useEffect(() => {
-    carregarTudo();
-  }, []);
+    if(tournamentId)
+      carregarTudo();
+  }, [tournamentId]);
 
   const carregarTudo = async () => {
     try {
-      const dadosPartidas = await window.api.partidas.findAll();
+      const dadosPartidas = await window.api.partidas.findByTournament(tournamentId);
       setPartidas(dadosPartidas);
 
       const mockTimes = [
@@ -88,7 +90,7 @@ const GerenciarPartidas = () => {
 
   const handleAplicarFiltros = async () => {
     try {
-      const partidasFiltradas = await window.api.partidas.findByDateAndTeam(filtros);
+      const partidasFiltradas = await window.api.partidas.findByDateAndTeam(filtros, tournamentId);
       setPartidas(partidasFiltradas);
     } catch (error) {
       console.error("Erro ao aplicar filtros.", error);

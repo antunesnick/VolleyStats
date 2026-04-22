@@ -1,5 +1,5 @@
 class PartidaModel {
-    constructor(id = null, nome = null, pontosTime1 = null, pontosTime2 = null, dataPartida = null, tipo = null, status = 'AGENDADA', externa = 0, ginasio_id = null, time1 = null, time2 = null) {
+    constructor(id = null, nome = null, pontosTime1 = null, pontosTime2 = null, dataPartida = null, tipo = null, status = 'AGENDADA', externa = 0, ginasio_id = null, time1 = null, time2 = null, torneio_id) {
         this.id = id;
         this.nome = nome;
         this.pontosTime1 = pontosTime1;
@@ -11,6 +11,7 @@ class PartidaModel {
         this.ginasio_id = ginasio_id;
         this.time1 = time1;
         this.time2 = time2;
+        this.torneio_id = torneio_id; // Adicionado para relacionar com torneio
     }
 
     findAll(db) {
@@ -23,9 +24,9 @@ class PartidaModel {
         return stmt.all(filter.status);
     }
 
-    findPartidaByDateAndTeam(filters, db) {
-        let query = 'SELECT * FROM Partidas WHERE 1=1';
-        const params = [];
+    findPartidaByDateAndTeam(filters, db, tournamentId) {
+        let query = 'SELECT * FROM Partidas WHERE torneio_id = ?';
+        const params = [tournamentId];
 
         // Filtro por data
         if (filters.dataPartida && filters.dataPartida.trim() !== '') {
@@ -60,10 +61,27 @@ class PartidaModel {
         return stmt.get(id);
     }
 
+    findByTournamentId(torneioId, db) {
+        const stmt = db.prepare(`
+            SELECT
+                p.*,
+                t1.nome AS time1Nome,
+                t2.nome AS time2Nome,
+                g.nome AS ginasioNome
+            FROM Partidas p
+            LEFT JOIN Times t1 ON t1.id = p.time1
+            LEFT JOIN Times t2 ON t2.id = p.time2
+            LEFT JOIN Ginasios g ON g.id = p.ginasio_id
+            WHERE p.torneio_id = ?
+        `);
+        return stmt.all(torneioId);
+    }
+
+
     insert(partida, db) {
         const stmt = db.prepare(`
-            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2, torneio_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const data = stmt.run(
@@ -74,9 +92,10 @@ class PartidaModel {
             partida.tipo,
             partida.status || 'AGENDADA',
             partida.externa ? 1 : 0,
-            partida.ginasio_id || 1, // Fallback para 1 enquanto não temos a tela de Ginásios
-            partida.time1 || 1,      // Fallback para 1 enquanto não temos a tela de Times
-            partida.time2 || 2       // Fallback para 2 enquanto não temos a tela de Times
+            partida.ginasio_id || 1, 
+            partida.time1 || 1,      
+            partida.time2 || 2,
+            partida.torneio_id || null 
         );
 
         return { id: data.lastInsertRowid, ...partida };
@@ -85,7 +104,7 @@ class PartidaModel {
     update(partida, db) {
         const stmt = db.prepare(`
             UPDATE Partidas 
-            SET nome = ?, dataPartida = ?, tipo = ?, externa = ?, ginasio_id = ?, time1 = ?, time2 = ?
+            SET nome = ?, dataPartida = ?, tipo = ?, externa = ?, ginasio_id = ?, time1 = ?, time2 = ?, torneio_id = ?
             WHERE id = ?
         `);
         
@@ -97,12 +116,12 @@ class PartidaModel {
             partida.ginasio_id, 
             partida.time1, 
             partida.time2, 
+            partida.torneio_id, // <- Atualizando na query
             partida.id
-        );
-        
+        );   
         return partida;
     }
-
+    
     delete(id, db) {
         const stmt = db.prepare('DELETE FROM Partidas WHERE id = ?');
         stmt.run(id);
