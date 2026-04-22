@@ -67,6 +67,17 @@ class TournamentControl {
     );
   }
 
+  async getTournamentById(id) {
+    const numericId = Number(id);
+    if (!numericId || Number.isNaN(numericId)) {
+      throw new Error('ID do torneio invalido.');
+    }
+    if (this.tournamentApi) {
+      return this.tournamentApi.getById(numericId);
+    }
+    return this.tournamentDAO.getTournamentById(numericId);
+  }
+
   async deleteTournamentById(id) {
     return this.deleteTournament(id);
   }

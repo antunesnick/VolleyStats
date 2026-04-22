@@ -76,7 +76,6 @@ ipcMain.handle('partidas:finalizar', async (event, id, pontosTime1, pontosTime2)
 });
 
 
-
 // 2. INICIALIZAÇÃO DO APP
 app.whenReady().then(() => {
   protocol.registerFileProtocol('local', (request, callback) => {
@@ -126,8 +125,6 @@ app.whenReady().then(() => {
     }
   })
 
-
-
   ipcMain.handle('ginasio:listar', async () => {
     return GinasioControl.listarGinasios();
   });
@@ -149,6 +146,10 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('tournaments:list', async () => TournamentControl.listTournaments());
+
+  ipcMain.handle('tournaments:getById', async (_event, id) => {
+    return TournamentControl.getTournamentById(id); 
+  });
 
   ipcMain.handle('tournaments:create', async (_event, payload) => {
     return TournamentControl.createTournament(payload);
