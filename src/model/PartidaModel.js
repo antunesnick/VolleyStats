@@ -25,8 +25,13 @@ class PartidaModel {
     }
 
     findPartidaByDateAndTeam(filters, db, tournamentId) {
-        let query = 'SELECT * FROM Partidas WHERE torneio_id = ?';
-        const params = [tournamentId];
+        let query = 'SELECT * FROM Partidas WHERE 1=1';
+        const params = [];
+
+        if (tournamentId !== null && tournamentId !== undefined && tournamentId !== '') {
+            query += ' AND torneio_id = ?';
+            params.push(tournamentId);
+        }
 
         // Filtro por data
         if (filters.dataPartida && filters.dataPartida.trim() !== '') {
@@ -62,6 +67,24 @@ class PartidaModel {
     }
 
     findByTournamentId(torneioId, db) {
+        const hasTournamentId = torneioId !== null && torneioId !== undefined && torneioId !== '';
+
+        if (!hasTournamentId) {
+            const stmt = db.prepare(`
+                SELECT
+                    p.*,
+                    t1.nome AS time1Nome,
+                    t2.nome AS time2Nome,
+                    g.nome AS ginasioNome
+                FROM Partidas p
+                LEFT JOIN Times t1 ON t1.id = p.time1
+                LEFT JOIN Times t2 ON t2.id = p.time2
+                LEFT JOIN Ginasios g ON g.id = p.ginasio_id
+                ORDER BY p.dataPartida DESC
+            `);
+            return stmt.all();
+        }
+
         const stmt = db.prepare(`
             SELECT
                 p.*,
@@ -73,6 +96,7 @@ class PartidaModel {
             LEFT JOIN Times t2 ON t2.id = p.time2
             LEFT JOIN Ginasios g ON g.id = p.ginasio_id
             WHERE p.torneio_id = ?
+            ORDER BY p.dataPartida DESC
         `);
         return stmt.all(torneioId);
     }

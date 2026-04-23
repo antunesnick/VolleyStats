@@ -9,6 +9,20 @@ class GinasioModel {
 		this.endereco = endereco;
 	}
 
+	normalizarLinha(row) {
+		if (!row) {
+			return row;
+		}
+
+		return {
+			id: row.id,
+			nome: row.nome ?? row.Nome ?? null,
+			estado: row.estado ?? row.Estado ?? null,
+			cidade: row.cidade ?? row.Cidade ?? null,
+			endereco: row.endereco ?? row.Endereco ?? null,
+		};
+	}
+
 	validarCamposObrigatorios() {
 		if (!this.nome || !String(this.nome).trim()) {
 			return "Nome do ginasio e obrigatorio.";
@@ -116,7 +130,7 @@ class GinasioModel {
 	buscarTodos() {
 		try {
 			const sql = db.prepare("SELECT * FROM Ginasios");
-			return sql.all();
+			return sql.all().map((row) => this.normalizarLinha(row));
 		} catch (e) {
 			throw e;
 		}
@@ -164,12 +178,12 @@ class GinasioModel {
 
 			if (conditions.length === 0) {
 				const sqlAll = db.prepare("SELECT * FROM Ginasios");
-				return sqlAll.all();
+				return sqlAll.all().map((row) => this.normalizarLinha(row));
 			}
 
 			const query = `SELECT * FROM Ginasios WHERE ${conditions.join(joinOperator)}`;
 			const sql = db.prepare(query);
-			return sql.all(...params);
+			return sql.all(...params).map((row) => this.normalizarLinha(row));
 		} catch (e) {
 			throw e;
 		}

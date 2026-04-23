@@ -56,8 +56,7 @@ const GerenciarPartidas = ({tournamentId}) => {
   const [placar, setPlacar] = useState({ pontosTime1: '', pontosTime2: '' });
 
   useEffect(() => {
-    if(tournamentId)
-      carregarTudo();
+    carregarTudo();
   }, [tournamentId]);
 
 const formatarDataBrasil = (dataString) => {
@@ -90,7 +89,10 @@ const formatarDataBrasil = (dataString) => {
   };
 
   const getNomeTime = (id) => timesCadastrados.find(t => t.id === Number(id))?.nome || `Time ${id}`;
-  const getNomeGinasio = (id) => ginasiosCadastrados.find(g => g.id === Number(id))?.nome || `Ginásio ${id}`;
+  const getNomeGinasio = (id) => {
+    const gin = ginasiosCadastrados.find((g) => g.id === Number(id));
+    return gin?.nome || gin?.Nome || `Ginásio ${id}`;
+  };
 
   const handleFiltroChange = (e) => {
     const { name, value } = e.target;
@@ -124,27 +126,42 @@ const formatarDataBrasil = (dataString) => {
       Alertas.aviso("O Time 1 não pode ser igual ao Time 2.");
       return;
     }
-    
-    try {
-      const torneio = await window.tournamentAPI.getById(tournamentId);
-      if(formData.dataPartida < torneio.startDate || formData.dataPartida > torneio.endDate) {
-        Alertas.aviso(`A data da partida deve estar entre ${formatarDataBrasil(torneio.startDate)} e ${formatarDataBrasil(torneio.endDate)} (Período do Torneio).`);
+
+    const torneioIdNumerico = Number(tournamentId);
+    if (torneioIdNumerico && !Number.isNaN(torneioIdNumerico)) {
+      try {
+        const torneio = await window.tournamentAPI.getById(torneioIdNumerico);
+        const dataInicio = torneio?.inicio || torneio?.startDate;
+        const dataFim = torneio?.termino || torneio?.endDate;
+
+        if (dataInicio && dataFim) {
+          if (formData.dataPartida < dataInicio || formData.dataPartida > dataFim) {
+            Alertas.aviso(`A data da partida deve estar entre ${formatarDataBrasil(dataInicio)} e ${formatarDataBrasil(dataFim)} (Período do Torneio).`);
+            return;
+          }
+        }
+      } catch (error) {
+        Alertas.erro("Erro ao validar dados do formulário. Verifique os campos e tente novamente.");
         return;
       }
-    }catch(error) {
-      Alertas.erro("Erro ao validar dados do formulário. Verifique os campos e tente novamente.");
     }
 
 
     try {
+      const payload = {
+        ...formData,
+        torneio_id: torneioIdNumerico && !Number.isNaN(torneioIdNumerico) ? torneioIdNumerico : null,
+      };
+
       if (editandoId) {
-        await window.api.partidas.update({ ...formData, id: editandoId });
+        await window.api.partidas.update({ ...payload, id: editandoId });
       } else {
-        await window.api.partidas.create(formData);
+        await window.api.partidas.create(payload);
       }
       await carregarTudo();
       fecharModal();
     } catch (error) {
+      console.error("Erro ao salvar partida:", error);
       alert("Falha crítica ao salvar partida na base de dados.");
     }
   };
@@ -171,13 +188,15 @@ const formatarDataBrasil = (dataString) => {
     }
   };
 
-  const abrirModalCriar = () => {
+  const abrirModalCriar = async () => {
+    await carregarTudo();
     setFormData(estadoInicialForm);
     setEditandoId(null);
     setIsModalOpen(true);
   };
 
-  const abrirModalEditar = (partida) => {
+  const abrirModalEditar = async (partida) => {
+    await carregarTudo();
     setFormData({
       ...partida,
       time1: String(partida.time1),
@@ -460,7 +479,7 @@ const formatarDataBrasil = (dataString) => {
                 >
                   <option value="">Selecione o Ginásio...</option>
                   {ginasiosCadastrados.map(gin => (
-                    <option key={gin.id} value={gin.id}>{gin.nome} ({gin.cidade}/{gin.estado})</option>
+                    <option key={gin.id} value={gin.id}>{gin.nome || gin.Nome} ({gin.cidade || gin.Cidade}/{gin.estado || gin.Estado})</option>
                   ))}
                 </CustomSelect>
               </div>
