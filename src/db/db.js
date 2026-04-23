@@ -46,17 +46,7 @@ function ensurePartidaColumns() {
     if (!columns.includes('nome')) {
         db.exec('ALTER TABLE Partidas ADD COLUMN nome VARCHAR(100)');
     }
-  if (!columns.includes('ginasio_id')) {
-    db.exec('ALTER TABLE Partidas ADD COLUMN ginasio_id INTEGER');
-  }
-  if (!columns.includes('time1')) {
-    db.exec('ALTER TABLE Partidas ADD COLUMN time1 INTEGER');
-  }
-  if (!columns.includes('time2')) {
-    db.exec('ALTER TABLE Partidas ADD COLUMN time2 INTEGER');
-  }
-
-  // Adicionando as colunas que faltam para o PartidaModel funcionar
+    // Adicionando as colunas que faltam para o PartidaModel funcionar
     if (!columns.includes('dataPartida')) {
         db.exec('ALTER TABLE Partidas ADD COLUMN dataPartida DATE');
     }
@@ -72,9 +62,6 @@ function ensurePartidaColumns() {
     if (!columns.includes('torneio_id')) {
         db.exec('ALTER TABLE Partidas ADD COLUMN torneio_id INTEGER REFERENCES Torneios(id)');
     }
-    if (!columns.includes('videoLink')) {
-      db.exec('ALTER TABLE Partidas ADD COLUMN videoLink VARCHAR(2048)');
-    }
 }
 
 function ensureGinasioColumns() {
@@ -85,102 +72,19 @@ function ensureGinasioColumns() {
     }
 }
 
-function ensurePosicoesTable() {
-  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((row) => row.name);
 
-  if (!tables.includes('Posicoes') && tables.includes('posicao')) {
-    db.exec('ALTER TABLE posicao RENAME TO Posicoes');
-  }
-}
-
-function ensurePartidasTable() {
-  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((row) => row.name);
-
-  if (!tables.includes('Partidas') && tables.includes('Partida')) {
-    db.exec('ALTER TABLE Partida RENAME TO Partidas');
-  }
-}
-
-function renamePartidaColumnIfNeeded(oldName, newName) {
-  const columns = db.prepare("PRAGMA table_info(Partidas)").all().map((column) => column.name);
-
-  if (columns.includes(oldName) && !columns.includes(newName)) {
-    db.exec(`ALTER TABLE Partidas RENAME COLUMN "${oldName}" TO ${newName}`);
-  }
-}
-
-function migrateLegacyPartidasTableIfNeeded() {
-  const columns = db.prepare("PRAGMA table_info(Partidas)").all().map((column) => column.name);
-  const fkTables = db.prepare("PRAGMA foreign_key_list(Partidas)").all().map((fk) => fk.table);
-
-  const hasLegacyColumns = columns.includes('Ginásio_id') || columns.includes('Time1') || columns.includes('Time2') || columns.includes('Torneio_idTorneio') || columns.includes('data');
-  const hasLegacyFkTargets = fkTables.includes('Torneio') || fkTables.includes('Ginásio');
-
-  if (!hasLegacyColumns && !hasLegacyFkTargets) {
-    return;
-  }
-
-  const col = (preferred, legacy) => {
-    if (columns.includes(preferred)) {
-      return preferred;
+function seedTipoAcao() {
+    const tipos = [
+        { id: 1, nome: 'Saque' },
+        { id: 2, nome: 'Ataque' },
+        { id: 3, nome: 'Bloqueio' },
+        { id: 4, nome: 'Recepção' },
+        { id: 5, nome: 'Defesa' },
+    ];
+    const insert = db.prepare('INSERT OR IGNORE INTO TipoAcao (idTipoAcao, Nome) VALUES (?, ?)');
+    for (const tipo of tipos) {
+        insert.run(tipo.id, tipo.nome);
     }
-    if (legacy && columns.includes(legacy)) {
-      return `"${legacy}"`;
-    }
-    return 'NULL';
-  };
-
-  db.exec('PRAGMA foreign_keys = OFF');
-
-  const migrate = db.transaction(() => {
-    db.exec('ALTER TABLE Partidas RENAME TO Partidas_legacy');
-
-    db.exec(`
-CREATE TABLE Partidas (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ginasio_id INTEGER,
-  time1 INTEGER,
-  time2 INTEGER,
-  pontosTime1 INTEGER,
-  pontosTime2 INTEGER,
-  nome VARCHAR(45) NOT NULL,
-  dataPartida DATE,
-  tipo TEXT,
-  status VARCHAR(45) NOT NULL DEFAULT 'AGENDADA',
-  externa INTEGER NOT NULL DEFAULT 0,
-  torneio_id INTEGER,
-  fase VARCHAR(45),
-  FOREIGN KEY (ginasio_id) REFERENCES Ginasios (id),
-  FOREIGN KEY (time1) REFERENCES Times (id),
-  FOREIGN KEY (time2) REFERENCES Times (id),
-  FOREIGN KEY (torneio_id) REFERENCES Torneios (id)
-);
-    `);
-
-    db.exec(`
-INSERT INTO Partidas (id, ginasio_id, time1, time2, pontosTime1, pontosTime2, nome, dataPartida, tipo, status, externa, torneio_id, fase)
-SELECT
-  ${col('id')},
-  ${col('ginasio_id', 'Ginásio_id')},
-  ${col('time1', 'Time1')},
-  ${col('time2', 'Time2')},
-  ${col('pontosTime1')},
-  ${col('pontosTime2')},
-  ${col('nome')},
-  ${col('dataPartida', 'data')},
-  ${col('tipo')},
-  COALESCE(${col('status')}, 'AGENDADA'),
-  COALESCE(${col('externa')}, 0),
-  ${col('torneio_id', 'Torneio_idTorneio')},
-  ${col('fase')}
-FROM Partidas_legacy;
-    `);
-
-    db.exec('DROP TABLE Partidas_legacy');
-  });
-
-  migrate();
-  db.exec('PRAGMA foreign_keys = ON');
 }
 
 function initDatabase() {
@@ -190,9 +94,9 @@ function initDatabase() {
 PRAGMA foreign_keys = ON;
 
 -- -----------------------------------------------------
--- Tabela Posicoes
+-- Tabela posicao
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS Posicoes (
+CREATE TABLE IF NOT EXISTS posicao (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   nome VARCHAR(45)
 );
@@ -212,7 +116,7 @@ CREATE TABLE IF NOT EXISTS Jogadores (
   foto VARCHAR(50),
   categoria_id INTEGER,  
   Jogadorescol VARCHAR(45),
-  FOREIGN KEY (posicao_id) REFERENCES Posicoes (id),
+  FOREIGN KEY (posicao_id) REFERENCES posicao (id),
   FOREIGN KEY (categoria_id) REFERENCES Categorias (id)
 );
 
@@ -283,24 +187,24 @@ CREATE TABLE IF NOT EXISTS Torneios (
 -- -----------------------------------------------------
 -- Tabela Partida
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS Partidas (
+CREATE TABLE IF NOT EXISTS Partida (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ginasio_id INTEGER,
-  time1 INTEGER,
-  time2 INTEGER,
+  Ginásio_id INTEGER NOT NULL,
+  Time1 INTEGER NOT NULL,
+  Time2 INTEGER NOT NULL,
   pontosTime1 INTEGER,
   pontosTime2 INTEGER,
   nome VARCHAR(45) NOT NULL,
-  dataPartida DATE,
-  tipo INTEGER,
-  status VARCHAR(45) NOT NULL DEFAULT 'AGENDADA',
+  data DATE NOT NULL,
+  tipo VARCHAR(45) NOT NULL,
+  status VARCHAR(45) NOT NULL DEFAULT 'Agendada',
   externa INTEGER NOT NULL DEFAULT 0,
-  torneio_id INTEGER,
+  Torneio_idTorneio INTEGER NOT NULL,
   fase VARCHAR(45),
-  FOREIGN KEY (ginasio_id) REFERENCES Ginasios (id),
-  FOREIGN KEY (time1) REFERENCES Times (id),
-  FOREIGN KEY (time2) REFERENCES Times (id),
-  FOREIGN KEY (torneio_id) REFERENCES Torneios (id)
+  FOREIGN KEY (Ginásio_id) REFERENCES Ginásio (id),
+  FOREIGN KEY (Time1) REFERENCES Times (id),
+  FOREIGN KEY (Time2) REFERENCES Times (id),
+  FOREIGN KEY (Torneio_idTorneio) REFERENCES Torneio (idTorneio)
 );
 
 -- -----------------------------------------------------
@@ -310,7 +214,7 @@ CREATE TABLE IF NOT EXISTS 'Set' (
   NumSet INTEGER NOT NULL,
   Partida_id INTEGER NOT NULL,
   PRIMARY KEY (NumSet, Partida_id),
-  FOREIGN KEY (Partida_id) REFERENCES Partidas (id)
+  FOREIGN KEY (Partida_id) REFERENCES Partida (id)
 );
 
 -- -----------------------------------------------------
@@ -373,7 +277,7 @@ CREATE TABLE IF NOT EXISTS TorneioTimes (
   pontuacao INTEGER,
   fase INTEGER,
   PRIMARY KEY (Torneio_idTorneio, Times_id),
-  FOREIGN KEY (Torneio_idTorneio) REFERENCES Torneios (id),
+  FOREIGN KEY (Torneio_idTorneio) REFERENCES Torneio (idTorneio),
   FOREIGN KEY (Times_id) REFERENCES Times (id)
 );
 
@@ -385,21 +289,29 @@ CREATE TABLE IF NOT EXISTS LinksPartida (
   url VARCHAR(45) NOT NULL,
   Partida_id INTEGER NOT NULL,
   PRIMARY KEY (numLink, Partida_id),
-  FOREIGN KEY (Partida_id) REFERENCES Partidas (id)
+  FOREIGN KEY (Partida_id) REFERENCES Partida (id)
+);
+
+CREATE TABLE IF NOT EXISTS TimesPartida (
+  Times_id INTEGER NOT NULL,
+  Partida_id INTEGER NOT NULL,
+  Jogadores_id INTEGER NOT NULL,
+  linha TINYINT,
+  
+  -- Definição da Chave Primária Composta
+  PRIMARY KEY (Times_id, Partida_id, Jogadores_id),
+  
+  -- Relações (Chaves Estrangeiras)
+  FOREIGN KEY (Times_id) REFERENCES Times (id) ON DELETE CASCADE,
+  FOREIGN KEY (Partida_id) REFERENCES Partida (id) ON DELETE CASCADE,
+  FOREIGN KEY (Jogadores_id) REFERENCES Jogadores (id) ON DELETE CASCADE
 );
         `);
 
         ensureTournamentColumns();
-        ensurePosicoesTable();
         ensureGinasioColumns();
-        ensurePartidasTable();
-        migrateLegacyPartidasTableIfNeeded();
-        renamePartidaColumnIfNeeded('Ginásio_id', 'ginasio_id');
-        renamePartidaColumnIfNeeded('Time1', 'time1');
-        renamePartidaColumnIfNeeded('Time2', 'time2');
-        renamePartidaColumnIfNeeded('Torneio_idTorneio', 'torneio_id');
-        renamePartidaColumnIfNeeded('data', 'dataPartida');
         ensurePartidaColumns();
+        seedTipoAcao();
         console.log('Banco de dados inicializado com sucesso (com dados mockados para testes).');
     } catch (e) {
         console.error("Erro ao inicializar o banco de dados:", e);
