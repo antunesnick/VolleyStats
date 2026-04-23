@@ -19,6 +19,7 @@ window.api = {
     partidas: {
         create: (data) => ipcRenderer.invoke('partidas:create', data),
         update: (data) => ipcRenderer.invoke('partidas:update', data),
+        updateVideoLink: (id, link) => ipcRenderer.invoke('partidas:updateVideoLink', id, link),
         delete: (id) => ipcRenderer.invoke('partidas:delete', id),
         findAll: () => ipcRenderer.invoke('partidas:findAll'),
         findByDateAndTeam: (filters, tournamentId) => ipcRenderer.invoke('partidas:findByDateAndTeam', filters, tournamentId),

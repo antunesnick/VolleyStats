@@ -58,10 +58,7 @@ class TournamentControl {
     if (!numericId || Number.isNaN(numericId)) {
       throw new Error('ID do torneio invalido.');
     }
-    if (this.tournamentApi) {
-      return this.tournamentApi.getById(numericId);
-    }
-    return this.tournamentDAO.getTournamentById(numericId);
+    return Tournament.getTournamentById(numericId);
   }
 
   async deleteTournamentById(id) {
