@@ -72,6 +72,21 @@ function ensureGinasioColumns() {
     }
 }
 
+
+function seedTipoAcao() {
+    const tipos = [
+        { id: 1, nome: 'Saque' },
+        { id: 2, nome: 'Ataque' },
+        { id: 3, nome: 'Bloqueio' },
+        { id: 4, nome: 'Recepção' },
+        { id: 5, nome: 'Defesa' },
+    ];
+    const insert = db.prepare('INSERT OR IGNORE INTO TipoAcao (idTipoAcao, Nome) VALUES (?, ?)');
+    for (const tipo of tipos) {
+        insert.run(tipo.id, tipo.nome);
+    }
+}
+
 function initDatabase() {
     try {
         db.exec(`
@@ -276,11 +291,27 @@ CREATE TABLE IF NOT EXISTS LinksPartida (
   PRIMARY KEY (numLink, Partida_id),
   FOREIGN KEY (Partida_id) REFERENCES Partida (id)
 );
+
+CREATE TABLE IF NOT EXISTS TimesPartida (
+  Times_id INTEGER NOT NULL,
+  Partida_id INTEGER NOT NULL,
+  Jogadores_id INTEGER NOT NULL,
+  linha TINYINT,
+  
+  -- Definição da Chave Primária Composta
+  PRIMARY KEY (Times_id, Partida_id, Jogadores_id),
+  
+  -- Relações (Chaves Estrangeiras)
+  FOREIGN KEY (Times_id) REFERENCES Times (id) ON DELETE CASCADE,
+  FOREIGN KEY (Partida_id) REFERENCES Partida (id) ON DELETE CASCADE,
+  FOREIGN KEY (Jogadores_id) REFERENCES Jogadores (id) ON DELETE CASCADE
+);
         `);
 
         ensureTournamentColumns();
         ensureGinasioColumns();
         ensurePartidaColumns();
+        seedTipoAcao();
         console.log('Banco de dados inicializado com sucesso (com dados mockados para testes).');
     } catch (e) {
         console.error("Erro ao inicializar o banco de dados:", e);

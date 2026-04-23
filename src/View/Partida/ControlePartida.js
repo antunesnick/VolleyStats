@@ -1,4 +1,5 @@
   import React, { use, useEffect, useMemo, useState } from 'react';
+  import PontoControl from '../../Control/PontoControl' 
   import PlayerControl from '../../Control/PlayerControl';
   import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, RefreshCw, MapPin } from 'lucide-react';
   import { useHotkeys } from 'react-hotkeys-hook';
@@ -93,7 +94,8 @@
     const [feed, setFeed] = useState([]);
     const [players, setPlayers] = useState([]);
     const [escalados, setEscalados] = useState({ home: [], away: [] });
-    
+    const [currentSet, setCurrentSet] = useState(1);
+    const [pontosDoSet, setPontosDoSet] = useState([]);
     const [showSubstituicao, setShowSubstituicao] = useState(false);
     const [selectedFieldPlayer, setSelectedFieldPlayer] = useState(null);
     const [selectedFieldTeam, setSelectedFieldTeam] = useState(null);
@@ -153,7 +155,28 @@
       setBuffer((prev) => ({ ...prev, qualidade: tecla }));
       console.log("Scout registrado com sucesso:", codigoScout);
       // -> MANDAR O BUFFER PARA O BANCO AQUI <-
-      
+       try {
+        alert(`Registrando Ponto: Jogador ${buffer.numero}, Ação ${buffer.acao}, Qualidade ${tecla}`);
+    const control = PontoControl.getInstance();
+    const jogador = players.find(p => String(p.numero) === String(buffer.numero));
+    const tipoAcaoMap = { S: 1, A: 2, B: 3, R: 4, D: 5 }; // IDs conforme sua tabela TipoAcao
+    const tipoAcao = { idTipoAcao: tipoAcaoMap[buffer.acao] };
+
+    if (jogador && partida?.id) {
+      control.gravarPonto(
+          partida,
+          currentSet,
+          score.home,
+          score.away,
+          jogador,
+          tipoAcao,
+          tecla // qualidade: A, B ou C
+        );
+        carregarPontosDoSet(); // Atualiza a barra lateral
+      }
+    } catch (error) {
+      console.error('Erro ao gravar ponto:', error);
+    }
       // Limpa o buffer para o próximo rally
       setBuffer({ numero: '', acao: '', qualidade: '' });
     }
@@ -164,6 +187,20 @@
     });
 
     const estaDigitando = buffer.numero.length > 0;
+
+    const carregarPontosDoSet = () => {
+  try {
+      const control = PontoControl.getInstance();
+      const pontos = control.buscarPontosPorSet(partida.id, currentSet);
+      setPontosDoSet(pontos);
+    } catch (error) {
+      console.error('Erro ao carregar pontos do set:', error);
+    }
+  };
+
+useEffect(() => {
+  if (partida?.id) carregarPontosDoSet();
+}, [currentSet, partida?.id]);
 
     const matchInfo = useMemo(() => {
       let matchDate = 'Data não definida';
@@ -374,25 +411,47 @@
               </div>
             </div>
 
-            {/* Feed */}
-            <div className="flex-1 overflow-auto p-6 bg-gray-50/30">
-              <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500 mb-4">Feed da Partida</h3>
-              {feed.length === 0 ? (
-                <div className="text-center p-6 border-2 border-dashed border-gray-200 rounded-xl text-sm font-medium text-gray-400">
-                  Nenhuma jogada registrada.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {feed.map((item) => (
-                    <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-sm font-medium text-gray-700">
-                      {item.text}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Pontos do Set */}
+<div className="flex-1 overflow-auto p-6 bg-gray-50/30">
+  <div className="flex items-center justify-between mb-4">
+    <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500">
+      Pontos — Set {currentSet}
+    </h3>
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => setCurrentSet(s => Math.max(1, s - 1))}
+        className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-black flex items-center justify-center transition"
+      >‹</button>
+      <button
+        onClick={() => setCurrentSet(s => s + 1)}
+        className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-black flex items-center justify-center transition"
+      >›</button>
+    </div>
+  </div>
 
-            {/* Command Bar Form */}
+            {pontosDoSet.length === 0 ? (
+              <div className="text-center p-6 border-2 border-dashed border-gray-200 rounded-xl text-sm font-medium text-gray-400">
+                Nenhum ponto registrado neste set.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pontosDoSet.map((ponto, index) => (
+                  <div
+                    key={index}
+                    className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between"
+                  >
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                      Rally {index + 1}
+                    </span>
+                    <span className="text-sm font-black text-gray-900 font-mono">
+                      {ponto.ponto_time1} × {ponto.ponto_time2}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+                      {/* Command Bar Form */}
             <div className="p-6 border-t border-gray-100 bg-white">
               <form onSubmit={handleSendAction} className="relative">
                 <input
