@@ -41,26 +41,26 @@ function ensureTournamentColumns() {
 }
 
 function ensurePartidaColumns() {
-    const columns = db.prepare("PRAGMA table_info(Partida)").all().map((column) => column.name);
+    const columns = db.prepare("PRAGMA table_info(Partidas)").all().map((column) => column.name);
     
     if (!columns.includes('nome')) {
-        db.exec('ALTER TABLE Partida ADD COLUMN nome VARCHAR(100)');
+        db.exec('ALTER TABLE Partidas ADD COLUMN nome VARCHAR(100)');
     }
     // Adicionando as colunas que faltam para o PartidaModel funcionar
     if (!columns.includes('dataPartida')) {
-        db.exec('ALTER TABLE Partida ADD COLUMN dataPartida DATE');
+        db.exec('ALTER TABLE Partidas ADD COLUMN dataPartida DATE');
     }
     if (!columns.includes('tipo')) {
-        db.exec('ALTER TABLE Partida ADD COLUMN tipo INTEGER');
+        db.exec('ALTER TABLE Partidas ADD COLUMN tipo INTEGER');
     }
     if (!columns.includes('status')) {
-        db.exec("ALTER TABLE Partida ADD COLUMN status VARCHAR(50) DEFAULT 'AGENDADA'");
+        db.exec("ALTER TABLE Partidas ADD COLUMN status VARCHAR(50) DEFAULT 'AGENDADA'");
     }
     if (!columns.includes('externa')) {
-        db.exec('ALTER TABLE Partida ADD COLUMN externa INTEGER DEFAULT 0');
+        db.exec('ALTER TABLE Partidas ADD COLUMN externa INTEGER DEFAULT 0');
     }
     if (!columns.includes('torneio_id')) {
-        db.exec('ALTER TABLE Partida ADD COLUMN torneio_id INTEGER REFERENCES Torneios(id)');
+        db.exec('ALTER TABLE Partidas ADD COLUMN torneio_id INTEGER REFERENCES Torneios(id)');
     }
 }
 
@@ -69,6 +69,21 @@ function ensureGinasioColumns() {
 
     if (!columns.includes('endereco')) {
         db.exec('ALTER TABLE Ginasios ADD COLUMN endereco VARCHAR(255)');
+    }
+}
+
+
+function seedTipoAcao() {
+    const tipos = [
+        { id: 1, nome: 'Saque' },
+        { id: 2, nome: 'Ataque' },
+        { id: 3, nome: 'Bloqueio' },
+        { id: 4, nome: 'Recepção' },
+        { id: 5, nome: 'Defesa' },
+    ];
+    const insert = db.prepare('INSERT OR IGNORE INTO TipoAcao (idTipoAcao, Nome) VALUES (?, ?)');
+    for (const tipo of tipos) {
+        insert.run(tipo.id, tipo.nome);
     }
 }
 
@@ -81,7 +96,7 @@ PRAGMA foreign_keys = ON;
 -- -----------------------------------------------------
 -- Tabela posicao
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS posicao (
+CREATE TABLE IF NOT EXISTS Posicoes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   nome VARCHAR(45)
 );
@@ -172,24 +187,25 @@ CREATE TABLE IF NOT EXISTS Torneios (
 -- -----------------------------------------------------
 -- Tabela Partida
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS Partida (
+CREATE TABLE IF NOT EXISTS Partidas (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ginasio_id INTEGER NOT NULL,
-  Time1 INTEGER NOT NULL,
-  Time2 INTEGER NOT NULL,
+  time1 INTEGER NOT NULL,
+  time2 INTEGER NOT NULL,
   pontosTime1 INTEGER,
   pontosTime2 INTEGER,
-  nome VARCHAR(45) NOT NULL,
-  data DATE NOT NULL,
-  tipo VARCHAR(45) NOT NULL,
-  status VARCHAR(45) NOT NULL DEFAULT 'Agendada',
+  nome VARCHAR(100) NOT NULL,
+  dataPartida DATE NOT NULL,
+  tipo INTEGER,
+  videoLink VARCHAR(1024),
+  status VARCHAR(50) NOT NULL DEFAULT 'Agendada',
   externa INTEGER NOT NULL DEFAULT 0,
-  Torneio_idTorneio INTEGER NOT NULL,
+  torneio_id INTEGER NOT NULL,
   fase VARCHAR(45),
   FOREIGN KEY (ginasio_id) REFERENCES Ginasios (id),
   FOREIGN KEY (Time1) REFERENCES Times (id),
   FOREIGN KEY (Time2) REFERENCES Times (id),
-  FOREIGN KEY (Torneio_idTorneio) REFERENCES Torneios (id)
+  FOREIGN KEY (torneio_id) REFERENCES Torneios (id)
 );
 
 -- -----------------------------------------------------
@@ -229,13 +245,11 @@ CREATE TABLE IF NOT EXISTS Acao (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   Ponto_pontoTime1 INTEGER NOT NULL,
   Ponto_pontoTime2 INTEGER NOT NULL,
-  Ponto_NumSet     INTEGER NOT NULL,
   Ponto_Partida_id INTEGER NOT NULL,
   Jogador_id INTEGER NOT NULL,
   Qualidade TEXT CHECK(Qualidade IN ('A', 'B', 'C')),
   idTipoAcao INTEGER NOT NULL,
-  FOREIGN KEY (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id)
-    REFERENCES Ponto (pontoTime1, pontoTime2, NumSet, Set_Partida_id),
+  FOREIGN KEY (Ponto_pontoTime1, Ponto_pontoTime2) REFERENCES Ponto (pontoTime1, pontoTime2),
   FOREIGN KEY (Jogador_id) REFERENCES Jogadores (id),
   FOREIGN KEY (idTipoAcao) REFERENCES TipoAcao (idTipoAcao)
 );
@@ -247,12 +261,10 @@ CREATE TABLE IF NOT EXISTS Substituicao (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   Ponto_pontoTime1 INTEGER NOT NULL,
   Ponto_pontoTime2 INTEGER NOT NULL,
-  Ponto_NumSet     INTEGER NOT NULL,
   Ponto_Partida_id INTEGER NOT NULL,
   JogadorEntra INTEGER NOT NULL,
   JogadorSai INTEGER NOT NULL,
-  FOREIGN KEY (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id)
-    REFERENCES Ponto (pontoTime1, pontoTime2, NumSet, Set_Partida_id),
+  FOREIGN KEY (Ponto_pontoTime1, Ponto_pontoTime2) REFERENCES Ponto (pontoTime1, pontoTime2),
   FOREIGN KEY (JogadorEntra) REFERENCES Jogadores (id),
   FOREIGN KEY (JogadorSai) REFERENCES Jogadores (id)
 );
@@ -295,11 +307,15 @@ CREATE TABLE IF NOT EXISTS TimesPartida (
   FOREIGN KEY (Partida_id) REFERENCES Partida (id) ON DELETE CASCADE,
   FOREIGN KEY (Jogadores_id) REFERENCES Jogadores (id) ON DELETE CASCADE
 );
+            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (1, 'Vôlei Prudente', 'Presidente Prudente');
+            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (2, 'Sada Cruzeiro', 'Belo Horizonte');
+            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (3, 'Vôlei Renata', 'Campinas');
         `);
 
         ensureTournamentColumns();
         ensureGinasioColumns();
         ensurePartidaColumns();
+        seedTipoAcao();
         console.log('Banco de dados inicializado com sucesso (com dados mockados para testes).');
     } catch (e) {
         console.error("Erro ao inicializar o banco de dados:", e);

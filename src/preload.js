@@ -19,10 +19,12 @@ window.api = {
     partidas: {
         create: (data) => ipcRenderer.invoke('partidas:create', data),
         update: (data) => ipcRenderer.invoke('partidas:update', data),
+        updateVideoLink: (id, link) => ipcRenderer.invoke('partidas:updateVideoLink', id, link),
         delete: (id) => ipcRenderer.invoke('partidas:delete', id),
         findAll: () => ipcRenderer.invoke('partidas:findAll'),
-        findByDateAndTeam: (filters) => ipcRenderer.invoke('partidas:findByDateAndTeam', filters),
+        findByDateAndTeam: (filters, tournamentId) => ipcRenderer.invoke('partidas:findByDateAndTeam', filters, tournamentId),
         findById: (id) => ipcRenderer.invoke('partidas:findById', id),
+        findByTournament: (tournamentId) => ipcRenderer.invoke('partidas:findByTournament', tournamentId),
         finalizar: (id, pts1, pts2) => ipcRenderer.invoke('partidas:finalizar', id, pts1, pts2)
     }
 };
@@ -32,4 +34,10 @@ window.tournamentAPI = {
     create: (payload) => ipcRenderer.invoke('tournaments:create', payload),
     update: (payload) => ipcRenderer.invoke('tournaments:update', payload),
     delete: (id) => ipcRenderer.invoke('tournaments:delete', id),
+    getById: (id) => ipcRenderer.invoke('tournaments:getById', id),
+};
+
+window.excelAPI = {
+    importar: () => ipcRenderer.invoke('excel:importar'),
+    salvarDados: (dados) => ipcRenderer.invoke('excel:salvar', dados)
 };

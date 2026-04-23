@@ -5,6 +5,8 @@ const GinasioControlModule = require('./Control/GinasioControl');
 const GinasioControl = GinasioControlModule.default || GinasioControlModule;
 const PartidaControl = require('./Control/PartidaControl');
 const url = require('url');
+const xlsx = require('xlsx');
+const ExcelImportControl = require('./Control/ExcelImportControl').default;
 
 const { initDatabase } = require('./db/db');
 const TournamentControl = require('./Control/TournamentControl').default;
@@ -51,6 +53,10 @@ ipcMain.handle('partidas:update', async (event, data) => {
     return await PartidaControl.getInstance().updatePartida(data);
 });
 
+ipcMain.handle('partidas:updateVideoLink', async (event, id, link) => {
+  return await PartidaControl.getInstance().updateVideoLink(id, link);
+});
+
 ipcMain.handle('partidas:delete', async (event, id) => {
     return await PartidaControl.getInstance().deletePartida(id);
 });
@@ -59,18 +65,21 @@ ipcMain.handle('partidas:findAll', async () => {
     return await PartidaControl.getInstance().findAllPartidas();
 });
 
-ipcMain.handle('partidas:findByDateAndTeam', async (event, filters) => {
-    return await PartidaControl.getInstance().findPartidaByDateAndTeam(filters);
+ipcMain.handle('partidas:findByDateAndTeam', async (event, filters, tournamentId) => {
+    return await PartidaControl.getInstance().findPartidaByDateAndTeam(filters, tournamentId);
 });
 
 ipcMain.handle('partidas:findById', async (event, id) => {
     return await PartidaControl.getInstance().findPartidaById(id);
 });
 
+ipcMain.handle('partidas:findByTournament', async (event, tournamentId) => {
+    return await PartidaControl.getInstance().findPartidaByTournamentId(tournamentId);
+});
+
 ipcMain.handle('partidas:finalizar', async (event, id, pontosTime1, pontosTime2) => {
     return await PartidaControl.getInstance().finalizarPartida(id, pontosTime1, pontosTime2);
 });
-
 
 
 // 2. INICIALIZAÇÃO DO APP
@@ -122,8 +131,6 @@ app.whenReady().then(() => {
     }
   })
 
-
-
   ipcMain.handle('ginasio:listar', async () => {
     return GinasioControl.listarGinasios();
   });
@@ -146,6 +153,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle('tournaments:list', async () => TournamentControl.listTournaments());
 
+  ipcMain.handle('tournaments:getById', async (_event, id) => {
+    return TournamentControl.getTournamentById(id); 
+  });
+
   ipcMain.handle('tournaments:create', async (_event, payload) => {
     return TournamentControl.createTournament(payload);
   });
@@ -156,6 +167,14 @@ app.whenReady().then(() => {
 
   ipcMain.handle('tournaments:delete', async (_event, id) => {
     return TournamentControl.deleteTournament(id);
+  });
+  
+  ipcMain.handle('excel:importar', async () => {
+    return await ExcelImportControl.getInstance().importarExcel();
+  });
+
+  ipcMain.handle('excel:salvar', async (event, dados) => {
+    return await ExcelImportControl.getInstance().salvarDados(dados);
   });
 
   createWindow();
