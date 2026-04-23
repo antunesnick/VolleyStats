@@ -4,7 +4,7 @@ const PartidaModel = require('../Model/PartidaModel');
 class PartidaControl {
 
     async createPartida(data) {
-        const partida = new PartidaModel(null, data.nome, data.pontosTime1, data.pontosTime2, data.dataPartida, data.tipo, data.status, data.externa, data.ginasio_id, data.time1, data.time2, data.torneio_id);
+        const partida = new PartidaModel(null, data.nome, data.pontosTime1, data.pontosTime2, data.dataPartida, data.tipo, data.status, data.externa, data.ginasio_id, data.time1, data.time2, data.torneio_id, data.videoLink);
         
         const insertTransaction = db.transaction((partidaObj) => {
             return partida.insert(partidaObj, db); 
@@ -20,7 +20,7 @@ class PartidaControl {
     }
 
     async updatePartida(data) {
-        const partida = new PartidaModel(data.id, data.nome, data.pontosTime1, data.pontosTime2, data.dataPartida, data.tipo, data.status, data.externa, data.ginasio_id, data.time1, data.time2, data.torneio_id);    
+        const partida = new PartidaModel(data.id, data.nome, data.pontosTime1, data.pontosTime2, data.dataPartida, data.tipo, data.status, data.externa, data.ginasio_id, data.time1, data.time2, data.torneio_id, data.videoLink);
         
         const updateTransaction = db.transaction((partidaObj) => {
             return partida.update(partidaObj, db);
@@ -112,6 +112,31 @@ class PartidaControl {
             return result;
         } catch (error) {
             console.error("Falha ao finalizar partida. Transação revertida.", error);
+            throw error;
+        }
+    }
+
+    async updateVideoLink(id, link) {
+        const partida = new PartidaModel();
+        const validationResult = await partida.isValidVideoLink(link);
+        if (!validationResult.isValid) {
+            throw new Error(validationResult.message);
+        }
+
+        const normalizedLink = validationResult.normalizedLink;
+
+        const updateVideoLinkTransaction = db.transaction((partidaId, partidaLink) => {
+            return partida.updateVideoLink(partidaId, partidaLink, db);
+        });
+
+        try {
+            const result = updateVideoLinkTransaction(id, normalizedLink);
+            return {
+                success: true,
+                ...result
+            };
+        } catch (error) {
+            console.error('Falha ao atualizar link de video da partida. Transacao revertida.', error);
             throw error;
         }
     }

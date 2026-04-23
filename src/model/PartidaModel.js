@@ -1,5 +1,5 @@
 class PartidaModel {
-    constructor(id = null, nome = null, pontosTime1 = null, pontosTime2 = null, dataPartida = null, tipo = null, status = 'AGENDADA', externa = 0, ginasio_id = null, time1 = null, time2 = null, torneio_id) {
+    constructor(id = null, nome = null, pontosTime1 = null, pontosTime2 = null, dataPartida = null, tipo = null, status = 'AGENDADA', externa = 0, ginasio_id = null, time1 = null, time2 = null, torneio_id = null, videoLink = null) {
         this.id = id;
         this.nome = nome;
         this.pontosTime1 = pontosTime1;
@@ -11,7 +11,8 @@ class PartidaModel {
         this.ginasio_id = ginasio_id;
         this.time1 = time1;
         this.time2 = time2;
-        this.torneio_id = torneio_id; // Adicionado para relacionar com torneio
+        this.torneio_id = torneio_id;
+        this.videoLink = videoLink;
     }
 
     findAll(db) {
@@ -104,8 +105,8 @@ class PartidaModel {
 
     insert(partida, db) {
         const stmt = db.prepare(`
-            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2, torneio_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2, torneio_id, videoLink)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const data = stmt.run(
@@ -119,7 +120,8 @@ class PartidaModel {
             partida.ginasio_id || 1, 
             partida.time1 || 1,      
             partida.time2 || 2,
-            partida.torneio_id || null 
+                partida.torneio_id || null,
+            partida.videoLink ? partida.videoLink.trim() : null
         );
 
         return { id: data.lastInsertRowid, ...partida };
@@ -160,6 +162,132 @@ class PartidaModel {
         `);
         stmt.run(pontosTime1, pontosTime2, id);
         return { success: true, id, pontosTime1, pontosTime2 };
+    }
+
+    isKnownVideoProvider(parsedUrl) {
+        const host = parsedUrl.hostname.replace(/^www\./i, '').toLowerCase();
+        const path = parsedUrl.pathname || '';
+
+        if ((host === 'youtube.com' || host === 'm.youtube.com') && path === '/watch' && parsedUrl.searchParams.get('v')) {
+            return true;
+        }
+
+        if ((host === 'youtube.com' || host === 'm.youtube.com') && (path.startsWith('/shorts/') || path.startsWith('/live/'))) {
+            return true;
+        }
+
+        if (host === 'youtu.be' && path.length > 1) {
+            return true;
+        }
+
+        if (host === 'vimeo.com' && /^\/\d+/.test(path)) {
+            return true;
+        }
+
+        if (host === 'player.vimeo.com' && path.startsWith('/video/')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    async hasVideoContentType(link) {
+        if (typeof fetch !== 'function') {
+            return false;
+        }
+
+        const requestWithTimeout = async (method, extraHeaders = {}) => {
+            const abortController = new AbortController();
+            const timeoutId = setTimeout(() => abortController.abort(), 6000);
+
+            try {
+                const response = await fetch(link, {
+                    method,
+                    redirect: 'follow',
+                    headers: {
+                        ...extraHeaders,
+                        'User-Agent': 'VolleyStats/1.0'
+                    },
+                    signal: abortController.signal
+                });
+
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                return contentType.startsWith('video/');
+            } catch (_error) {
+                return false;
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        };
+
+        const headCheck = await requestWithTimeout('HEAD');
+        if (headCheck) {
+            return true;
+        }
+
+        return requestWithTimeout('GET', { Range: 'bytes=0-1024' });
+    }
+
+    async isValidVideoLink(link) {
+        const normalizedLink = typeof link === 'string' ? link.trim() : '';
+
+        if (normalizedLink === '') {
+            return { isValid: true, normalizedLink: '' };
+        }
+
+        let parsedUrl;
+        try {
+            parsedUrl = new URL(normalizedLink);
+        } catch (_error) {
+            return {
+                isValid: false,
+                message: 'Link de video invalido. Informe uma URL completa com http:// ou https://.'
+            };
+        }
+
+        if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+            return {
+                isValid: false,
+                message: 'Link de video invalido. Informe uma URL completa com http:// ou https://.'
+            };
+        }
+
+        if (this.isKnownVideoProvider(parsedUrl)) {
+            return { isValid: true, normalizedLink };
+        }
+
+        const looksLikeVideoFile = /\.(mp4|webm|mov|m3u8|mkv|avi)(\?|#|$)/i.test(parsedUrl.pathname);
+        if (looksLikeVideoFile) {
+            return { isValid: true, normalizedLink };
+        }
+
+        const hasVideoContent = await this.hasVideoContentType(normalizedLink);
+        if (hasVideoContent) {
+            return { isValid: true, normalizedLink };
+        }
+
+        return {
+            isValid: false,
+            message: 'Nao foi possivel confirmar conteudo de video nesse link. Use URL direta de video (.mp4/.webm) ou link de plataforma (YouTube/Vimeo).'
+        };
+    }
+
+    updateVideoLink(id, link, db) {
+        const normalizedLink = typeof link === 'string' && link.trim() !== '' ? link.trim() : null;
+
+        const stmt = db.prepare(`
+            UPDATE Partidas
+            SET videoLink = ?
+            WHERE id = ?
+        `);
+
+        const result = stmt.run(normalizedLink, id);
+
+        if (result.changes === 0) {
+            throw new Error('Partida nao encontrada para atualizar o link de video.');
+        }
+
+        return { success: true, id, videoLink: normalizedLink };
     }
 }
 
