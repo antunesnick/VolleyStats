@@ -36,3 +36,8 @@ window.tournamentAPI = {
     delete: (id) => ipcRenderer.invoke('tournaments:delete', id),
     getById: (id) => ipcRenderer.invoke('tournaments:getById', id),
 };
+
+window.excelAPI = {
+    importar: () => ipcRenderer.invoke('excel:importar'),
+    salvarDados: (dados) => ipcRenderer.invoke('excel:salvar', dados)
+};
