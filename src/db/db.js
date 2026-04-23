@@ -62,6 +62,9 @@ function ensurePartidaColumns() {
     if (!columns.includes('torneio_id')) {
         db.exec('ALTER TABLE Partidas ADD COLUMN torneio_id INTEGER REFERENCES Torneios(id)');
     }
+    if (!columns.includes('videoLink')) {
+      db.exec('ALTER TABLE Partidas ADD COLUMN videoLink VARCHAR(2048)');
+    }
 }
 
 function ensureGinasioColumns() {

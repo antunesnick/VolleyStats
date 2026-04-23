@@ -1,5 +1,5 @@
 class PartidaModel {
-    constructor(id = null, nome = null, pontosTime1 = null, pontosTime2 = null, dataPartida = null, tipo = null, status = 'AGENDADA', externa = 0, ginasio_id = null, time1 = null, time2 = null) {
+    constructor(id = null, nome = null, pontosTime1 = null, pontosTime2 = null, dataPartida = null, tipo = null, status = 'AGENDADA', externa = 0, ginasio_id = null, time1 = null, time2 = null, videoLink = null) {
         this.id = id;
         this.nome = nome;
         this.pontosTime1 = pontosTime1;
@@ -11,6 +11,7 @@ class PartidaModel {
         this.ginasio_id = ginasio_id;
         this.time1 = time1;
         this.time2 = time2;
+        this.videoLink = videoLink;
     }
 
     findAll(db) {
@@ -62,8 +63,8 @@ class PartidaModel {
 
     insert(partida, db) {
         const stmt = db.prepare(`
-            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2, videoLink)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const data = stmt.run(
@@ -76,7 +77,8 @@ class PartidaModel {
             partida.externa ? 1 : 0,
             partida.ginasio_id || 1, // Fallback para 1 enquanto não temos a tela de Ginásios
             partida.time1 || 1,      // Fallback para 1 enquanto não temos a tela de Times
-            partida.time2 || 2       // Fallback para 2 enquanto não temos a tela de Times
+            partida.time2 || 2,      // Fallback para 2 enquanto não temos a tela de Times
+            partida.videoLink ? partida.videoLink.trim() : null
         );
 
         return { id: data.lastInsertRowid, ...partida };
@@ -117,6 +119,39 @@ class PartidaModel {
         `);
         stmt.run(pontosTime1, pontosTime2, id);
         return { success: true, id, pontosTime1, pontosTime2 };
+    }
+
+    isValidVideoLink(link) {
+        const normalizedLink = typeof link === 'string' ? link.trim() : '';
+
+        if (normalizedLink === '') {
+            return true;
+        }
+
+        try {
+            const parsedUrl = new URL(normalizedLink);
+            return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+        } catch (_error) {
+            return false;
+        }
+    }
+
+    updateVideoLink(id, link, db) {
+        const normalizedLink = typeof link === 'string' && link.trim() !== '' ? link.trim() : null;
+
+        const stmt = db.prepare(`
+            UPDATE Partidas
+            SET videoLink = ?
+            WHERE id = ?
+        `);
+
+        const result = stmt.run(normalizedLink, id);
+
+        if (result.changes === 0) {
+            throw new Error('Partida nao encontrada para atualizar o link de video.');
+        }
+
+        return { success: true, id, videoLink: normalizedLink };
     }
 }
 
