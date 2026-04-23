@@ -1,11 +1,11 @@
-const Evento = require('./Evento');
+import Evento from './Evento';
 
 class Acao extends Evento {
     /**
-     * @param {Ponto}     ponto    - Objeto Ponto ao qual esta ação pertence
-     * @param {object}    jogador  - Objeto Jogador (deve conter .id)
-     * @param {TipoAcao}  tipoAcao - Objeto TipoAcao (deve conter .idTipoAcao)
-     * @param {string}    qualidade - 'A', 'B' ou 'C'
+     * @param {Ponto}    ponto     - Objeto Ponto (contem .pontoTime1, .pontoTime2, .set.numSet, .set.partida.id)
+     * @param {object}   jogador   - Objeto Jogador (deve conter .id)
+     * @param {object}   tipoAcao  - Objeto TipoAcao (deve conter .idTipoAcao)
+     * @param {string}   qualidade - 'A', 'B' ou 'C'
      */
     constructor(ponto, jogador, tipoAcao, qualidade) {
         super(ponto);
@@ -16,13 +16,17 @@ class Acao extends Evento {
 
     criarAcao(db) {
         try {
+            // FK completa: (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id)
             const sql = db.prepare(
-                'INSERT INTO Acao (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_Partida_id, Jogador_id, Qualidade, idTipoAcao) VALUES (?, ?, ?, ?, ?, ?)'
+                `INSERT INTO Acao 
+                (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id, Jogador_id, Qualidade, idTipoAcao) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)`
             );
             const info = sql.run(
                 this.ponto.pontoTime1,
                 this.ponto.pontoTime2,
-                this.ponto.partida.id,
+                this.ponto.set.numSet,
+                this.ponto.set.partida.id,
                 this.jogador.id,
                 this.qualidade,
                 this.tipoAcao.idTipoAcao
@@ -35,4 +39,4 @@ class Acao extends Evento {
     }
 }
 
-module.exports = Acao;
+export default Acao;

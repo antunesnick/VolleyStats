@@ -1,27 +1,29 @@
-const Acao = require('./Acao');
-const Substituicao = require('./Substituicao');
+import Acao from './Acao';
+import Substituicao from './Substituicao';
 
 class Ponto {
     /**
-     * @param {number} pontoTime1 - Pontuação do time 1
-     * @param {number} pontoTime2 - Pontuação do time 2
-     * @param {number} numSet     - Número do set
-     * @param {object} partida    - Objeto Partida (deve conter .id)
+     * @param {number}     pontoTime1 - Pontuação do time 1
+     * @param {number}     pontoTime2 - Pontuação do time 2
+     * @param {SetPartida} set        - Objeto SetPartida (deve conter .numSet e .partida.id)
      */
-    constructor(pontoTime1, pontoTime2, numSet, partida) {
+    constructor(pontoTime1, pontoTime2, set) {
         this.pontoTime1 = pontoTime1;
         this.pontoTime2 = pontoTime2;
-        this.set = numSet;
-        this.partida = partida;
+        this.set = set;
         this.eventoList = [];
     }
 
     criarPonto(db) {
         try {
+            // Garante que o Set existe antes de inserir o Ponto (FK obrigatória)
+            this.set.criarSet(db);
+
+            // Tabela: Ponto | Colunas: pontoTime1, pontoTime2, NumSet, Set_Partida_id
             const sql = db.prepare(
-                'INSERT INTO Pontos (ponto_time1, ponto_time2, set_num, partida_id) VALUES (?, ?, ?, ?)'
+                'INSERT INTO Ponto (pontoTime1, pontoTime2, NumSet, Set_Partida_id) VALUES (?, ?, ?, ?)'
             );
-            sql.run(this.pontoTime1, this.pontoTime2, this.set, this.partida.id);
+            sql.run(this.pontoTime1, this.pontoTime2, this.set.numSet, this.set.partida.id);
         } catch (e) {
             throw e;
         }
@@ -51,4 +53,4 @@ class Ponto {
     }
 }
 
-module.exports = Ponto;
+export default Ponto;

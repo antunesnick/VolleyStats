@@ -1,10 +1,10 @@
 class Evento {
     /**
-     * @param {Ponto} ponto 
+     * @param {Ponto} ponto - Objeto Ponto ao qual este evento pertence
      */
     constructor(ponto) {
         this.ponto = ponto;
     }
 }
 
-module.exports = Evento;
+export default Evento;

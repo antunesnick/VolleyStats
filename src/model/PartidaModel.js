@@ -14,17 +14,17 @@ class PartidaModel {
     }
 
     findAll(db) {
-        const stmt = db.prepare('SELECT * FROM Partidas');
+        const stmt = db.prepare('SELECT * FROM Partida');
         return stmt.all();
     }
 
     findPartidaFiltered(filter, db) {
-        const stmt = db.prepare('SELECT * FROM Partidas WHERE status = ?');
+        const stmt = db.prepare('SELECT * FROM Partida WHERE status = ?');
         return stmt.all(filter.status);
     }
 
     findPartidaByDateAndTeam(filters, db) {
-        let query = 'SELECT * FROM Partidas WHERE 1=1';
+        let query = 'SELECT * FROM Partida WHERE 1=1';
         const params = [];
 
         // Filtro por data
@@ -51,7 +51,7 @@ class PartidaModel {
                 t1.nome AS time1Nome,
                 t2.nome AS time2Nome,
                 g.nome AS ginasioNome
-            FROM Partidas p
+            FROM Partida p
             LEFT JOIN Times t1 ON t1.id = p.time1
             LEFT JOIN Times t2 ON t2.id = p.time2
             LEFT JOIN Ginasios g ON g.id = p.ginasio_id
@@ -62,7 +62,7 @@ class PartidaModel {
 
     insert(partida, db) {
         const stmt = db.prepare(`
-            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2)
+            INSERT INTO Partida (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
@@ -84,7 +84,7 @@ class PartidaModel {
 
     update(partida, db) {
         const stmt = db.prepare(`
-            UPDATE Partidas 
+            UPDATE Partida 
             SET nome = ?, dataPartida = ?, tipo = ?, externa = ?, ginasio_id = ?, time1 = ?, time2 = ?
             WHERE id = ?
         `);
@@ -104,14 +104,14 @@ class PartidaModel {
     }
 
     delete(id, db) {
-        const stmt = db.prepare('DELETE FROM Partidas WHERE id = ?');
+        const stmt = db.prepare('DELETE FROM Partida WHERE id = ?');
         stmt.run(id);
         return { success: true };
     }
 
     finalize(id, pontosTime1, pontosTime2, db) {
         const stmt = db.prepare(`
-            UPDATE Partidas 
+            UPDATE Partida 
             SET status = 'FINALIZADA', pontosTime1 = ?, pontosTime2 = ?
             WHERE id = ?
         `);

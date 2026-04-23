@@ -1,4 +1,8 @@
 class TipoAcao {
+    /**
+     * @param {string} nome        - Nome do tipo de ação
+     * @param {number} idTipoAcao  - ID (opcional, preenchido após criação)
+     */
     constructor(nome, idTipoAcao = null) {
         this.idTipoAcao = idTipoAcao;
         this.nome = nome;
@@ -6,7 +10,8 @@ class TipoAcao {
 
     criarTipoAcao(db) {
         try {
-            const sql = db.prepare('INSERT INTO TipoAcao (Nome) VALUES (?)');
+            // Tabela: TipoAcao | Colunas: idTipoAcao (PK manual), Nome
+            const sql = db.prepare('INSERT OR IGNORE INTO TipoAcao (Nome) VALUES (?)');
             const info = sql.run(this.nome);
             this.idTipoAcao = info.lastInsertRowid;
             return this.idTipoAcao;
@@ -16,4 +21,4 @@ class TipoAcao {
     }
 }
 
-module.exports = TipoAcao;
+export default TipoAcao;

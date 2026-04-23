@@ -175,7 +175,7 @@
         carregarPontosDoSet(); // Atualiza a barra lateral
       }
     } catch (error) {
-      console.error('Erro ao gravar ponto:', error);
+      alert('Erro ao registrar ponto: ' + error.message);
     }
       // Limpa o buffer para o próximo rally
       setBuffer({ numero: '', acao: '', qualidade: '' });
