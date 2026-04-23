@@ -3,7 +3,7 @@
   import PlayerControl from '../../Control/PlayerControl';
   import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, RefreshCw, MapPin } from 'lucide-react';
   import { useHotkeys } from 'react-hotkeys-hook';
-  import EstatisticaModal from './EstatisticaModal';
+  import EstatisticaModal from './EstatisticaView';
 
   const VolleyballCourt = ({ players, formation, onPlayerClick }) => {
     const formationMap = {
