@@ -23,18 +23,8 @@ const CustomSelect = ({ label, icon, children, ...props }) => (
   </div>
 );
 
-const showToastMessage = (setToasts, type, text, duration = 3200) => {
-  const id = `${Date.now()}-${Math.random()}`;
-  setToasts((prev) => [...prev, { id, type, text }]);
-
-  setTimeout(() => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  }, duration);
-};
-
-const GerenciarPartidas = ({ tournamentId = null }) => {
+const GerenciarPartidas = ({tournamentId}) => {
   const [partidas, setPartidas] = useState([]);
-  const [toasts, setToasts] = useState([]);
 
   const [timesCadastrados, setTimesCadastrados] = useState([]);
   const [ginasiosCadastrados, setGinasiosCadastrados] = useState([]);
@@ -60,55 +50,14 @@ const GerenciarPartidas = ({ tournamentId = null }) => {
     ginasio_id: '',
     time1: '',
     time2: '',
-    videoLink: ''
+    torneio_id: tournamentId
   };
   const [formData, setFormData] = useState(estadoInicialForm);
   const [placar, setPlacar] = useState({ pontosTime1: '', pontosTime2: '' });
-  const [videoLinkAtualizando, setVideoLinkAtualizando] = useState(false);
-  const [confirmDialog, setConfirmDialog] = useState({
-    isOpen: false,
-    title: '',
-    message: '',
-    confirmLabel: 'Confirmar',
-    onConfirm: null
-  });
-
-  const showToast = (type, text) => {
-    showToastMessage(setToasts, type, text);
-  };
-
-  const abrirConfirmacao = ({ title, message, confirmLabel = 'Confirmar', onConfirm }) => {
-    setConfirmDialog({
-      isOpen: true,
-      title,
-      message,
-      confirmLabel,
-      onConfirm
-    });
-  };
-
-  const fecharConfirmacao = () => {
-    setConfirmDialog({
-      isOpen: false,
-      title: '',
-      message: '',
-      confirmLabel: 'Confirmar',
-      onConfirm: null
-    });
-  };
-
-  const confirmarAcao = async () => {
-    try {
-      if (typeof confirmDialog.onConfirm === 'function') {
-        await confirmDialog.onConfirm();
-      }
-    } finally {
-      fecharConfirmacao();
-    }
-  };
 
   useEffect(() => {
-    carregarTudo();
+    if(tournamentId)
+      carregarTudo();
   }, [tournamentId]);
 
 const formatarDataBrasil = (dataString) => {
@@ -141,10 +90,7 @@ const formatarDataBrasil = (dataString) => {
   };
 
   const getNomeTime = (id) => timesCadastrados.find(t => t.id === Number(id))?.nome || `Time ${id}`;
-  const getNomeGinasio = (id) => {
-    const gin = ginasiosCadastrados.find((g) => g.id === Number(id));
-    return gin?.nome || gin?.Nome || `Ginásio ${id}`;
-  };
+  const getNomeGinasio = (id) => ginasiosCadastrados.find(g => g.id === Number(id))?.nome || `Ginásio ${id}`;
 
   const handleFiltroChange = (e) => {
     const { name, value } = e.target;
@@ -175,68 +121,43 @@ const formatarDataBrasil = (dataString) => {
   const handleSalvarPartida = async (e) => {
     e.preventDefault();
     if (formData.time1 === formData.time2) {
-      showToast('error', 'O Time 1 nao pode ser igual ao Time 2.');
+      Alertas.aviso("O Time 1 não pode ser igual ao Time 2.");
       return;
     }
-
-    const torneioIdNumerico = Number(tournamentId);
-    const podeValidarPeriodoDoTorneio =
-      torneioIdNumerico && !Number.isNaN(torneioIdNumerico) && typeof window.tournamentAPI?.getById === 'function';
-
-    if (podeValidarPeriodoDoTorneio) {
-      try {
-        const torneio = await window.tournamentAPI.getById(torneioIdNumerico);
-        const dataInicio = torneio?.inicio || torneio?.startDate;
-        const dataFim = torneio?.termino || torneio?.endDate;
-
-        if (dataInicio && dataFim) {
-          if (formData.dataPartida < dataInicio || formData.dataPartida > dataFim) {
-            Alertas.aviso(`A data da partida deve estar entre ${formatarDataBrasil(dataInicio)} e ${formatarDataBrasil(dataFim)} (Período do Torneio).`);
-            return;
-          }
-        }
-      } catch (error) {
-        // Nao bloqueia o cadastro se a consulta de periodo do torneio falhar.
-        console.warn('Nao foi possivel validar o periodo do torneio. Cadastro seguira sem essa validacao.', error);
+    
+    try {
+      const torneio = await window.tournamentAPI.getById(tournamentId);
+      if(formData.dataPartida < torneio.startDate || formData.dataPartida > torneio.endDate) {
+        Alertas.aviso(`A data da partida deve estar entre ${formatarDataBrasil(torneio.startDate)} e ${formatarDataBrasil(torneio.endDate)} (Período do Torneio).`);
+        return;
       }
+    }catch(error) {
+      Alertas.erro("Erro ao validar dados do formulário. Verifique os campos e tente novamente.");
     }
 
 
     try {
-      const payload = {
-        ...formData,
-        torneio_id: torneioIdNumerico && !Number.isNaN(torneioIdNumerico) ? torneioIdNumerico : null,
-      };
-
       if (editandoId) {
-        await window.api.partidas.update({ ...payload, id: editandoId });
-        showToast('success', 'Partida atualizada com sucesso.');
+        await window.api.partidas.update({ ...formData, id: editandoId });
       } else {
-        await window.api.partidas.create(payload);
-        showToast('success', 'Partida criada com sucesso.');
+        await window.api.partidas.create(formData);
       }
       await carregarTudo();
       fecharModal();
     } catch (error) {
-      showToast('error', error?.message || 'Falha ao salvar partida na base de dados.');
+      alert("Falha crítica ao salvar partida na base de dados.");
     }
   };
 
   const handleDeletar = async (id) => {
-    abrirConfirmacao({
-      title: 'Excluir partida',
-      message: 'Esta acao e irreversivel. Deseja realmente apagar esta partida?',
-      confirmLabel: 'Excluir',
-      onConfirm: async () => {
-        try {
-          await window.api.partidas.delete(id);
-          await carregarTudo();
-          showToast('success', 'Partida apagada com sucesso.');
-        } catch (error) {
-          showToast('error', error?.message || 'Erro ao comunicar com o banco de dados.');
-        }
+    if (window.confirm("Esta ação é irreversível. Deseja realmente apagar esta partida?")) {
+      try {
+        await window.api.partidas.delete(id);
+        await carregarTudo();
+      } catch (error) {
+        alert("Erro ao comunicar com o banco de dados.");
       }
-    });
+    }
   };
 
   const handleFinalizar = async (e) => {
@@ -245,55 +166,23 @@ const formatarDataBrasil = (dataString) => {
       await window.api.partidas.finalizar(partidaAtiva.id, placar.pontosTime1, placar.pontosTime2);
       await carregarTudo();
       setIsFinalizarModalOpen(false);
-      showToast('success', 'Resultado registrado com sucesso.');
     } catch (error) {
-      showToast('error', error?.message || 'Erro ao registrar resultado.');
+      alert("Erro ao registrar resultado.");
     }
   };
 
-  const handleAnexarVideo = async () => {
-    if (!editandoId) {
-      showToast('error', 'Primeiro salve a partida para anexar um link de video.');
-      return;
-    }
-
-    try {
-      setVideoLinkAtualizando(true);
-      const resultado = await window.api.partidas.updateVideoLink(editandoId, formData.videoLink || '');
-
-      if (!resultado?.success) {
-        showToast('error', resultado?.message || 'Nao foi possivel anexar o link de video.');
-        return;
-      }
-
-      await carregarTudo();
-      if (resultado.videoLink) {
-        showToast('success', 'Link de video da partida atualizado com sucesso.');
-      } else {
-        showToast('success', 'Link de video removido com sucesso.');
-      }
-    } catch (error) {
-      showToast('error', error?.message || 'Falha ao anexar link de video na partida.');
-    } finally {
-      setVideoLinkAtualizando(false);
-    }
-  };
-
-  const abrirModalCriar = async () => {
-    await carregarTudo();
+  const abrirModalCriar = () => {
     setFormData(estadoInicialForm);
     setEditandoId(null);
     setIsModalOpen(true);
   };
 
-  const abrirModalEditar = async (partida) => {
-    await carregarTudo();
+  const abrirModalEditar = (partida) => {
     setFormData({
       ...partida,
       time1: String(partida.time1),
       time2: String(partida.time2),
-      ginasio_id: String(partida.ginasio_id),
-      videoLink: partida.videoLink || ''
+      ginasio_id: String(partida.ginasio_id)
     });
     setEditandoId(partida.id);
     setIsModalOpen(true);
@@ -303,14 +192,14 @@ const formatarDataBrasil = (dataString) => {
     try {
       const partidaBanco = await window.api.partidas.findById(id);
       if (!partidaBanco) {
-        showToast('error', 'Partida nao encontrada no banco de dados.');
+        alert('Partida não encontrada no banco de dados.');
         return;
       }
       setPartidaParaControlar(partidaBanco);
       setIsControleCarregado(true);
     } catch (error) {
       console.error('Erro ao carregar partida para controle:', error);
-      showToast('error', 'Nao foi possivel carregar o controle da partida.');
+      alert('Não foi possível carregar o controle da partida. Veja o console.');
     }
   };
 
@@ -332,21 +221,6 @@ const formatarDataBrasil = (dataString) => {
   // Caso contrário, renderiza a tela de listagem padrão
   return (
     <div className="w-full text-neutral-900 font-sans">
-      <div className="fixed top-5 right-5 z-2500 space-y-2 pointer-events-none">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`min-w-70 max-w-96 rounded-xl px-4 py-3 text-sm font-bold shadow-xl border ${
-              toast.type === 'error'
-                ? 'bg-red-50 text-red-700 border-red-200'
-                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-            }`}
-          >
-            {toast.text}
-          </div>
-        ))}
-      </div>
-
       {/* TÍTULO E BOTÃO NOVA PARTIDA INTEGRADOS */}
       <div className="mb-10 pb-6 border-b-4 border-neutral-900 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -464,17 +338,6 @@ const formatarDataBrasil = (dataString) => {
                 <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 <span className="truncate font-medium">{getNomeGinasio(partida.ginasio_id)}</span>
               </div>
-
-              {partida.videoLink && (
-                <a
-                  href={partida.videoLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mb-5 inline-flex items-center justify-center gap-2 rounded-xl border-2 border-red-200 bg-red-50 px-4 py-2 text-xs font-black uppercase tracking-wider text-red-700 hover:bg-red-100 transition-colors"
-                >
-                  Assistir Video da Partida
-                </a>
-              )}
 
               <div className="grid grid-cols-2 gap-4 mt-2 border-t pt-6 border-gray-100">
                 {partida.status !== 'FINALIZADA' && (
@@ -597,54 +460,10 @@ const formatarDataBrasil = (dataString) => {
                 >
                   <option value="">Selecione o Ginásio...</option>
                   {ginasiosCadastrados.map(gin => (
-                    <option key={gin.id} value={gin.id}>{gin.nome || gin.Nome} ({gin.cidade || gin.Cidade}/{gin.estado || gin.Estado})</option>
+                    <option key={gin.id} value={gin.id}>{gin.nome} ({gin.cidade}/{gin.estado})</option>
                   ))}
                 </CustomSelect>
               </div>
-
-              <div className="flex items-center gap-4 bg-red-50 border-2 border-dashed border-red-100 p-5 rounded-2xl shadow-inner">
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" name="externa" checked={formData.externa} onChange={handleInputChange} className="sr-only peer" />
-                  <div className="w-14 h-7 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-red-600 shadow-inner"></div>
-                </label>
-                <div>
-                  <h4 className="font-extrabold text-black text-sm uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-1.5 h-4 bg-yellow-400 rounded-full block shadow"></span>
-                    Partida Externa
-                  </h4>
-                  <p className="text-xs text-gray-600 font-medium">Ative se esta partida ocorrer fora dos domínios do Vôlei Prudente.</p>
-                </div>
-              </div>
-
-              {editandoId && (
-                <div className="space-y-3 rounded-2xl border-2 border-blue-100 bg-blue-50 p-5 shadow-inner">
-                  <label className="block text-xs font-bold text-blue-700 uppercase tracking-widest">
-                    Link do Video da Partida
-                  </label>
-                  <div className="flex gap-3">
-                    <input
-                      type="url"
-                      name="videoLink"
-                      value={formData.videoLink || ''}
-                      onChange={handleInputChange}
-                      placeholder="https://www.youtube.com/watch?v=..."
-                      className="w-full rounded-xl border-2 border-blue-200 bg-white p-3 text-sm font-semibold text-black focus:border-blue-500 focus:ring-2 focus:ring-blue-300"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAnexarVideo}
-                      disabled={videoLinkAtualizando}
-                      className="whitespace-nowrap rounded-xl bg-blue-600 px-5 py-3 text-xs font-black uppercase tracking-wider text-white shadow-md transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                    >
-                      {videoLinkAtualizando ? 'Anexando...' : 'Anexar Video'}
-                    </button>
-                  </div>
-                  <p className="text-xs font-medium text-blue-700">
-                    Use o botao "Anexar Video" para validar e vincular o link ao confronto.
-                  </p>
-                </div>
-              )}
-
               <div className="mt-12 flex justify-end gap-4 pt-7 border-t-2 border-gray-100">
                 <button type="button" onClick={fecharModal} className="px-8 py-3.5 font-extrabold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-base border border-gray-200">
                   Cancelar
@@ -654,33 +473,6 @@ const formatarDataBrasil = (dataString) => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {confirmDialog.isOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-2200 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white border-2 border-neutral-200 shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-neutral-100 bg-neutral-50">
-              <h3 className="text-lg font-black uppercase tracking-wide text-neutral-900">{confirmDialog.title}</h3>
-              <p className="text-sm font-medium text-neutral-600 mt-1">{confirmDialog.message}</p>
-            </div>
-            <div className="px-6 py-4 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={fecharConfirmacao}
-                className="px-4 py-2 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 text-xs font-black uppercase tracking-wider"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={confirmarAcao}
-                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider"
-              >
-                {confirmDialog.confirmLabel}
-              </button>
-            </div>
           </div>
         </div>
       )}

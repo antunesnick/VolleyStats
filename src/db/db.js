@@ -96,7 +96,7 @@ PRAGMA foreign_keys = ON;
 -- -----------------------------------------------------
 -- Tabela posicao
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS posicao (
+CREATE TABLE IF NOT EXISTS Posicoes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   nome VARCHAR(45)
 );
@@ -187,24 +187,25 @@ CREATE TABLE IF NOT EXISTS Torneios (
 -- -----------------------------------------------------
 -- Tabela Partida
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS Partida (
+CREATE TABLE IF NOT EXISTS Partidas (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  Ginásio_id INTEGER NOT NULL,
-  Time1 INTEGER NOT NULL,
-  Time2 INTEGER NOT NULL,
+  ginasio_id INTEGER NOT NULL,
+  time1 INTEGER NOT NULL,
+  time2 INTEGER NOT NULL,
   pontosTime1 INTEGER,
   pontosTime2 INTEGER,
-  nome VARCHAR(45) NOT NULL,
-  data DATE NOT NULL,
-  tipo VARCHAR(45) NOT NULL,
-  status VARCHAR(45) NOT NULL DEFAULT 'Agendada',
+  nome VARCHAR(100) NOT NULL,
+  dataPartida DATE NOT NULL,
+  tipo INTEGER,
+  videoLink VARCHAR(1024),
+  status VARCHAR(50) NOT NULL DEFAULT 'Agendada',
   externa INTEGER NOT NULL DEFAULT 0,
-  Torneio_idTorneio INTEGER NOT NULL,
+  torneio_id INTEGER NOT NULL,
   fase VARCHAR(45),
-  FOREIGN KEY (Ginásio_id) REFERENCES Ginásio (id),
+  FOREIGN KEY (ginasio_id) REFERENCES Ginasios (id),
   FOREIGN KEY (Time1) REFERENCES Times (id),
   FOREIGN KEY (Time2) REFERENCES Times (id),
-  FOREIGN KEY (Torneio_idTorneio) REFERENCES Torneio (idTorneio)
+  FOREIGN KEY (torneio_id) REFERENCES Torneios (id)
 );
 
 -- -----------------------------------------------------
@@ -306,6 +307,9 @@ CREATE TABLE IF NOT EXISTS TimesPartida (
   FOREIGN KEY (Partida_id) REFERENCES Partida (id) ON DELETE CASCADE,
   FOREIGN KEY (Jogadores_id) REFERENCES Jogadores (id) ON DELETE CASCADE
 );
+            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (1, 'Vôlei Prudente', 'Presidente Prudente');
+            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (2, 'Sada Cruzeiro', 'Belo Horizonte');
+            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (3, 'Vôlei Renata', 'Campinas');
         `);
 
         ensureTournamentColumns();
