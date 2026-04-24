@@ -40,6 +40,20 @@ function ensureTournamentColumns() {
     }
 }
 
+function seedTipoAcao() {
+    const tipos = [
+        { id: 1, nome: 'Saque' },
+        { id: 2, nome: 'Ataque' },
+        { id: 3, nome: 'Bloqueio' },
+        { id: 4, nome: 'Recepção' },
+        { id: 5, nome: 'Defesa' },
+    ];
+    const insert = db.prepare('INSERT OR IGNORE INTO TipoAcao (idTipoAcao, Nome) VALUES (?, ?)');
+    for (const tipo of tipos) {
+        insert.run(tipo.id, tipo.nome);
+    }
+}
+
 function ensurePartidaColumns() {
     const columns = db.prepare("PRAGMA table_info(Partidas)").all().map((column) => column.name);
     
@@ -61,6 +75,10 @@ function ensurePartidaColumns() {
     }
     if (!columns.includes('torneio_id')) {
         db.exec('ALTER TABLE Partidas ADD COLUMN torneio_id INTEGER REFERENCES Torneios(id)');
+    }
+
+    if (!columns.includes('videoLink')) {
+      db.exec('ALTER TABLE Partidas ADD COLUMN videoLink VARCHAR(2048)');
     }
 }
 
@@ -146,12 +164,124 @@ function initDatabase() {
                 FOREIGN KEY (categoria_id) REFERENCES Categorias (id)
             );
 
+            CREATE TABLE IF NOT EXISTS TimesPartida (
+                Times_id INTEGER NOT NULL,
+                Partida_id INTEGER NOT NULL,
+                Jogadores_id INTEGER NOT NULL,
+                linha TINYINT,
+                
+                -- Definição da Chave Primária Composta
+                PRIMARY KEY (Times_id, Partida_id, Jogadores_id),
+                
+                -- Relações (Chaves Estrangeiras)
+                FOREIGN KEY (Times_id) REFERENCES Times (id) ON DELETE CASCADE,
+                FOREIGN KEY (Partida_id) REFERENCES Partidas (id) ON DELETE CASCADE,
+                FOREIGN KEY (Jogadores_id) REFERENCES Jogadores (id) ON DELETE CASCADE
+            );
+
+            -------------------------------------------------------
+            -- Tabela TimesCategorias
+            -- ----------------------------------------------------
+            CREATE TABLE IF NOT EXISTS TimesCategorias (
+            Times_id INTEGER NOT NULL,
+            Categorias_id INTEGER NOT NULL,
+            PRIMARY KEY (Times_id, Categorias_id),
+            FOREIGN KEY (Times_id) REFERENCES Times (id),
+            FOREIGN KEY (Categorias_id) REFERENCES Categorias (id)
+            );
+
+            -- -----------------------------------------------------
+            -- Tabela JogadoresTimes
+            -- -----------------------------------------------------
+            CREATE TABLE IF NOT EXISTS JogadoresTimes (
+            Jogadores_id INTEGER NOT NULL,
+            Times_id INTEGER NOT NULL,
+            Categorias_id INTEGER NOT NULL,
+            PRIMARY KEY (Jogadores_id, Times_id, Categorias_id),
+            FOREIGN KEY (Jogadores_id) REFERENCES Jogadores (id),
+            FOREIGN KEY (Times_id, Categorias_id) REFERENCES TimesCategorias (Times_id, Categorias_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS 'Set' (
+                NumSet INTEGER NOT NULL,
+                Partida_id INTEGER NOT NULL,
+                PRIMARY KEY (NumSet, Partida_id),
+                FOREIGN KEY (Partida_id) REFERENCES Partidas (id)
+            );
+
+            CREATE TABLE IF NOT EXISTS Ponto (
+                pontoTime1 INTEGER NOT NULL,
+                pontoTime2 INTEGER NOT NULL,
+                NumSet INTEGER NOT NULL,
+                Set_Partida_id INTEGER NOT NULL,
+                PRIMARY KEY (pontoTime1, pontoTime2, NumSet, Set_Partida_id),
+                FOREIGN KEY (NumSet, Set_Partida_id) REFERENCES 'Set' (NumSet, Partida_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS TipoAcao (
+                idTipoAcao INTEGER PRIMARY KEY,
+                Nome VARCHAR(45)
+            );
+
+            CREATE TABLE IF NOT EXISTS Acao (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Ponto_pontoTime1 INTEGER NOT NULL,
+                Ponto_pontoTime2 INTEGER NOT NULL,
+                Ponto_Partida_id INTEGER NOT NULL,
+                Jogador_id INTEGER NOT NULL,
+                Qualidade TEXT CHECK(Qualidade IN ('A', 'B', 'C')),
+                idTipoAcao INTEGER NOT NULL,
+                FOREIGN KEY (Ponto_pontoTime1, Ponto_pontoTime2) REFERENCES Ponto (pontoTime1, pontoTime2),
+                FOREIGN KEY (Jogador_id) REFERENCES Jogadores (id),
+                FOREIGN KEY (idTipoAcao) REFERENCES TipoAcao (idTipoAcao)
+            );
+
+            CREATE TABLE IF NOT EXISTS Substituicao (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Ponto_pontoTime1 INTEGER NOT NULL,
+                Ponto_pontoTime2 INTEGER NOT NULL,
+                Ponto_Partida_id INTEGER NOT NULL,
+                JogadorEntra INTEGER NOT NULL,
+                JogadorSai INTEGER NOT NULL,
+                FOREIGN KEY (Ponto_pontoTime1, Ponto_pontoTime2) REFERENCES Ponto (pontoTime1, pontoTime2),
+                FOREIGN KEY (JogadorEntra) REFERENCES Jogadores (id),
+                FOREIGN KEY (JogadorSai) REFERENCES Jogadores (id)
+            );
+
+            -- -----------------------------------------------------
+            -- Tabela TorneioTimes
+            -- -----------------------------------------------------
+            CREATE TABLE IF NOT EXISTS TorneioTimes (
+                Torneio_idTorneio INTEGER NOT NULL,
+                Times_id INTEGER NOT NULL,
+                pontuacao INTEGER,
+                fase INTEGER,
+                PRIMARY KEY (Torneio_idTorneio, Times_id),
+                FOREIGN KEY (Torneio_idTorneio) REFERENCES Torneios (idTorneio),
+                FOREIGN KEY (Times_id) REFERENCES Times (id)
+            );
+
+            -- -----------------------------------------------------
+            -- Tabela LinksPartida
+            -- -----------------------------------------------------
+            CREATE TABLE IF NOT EXISTS LinksPartida (
+                numLink INTEGER NOT NULL,
+                url VARCHAR(45) NOT NULL,
+                Partida_id INTEGER NOT NULL,
+                PRIMARY KEY (numLink, Partida_id),
+                FOREIGN KEY (Partida_id) REFERENCES Partidas (id)
+            );
+
+
+
             INSERT OR IGNORE INTO Posicoes (nome) VALUES 
                 ('Levantador'),
                 ('Ponteiro'),
                 ('Central'),
                 ('Oposto'),
                 ('Líbero');
+
+            
             
             INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (1, 'Vôlei Prudente', 'Presidente Prudente');
             INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (2, 'Sada Cruzeiro', 'Belo Horizonte');
@@ -161,6 +291,7 @@ function initDatabase() {
         ensureTournamentColumns();
         ensureGinasioColumns();
         ensurePartidaColumns();
+        seedTipoAcao();
         console.log('Banco de dados inicializado com sucesso (com dados mockados para testes).');
     } catch (e) {
         console.error("Erro ao inicializar o banco de dados:", e);

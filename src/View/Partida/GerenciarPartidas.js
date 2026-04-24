@@ -23,8 +23,21 @@ const CustomSelect = ({ label, icon, children, ...props }) => (
   </div>
 );
 
+
+const showToastMessage = (setToasts, type, text, duration = 3200) => {
+  const id = `${Date.now()}-${Math.random()}`;
+  setToasts((prev) => [...prev, { id, type, text }]);
+
+  setTimeout(() => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, duration);
+};
+
+
 const GerenciarPartidas = ({tournamentId}) => {
   const [partidas, setPartidas] = useState([]);
+
+  const [toasts, setToasts] = useState([]);
 
   const [timesCadastrados, setTimesCadastrados] = useState([]);
   const [ginasiosCadastrados, setGinasiosCadastrados] = useState([]);
@@ -50,7 +63,51 @@ const GerenciarPartidas = ({tournamentId}) => {
     ginasio_id: '',
     time1: '',
     time2: '',
+    videoLink: '',
     torneio_id: tournamentId
+  };
+
+  const [videoLinkAtualizando, setVideoLinkAtualizando] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmLabel: 'Confirmar',
+    onConfirm: null
+  });
+
+  const showToast = (type, text) => {
+    showToastMessage(setToasts, type, text);
+  };
+
+  const abrirConfirmacao = ({ title, message, confirmLabel = 'Confirmar', onConfirm }) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      confirmLabel,
+      onConfirm
+    });
+  };
+
+  const fecharConfirmacao = () => {
+    setConfirmDialog({
+      isOpen: false,
+      title: '',
+      message: '',
+      confirmLabel: 'Confirmar',
+      onConfirm: null
+    });
+  };
+
+  const confirmarAcao = async () => {
+    try {
+      if (typeof confirmDialog.onConfirm === 'function') {
+        await confirmDialog.onConfirm();
+      }
+    } finally {
+      fecharConfirmacao();
+    }
   };
   const [formData, setFormData] = useState(estadoInicialForm);
   const [placar, setPlacar] = useState({ pontosTime1: '', pontosTime2: '' });
