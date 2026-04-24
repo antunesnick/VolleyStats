@@ -1,5 +1,6 @@
 class PartidaModel {
-    constructor(id = null, nome = null, pontosTime1 = null, pontosTime2 = null, dataPartida = null, tipo = null, status = 'AGENDADA', externa = 0, ginasio_id = null, time1 = null, time2 = null, torneio_id) {
+    // Adicionado videoLink e fase ao construtor
+    constructor(id = null, nome = null, pontosTime1 = null, pontosTime2 = null, dataPartida = null, tipo = null, status = 'AGENDADA', externa = 0, ginasio_id = null, time1 = null, time2 = null, torneio_id = null, videoLink = null, fase = null) {
         this.id = id;
         this.nome = nome;
         this.pontosTime1 = pontosTime1;
@@ -11,7 +12,9 @@ class PartidaModel {
         this.ginasio_id = ginasio_id;
         this.time1 = time1;
         this.time2 = time2;
-        this.torneio_id = torneio_id; // Adicionado para relacionar com torneio
+        this.torneio_id = torneio_id; 
+        this.videoLink = videoLink; // Novo
+        this.fase = fase;           // Novo
     }
 
     findAll(db) {
@@ -28,13 +31,11 @@ class PartidaModel {
         let query = 'SELECT * FROM Partidas WHERE torneio_id = ?';
         const params = [tournamentId];
 
-        // Filtro por data
         if (filters.dataPartida && filters.dataPartida.trim() !== '') {
             query += ' AND dataPartida = ?';
             params.push(filters.dataPartida);
         }
 
-        // Filtro por time (pode ser time1 ou time2)
         if (filters.timeId && filters.timeId !== '') {
             query += ' AND (time1 = ? OR time2 = ?)';
             params.push(parseInt(filters.timeId), parseInt(filters.timeId));
@@ -77,11 +78,11 @@ class PartidaModel {
         return stmt.all(torneioId);
     }
 
-
     insert(partida, db) {
+        // Incluído videoLink e fase na inserção
         const stmt = db.prepare(`
-            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2, torneio_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2, torneio_id, videoLink, fase)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const data = stmt.run(
@@ -95,16 +96,19 @@ class PartidaModel {
             partida.ginasio_id || 1, 
             partida.time1 || 1,      
             partida.time2 || 2,
-            partida.torneio_id || null 
+            partida.torneio_id || null,
+            partida.videoLink || null,
+            partida.fase || null
         );
 
         return { id: data.lastInsertRowid, ...partida };
     }
 
     update(partida, db) {
+        // Incluído videoLink e fase na atualização
         const stmt = db.prepare(`
             UPDATE Partidas 
-            SET nome = ?, dataPartida = ?, tipo = ?, externa = ?, ginasio_id = ?, time1 = ?, time2 = ?, torneio_id = ?
+            SET nome = ?, dataPartida = ?, tipo = ?, externa = ?, ginasio_id = ?, time1 = ?, time2 = ?, torneio_id = ?, videoLink = ?, fase = ?
             WHERE id = ?
         `);
         
@@ -116,7 +120,9 @@ class PartidaModel {
             partida.ginasio_id, 
             partida.time1, 
             partida.time2, 
-            partida.torneio_id, // <- Atualizando na query
+            partida.torneio_id, 
+            partida.videoLink,
+            partida.fase,
             partida.id
         );   
         return partida;

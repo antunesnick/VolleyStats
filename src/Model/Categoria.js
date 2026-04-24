@@ -13,6 +13,7 @@ class Categoria{
         if(idadeMin > idadeMax){
             return 'Idade mínima não pode ser maior que a idade máxima.';
         }
+        return null;
     }
 
     async criarCategoria(){
