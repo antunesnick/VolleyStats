@@ -243,6 +243,31 @@ class PartidaControl {
         }
     }
 
+    async updateVideoLink(id, link) {
+        const validationResult = await this.validateVideoLink(link);
+        if (!validationResult.isValid) {
+            throw new Error(validationResult.message);
+        }
+
+        const partida = new PartidaModel();
+        const normalizedLink = validationResult.normalizedLink;
+
+        const updateVideoLinkTransaction = db.transaction((partidaId, partidaLink) => {
+            return partida.updateVideoLink(partidaId, partidaLink, db);
+        });
+
+        try {
+            const result = updateVideoLinkTransaction(id, normalizedLink);
+            return {
+                success: true,
+                ...result
+            };
+        } catch (error) {
+            console.error('Falha ao atualizar link de video da partida. Transacao revertida.', error);
+            throw error;
+        }
+    }
+
     static getInstance() {
         if (!PartidaControl.instance) {
             PartidaControl.instance = new PartidaControl();

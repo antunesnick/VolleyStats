@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TournamentView from '../Tournament/Tournament';
 import vsLogo from '../../assets/vslogo.jpeg';
-import TournamentControl from '../../Control/TournamentControl'; 
 
 // Importe o componente PlayerView (Ajuste o caminho da pasta conforme a estrutura do seu projeto)
 import { PlayerRegView } from '../PlayerRegister/PlayerRegView';
@@ -138,7 +137,7 @@ const handleConfirmarImportacao = async () => {
     setIsLoading(true);
 
     try {
-      const rows = await TournamentControl.listTournaments();
+      const rows = await window.tournamentAPI.list();
       setTournaments(rows);
     } catch (error) {
       showToast('error', error.message || 'Erro ao carregar torneios.');
@@ -223,10 +222,10 @@ const handleConfirmarImportacao = async () => {
 
     try {
       if (formData.id) {
-        await TournamentControl.updateTournament(formData);
+        await window.tournamentAPI.update(formData);
         showToast('success', 'Torneio atualizado com sucesso.');
       } else {
-        const created = await TournamentControl.createTournament(formData);
+        const created = await window.tournamentAPI.create(formData);
         setSelectedTournamentId(created.id);
         showToast('success', 'Torneio criado com sucesso.');
       }
@@ -245,7 +244,7 @@ const handleConfirmarImportacao = async () => {
     if (!shouldDelete) return;
 
     try {
-      await TournamentControl.deleteTournamentById(id);
+      await window.tournamentAPI.delete(id);
       if (selectedTournamentId === id) setSelectedTournamentId(null);
       showToast('success', 'Torneio excluido com sucesso.');
       await loadTournaments();

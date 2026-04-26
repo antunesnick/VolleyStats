@@ -1,5 +1,5 @@
 class PartidaModel {
-    constructor(id = null, nome = null, pontosTime1 = null, pontosTime2 = null, dataPartida = null, tipo = null, status = 'AGENDADA', externa = 0, ginasio_id = null, time1 = null, time2 = null, torneio_id) {
+    constructor(id = null, nome = null, pontosTime1 = null, pontosTime2 = null, dataPartida = null, tipo = null, status = 'AGENDADA', externa = 0, ginasio_id = null, time1 = null, time2 = null, torneio_id = null, videoLink = null) {
         this.id = id;
         this.nome = nome;
         this.pontosTime1 = pontosTime1;
@@ -11,7 +11,8 @@ class PartidaModel {
         this.ginasio_id = ginasio_id;
         this.time1 = time1;
         this.time2 = time2;
-        this.torneio_id = torneio_id; // Adicionado para relacionar com torneio
+        this.torneio_id = torneio_id;
+        this.videoLink = videoLink;
     }
 
     findAll(db) {
@@ -25,8 +26,13 @@ class PartidaModel {
     }
 
     findPartidaByDateAndTeam(filters, db, tournamentId) {
-        let query = 'SELECT * FROM Partidas WHERE torneio_id = ?';
-        const params = [tournamentId];
+        let query = 'SELECT * FROM Partidas WHERE 1=1';
+        const params = [];
+
+        if (tournamentId !== null && tournamentId !== undefined && tournamentId !== '') {
+            query += ' AND torneio_id = ?';
+            params.push(tournamentId);
+        }
 
         // Filtro por data
         if (filters.dataPartida && filters.dataPartida.trim() !== '') {
@@ -62,6 +68,24 @@ class PartidaModel {
     }
 
     findByTournamentId(torneioId, db) {
+        const hasTournamentId = torneioId !== null && torneioId !== undefined && torneioId !== '';
+
+        if (!hasTournamentId) {
+            const stmt = db.prepare(`
+                SELECT
+                    p.*,
+                    t1.nome AS time1Nome,
+                    t2.nome AS time2Nome,
+                    g.nome AS ginasioNome
+                FROM Partidas p
+                LEFT JOIN Times t1 ON t1.id = p.time1
+                LEFT JOIN Times t2 ON t2.id = p.time2
+                LEFT JOIN Ginasios g ON g.id = p.ginasio_id
+                ORDER BY p.dataPartida DESC
+            `);
+            return stmt.all();
+        }
+
         const stmt = db.prepare(`
             SELECT
                 p.*,
@@ -73,6 +97,7 @@ class PartidaModel {
             LEFT JOIN Times t2 ON t2.id = p.time2
             LEFT JOIN Ginasios g ON g.id = p.ginasio_id
             WHERE p.torneio_id = ?
+            ORDER BY p.dataPartida DESC
         `);
         return stmt.all(torneioId);
     }
@@ -80,8 +105,8 @@ class PartidaModel {
 
     insert(partida, db) {
         const stmt = db.prepare(`
-            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2, torneio_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2, torneio_id, videoLink)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const data = stmt.run(
@@ -95,7 +120,8 @@ class PartidaModel {
             partida.ginasio_id || 1, 
             partida.time1 || 1,      
             partida.time2 || 2,
-            partida.torneio_id || null 
+                partida.torneio_id || null,
+            partida.videoLink ? partida.videoLink.trim() : null
         );
 
         return { id: data.lastInsertRowid, ...partida };
@@ -136,6 +162,39 @@ class PartidaModel {
         `);
         stmt.run(pontosTime1, pontosTime2, id);
         return { success: true, id, pontosTime1, pontosTime2 };
+    }
+
+    isValidVideoLink(link) {
+        const normalizedLink = typeof link === 'string' ? link.trim() : '';
+
+        if (normalizedLink === '') {
+            return true;
+        }
+
+        try {
+            const parsedUrl = new URL(normalizedLink);
+            return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+        } catch (_error) {
+            return false;
+        }
+    }
+
+    updateVideoLink(id, link, db) {
+        const normalizedLink = typeof link === 'string' && link.trim() !== '' ? link.trim() : null;
+
+        const stmt = db.prepare(`
+            UPDATE Partidas
+            SET videoLink = ?
+            WHERE id = ?
+        `);
+
+        const result = stmt.run(normalizedLink, id);
+
+        if (result.changes === 0) {
+            throw new Error('Partida nao encontrada para atualizar o link de video.');
+        }
+
+        return { success: true, id, videoLink: normalizedLink };
     }
 }
 

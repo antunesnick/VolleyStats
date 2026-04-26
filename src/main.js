@@ -53,6 +53,10 @@ ipcMain.handle('partidas:update', async (event, data) => {
     return await PartidaControl.getInstance().updatePartida(data);
 });
 
+ipcMain.handle('partidas:updateVideoLink', async (event, id, link) => {
+  return await PartidaControl.getInstance().updateVideoLink(id, link);
+});
+
 ipcMain.handle('partidas:delete', async (event, id) => {
     return await PartidaControl.getInstance().deletePartida(id);
 });
