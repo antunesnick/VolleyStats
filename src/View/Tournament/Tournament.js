@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import GerenciarPartidas from "../Partida/GerenciarPartidas"
 
 const TOURNAMENT_TYPES = [
   { value: 1, label: 'Pontos Corridos' },

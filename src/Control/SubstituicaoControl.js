@@ -6,26 +6,20 @@ const SubstituicaoModel = require('../Model/SubstituicaoModel');
  * Segue as regras oficiais de voleibol
  */
 class SubstituicaoControl {
-    
-    /**
-     * Registra uma substituição de jogador
-     * Validações aplicadas:
-     * - Máximo 6 substituições por set
-     * - Jogador que entra deve ser válido
-     * - Jogador que sai deve estar em campo
-     * 
-     * @param {Object} data
-     * @param {number} data.pontoTime1 - Pontuação do time 1 no ponto
-     * @param {number} data.pontoTime2 - Pontuação do time 2 no ponto
-     * @param {number} data.partidaId - ID da partida
-     * @param {number} data.jogadorEntra - ID do jogador que entra
-     * @param {number} data.jogadorSai - ID do jogador que sai
-     * @returns {Promise<Object>} Resultado da substituição
-     */
+    isLibero(jogadorId) {
+        const stmt = db.prepare(`
+            SELECT p.nome AS posicaoNome
+            FROM Jogadores j
+            LEFT JOIN Posicoes p ON j.posicao_id = p.id
+            WHERE j.id = ?
+        `);
+        const row = stmt.get(jogadorId);
+        return row?.posicaoNome === 'Líbero';
+    }
+
     async registrarSubstituicao(data) {
         try {
-            // Validações de entrada
-            if (!data.pontoTime1 !== undefined || !data.pontoTime2 !== undefined) {
+            if (data.pontoTime1 === undefined || data.pontoTime2 === undefined) {
                 throw new Error('Pontuação dos times não definida');
             }
             if (!data.partidaId) {
@@ -38,33 +32,89 @@ class SubstituicaoControl {
                 throw new Error('Jogadores não podem ser iguais');
             }
 
-            // Validar limite de substituições por set
             const substituicaoModel = new SubstituicaoModel();
-            const totalNoSet = substituicaoModel.countTotalInSet(
-                data.pontoTime1,
-                data.pontoTime2,
-                data.partidaId,
-                db
-            );
-
-            if (totalNoSet >= 6) {
-                return {
-                    success: false,
-                    message: 'Limite de 6 substituições por set atingido. Não é possível realizar mais substituições neste set.',
-                    code: 'LIMIT_EXCEEDED'
-                };
-            }
-
-            // Validar se jogadores existem
-            const playerStmt = db.prepare('SELECT id FROM Jogadores WHERE id = ?');
-            const jogadorEntra = playerStmt.get(data.jogadorEntra);
-            const jogadorSai = playerStmt.get(data.jogadorSai);
+            const jogadorEntra = db.prepare('SELECT id FROM Jogadores WHERE id = ?').get(data.jogadorEntra);
+            const jogadorSai = db.prepare('SELECT id FROM Jogadores WHERE id = ?').get(data.jogadorSai);
 
             if (!jogadorEntra || !jogadorSai) {
                 throw new Error('Um ou ambos os jogadores não foram encontrados');
             }
 
-            // Criar transação para garantir consistência
+            const entradaEhLibero = this.isLibero(data.jogadorEntra);
+            const saidaEhLibero = this.isLibero(data.jogadorSai);
+
+            if (entradaEhLibero && saidaEhLibero) {
+                throw new Error('Substituição inválida: líbero não pode trocar com líbero.');
+            }
+
+            if (!entradaEhLibero && !saidaEhLibero) {
+                const normalCount = substituicaoModel.countNormalSubstitutionsInSet(
+                    data.partidaId,
+                    data.pontoTime1,
+                    data.pontoTime2,
+                    db
+                );
+
+                if (normalCount >= 6) {
+                    return {
+                        success: false,
+                        message: 'Limite de 6 substituições por set atingido. Não é possível realizar mais substituições neste set.',
+                        code: 'LIMIT_EXCEEDED'
+                    };
+                }
+            }
+
+            const history = substituicaoModel.findSubstitutionsInSet(
+                data.partidaId,
+                data.pontoTime1,
+                data.pontoTime2,
+                db
+            );
+
+            if (!entradaEhLibero && !saidaEhLibero) {
+                const reservePairs = new Map();
+                const starterPairs = new Map();
+
+                history.forEach((sub) => {
+                    if (!sub.JogadorEntra || !sub.JogadorSai) return;
+                    if (!reservePairs.has(sub.JogadorEntra)) {
+                        reservePairs.set(sub.JogadorEntra, sub.JogadorSai);
+                    }
+                    if (!starterPairs.has(sub.JogadorSai)) {
+                        starterPairs.set(sub.JogadorSai, sub.JogadorEntra);
+                    }
+                });
+
+                const existingReserveTarget = reservePairs.get(data.jogadorEntra);
+                if (existingReserveTarget && existingReserveTarget !== data.jogadorSai) {
+                    return {
+                        success: false,
+                        message: 'Reserva só pode entrar no lugar do jogador específico com quem iniciou a substituição.',
+                        code: 'PAIRING_VIOLATION'
+                    };
+                }
+
+                const existingStarterTarget = starterPairs.get(data.jogadorSai);
+                if (existingStarterTarget && existingStarterTarget !== data.jogadorEntra) {
+                    return {
+                        success: false,
+                        message: 'O titular só pode voltar ao lugar do jogador que o substituiu.',
+                        code: 'PAIRING_VIOLATION'
+                    };
+                }
+
+                const saindoHistorico = history.filter((sub) => sub.JogadorSai === data.jogadorSai).length;
+                const retornandoHistorico = history.filter((sub) => sub.JogadorEntra === data.jogadorSai).length;
+
+                if (saindoHistorico >= 1 && retornandoHistorico >= 1) {
+                    return {
+                        success: false,
+                        message: 'O jogador titular já saiu e voltou uma vez neste set. Não é possível substituí-lo novamente.',
+                        code: 'RETURN_LIMIT_EXCEEDED'
+                    };
+                }
+            }
+
             const substituicaoTransaction = db.transaction((substituicaoData) => {
                 const substituicao = new SubstituicaoModel(
                     null,
@@ -74,7 +124,6 @@ class SubstituicaoControl {
                     substituicaoData.jogadorEntra,
                     substituicaoData.jogadorSai
                 );
-
                 return substituicao.insert(substituicao, db);
             });
 
@@ -91,7 +140,6 @@ class SubstituicaoControl {
                     pontoTime2: data.pontoTime2
                 }
             };
-
         } catch (error) {
             console.error('Erro ao registrar substituição:', error);
             return {
@@ -170,27 +218,59 @@ class SubstituicaoControl {
      */
     async validarSubstituicao(data) {
         try {
-            const substituicaoModel = new SubstituicaoModel();
+            if (data.pontoTime1 === undefined || data.pontoTime2 === undefined) {
+                return {
+                    success: false,
+                    message: 'Pontuação dos times não definida',
+                    permissaoSubstituir: false,
+                    validacoes: {
+                        limiteSuperado: false,
+                        totalAtual: 0,
+                        jogadoresValidos: false,
+                        mensagens: ['Pontuação dos times não definida']
+                    }
+                };
+            }
 
-            // Validação 1: Limite de substituições
-            const totalNoSet = substituicaoModel.countTotalInSet(
-                data.pontoTime1,
-                data.pontoTime2,
-                data.partidaId,
-                db
-            );
+            if (!data.partidaId) {
+                return {
+                    success: false,
+                    message: 'ID da partida não fornecido',
+                    permissaoSubstituir: false,
+                    validacoes: {
+                        limiteSuperado: false,
+                        totalAtual: 0,
+                        jogadoresValidos: false,
+                        mensagens: ['ID da partida não fornecido']
+                    }
+                };
+            }
+
+            if (!data.jogadorEntra || !data.jogadorSai) {
+                return {
+                    success: false,
+                    message: 'Jogadores não definidos',
+                    permissaoSubstituir: false,
+                    validacoes: {
+                        limiteSuperado: false,
+                        totalAtual: 0,
+                        jogadoresValidos: false,
+                        mensagens: ['Jogadores não definidos']
+                    }
+                };
+            }
+
+            const substituicaoModel = new SubstituicaoModel();
+            const playerStmt = db.prepare('SELECT id FROM Jogadores WHERE id = ?');
+            const jogadorEntra = playerStmt.get(data.jogadorEntra);
+            const jogadorSai = playerStmt.get(data.jogadorSai);
 
             const validacoes = {
-                limiteSuperado: totalNoSet >= 6,
-                totalAtual: totalNoSet,
+                limiteSuperado: false,
+                totalAtual: 0,
                 jogadoresValidos: false,
                 mensagens: []
             };
-
-            // Validação 2: Existência dos jogadores
-            const playerStmt = db.prepare('SELECT id, nome FROM Jogadores WHERE id = ?');
-            const jogadorEntra = playerStmt.get(data.jogadorEntra);
-            const jogadorSai = playerStmt.get(data.jogadorSai);
 
             if (jogadorEntra && jogadorSai) {
                 validacoes.jogadoresValidos = true;
@@ -198,20 +278,74 @@ class SubstituicaoControl {
                 validacoes.mensagens.push('Um ou ambos os jogadores não foram encontrados');
             }
 
-            // Validação 3: Jogadores diferentes
             if (data.jogadorEntra === data.jogadorSai) {
                 validacoes.mensagens.push('Jogadores não podem ser iguais');
             }
 
-            // Resumo
-            if (validacoes.limiteSuperado) {
-                validacoes.mensagens.push(`Limite de 6 substituições atingido (${totalNoSet} realizada(s))`);
+            const entradaEhLibero = this.isLibero(data.jogadorEntra);
+            const saidaEhLibero = this.isLibero(data.jogadorSai);
+
+            if (entradaEhLibero && saidaEhLibero) {
+                validacoes.mensagens.push('Substituição inválida: líbero não pode substituir líbero.');
             }
 
+            if (!entradaEhLibero && !saidaEhLibero) {
+                const normalCount = substituicaoModel.countNormalSubstitutionsInSet(
+                    data.partidaId,
+                    data.pontoTime1,
+                    data.pontoTime2,
+                    db
+                );
+
+                validacoes.totalAtual = normalCount;
+                validacoes.limiteSuperado = normalCount >= 6;
+
+                if (validacoes.limiteSuperado) {
+                    validacoes.mensagens.push(`Limite de 6 substituições atingido (${normalCount} realizada(s))`);
+                }
+
+                const history = substituicaoModel.findSubstitutionsInSet(
+                    data.partidaId,
+                    data.pontoTime1,
+                    data.pontoTime2,
+                    db
+                );
+
+                const reservePairs = new Map();
+                const starterPairs = new Map();
+
+                history.forEach((sub) => {
+                    if (!sub.JogadorEntra || !sub.JogadorSai) return;
+                    if (!reservePairs.has(sub.JogadorEntra)) {
+                        reservePairs.set(sub.JogadorEntra, sub.JogadorSai);
+                    }
+                    if (!starterPairs.has(sub.JogadorSai)) {
+                        starterPairs.set(sub.JogadorSai, sub.JogadorEntra);
+                    }
+                });
+
+                const existingReserveTarget = reservePairs.get(data.jogadorEntra);
+                if (existingReserveTarget && existingReserveTarget !== data.jogadorSai) {
+                    validacoes.mensagens.push('Reserva só pode entrar no lugar do jogador específico com quem iniciou a substituição.');
+                }
+
+                const existingStarterTarget = starterPairs.get(data.jogadorSai);
+                if (existingStarterTarget && existingStarterTarget !== data.jogadorEntra) {
+                    validacoes.mensagens.push('O titular só pode voltar ao lugar do jogador que o substituiu.');
+                }
+
+                const saindoHistorico = history.filter((sub) => sub.JogadorSai === data.jogadorSai).length;
+                const retornandoHistorico = history.filter((sub) => sub.JogadorEntra === data.jogadorSai).length;
+                if (saindoHistorico >= 1 && retornandoHistorico >= 1) {
+                    validacoes.mensagens.push('O jogador titular já saiu e voltou uma vez neste set. Não é possível substituí-lo novamente.');
+                }
+            }
+
+            const success = validacoes.mensagens.length === 0 && validacoes.jogadoresValidos;
             return {
-                success: validacoes.mensagens.length === 0,
-                validacoes: validacoes,
-                permissaoSubstituir: !validacoes.limiteSuperado && validacoes.jogadoresValidos
+                success,
+                validacoes,
+                permissaoSubstituir: success && !validacoes.limiteSuperado
             };
 
         } catch (error) {

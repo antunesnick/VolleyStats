@@ -1,6 +1,7 @@
   import React, { use, useEffect, useMemo, useState } from 'react';
   import PlayerControl from '../../Control/PlayerControl';
-  import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, RefreshCw, MapPin } from 'lucide-react';
+  import SubstituicaoControl from '../../Control/SubstituicaoControl';
+  import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, RefreshCw, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
   import { useHotkeys } from 'react-hotkeys-hook';
 
   const VolleyballCourt = ({ players, formation, onPlayerClick }) => {
@@ -99,6 +100,7 @@
     const [selectedFieldTeam, setSelectedFieldTeam] = useState(null);
     const [selectedBenchPlayer, setSelectedBenchPlayer] = useState(null);
     const [selectedPlayerDetails, setSelectedPlayerDetails] = useState(null);
+    const [substituicaoMessage, setSubstituicaoMessage] = useState({ type: '', text: '', visible: false });
 
     const homeLabel = useMemo(() => partida?.time1Nome || partida?.time1 || 'Mandante', [partida]);
     const awayLabel = useMemo(() => partida?.time2Nome || partida?.time2 || 'Visitante', [partida]);
@@ -232,18 +234,89 @@
       setScore((current) => ({ ...current, [side]: Math.max(0, current[side] + delta) }));
     };
 
-    const handleSubstituir = () => {
-      if (!selectedFieldTeam || !selectedFieldPlayer || !selectedBenchPlayer) return;
-      setEscalados((current) => ({
-        ...current,
-        [selectedFieldTeam]: current[selectedFieldTeam].map((player) =>
-          player.id === selectedFieldPlayer.id ? selectedBenchPlayer : player
-        ),
-      }));
-      setSelectedFieldPlayer(null);
-      setSelectedFieldTeam(null);
-      setSelectedBenchPlayer(null);
-      setShowSubstituicao(false);
+    const handleSubstituir = async () => {
+      if (!selectedFieldTeam || !selectedFieldPlayer || !selectedBenchPlayer) {
+        setSubstituicaoMessage({
+          type: 'error',
+          text: 'Selecione um jogador em campo e um jogador do banco.',
+          visible: true
+        });
+        return;
+      }
+
+      try {
+        const substituicaoControl = new SubstituicaoControl();
+        const validacao = await substituicaoControl.validarSubstituicao({
+          pontoTime1: score.home,
+          pontoTime2: score.away,
+          partidaId: partida?.id,
+          jogadorEntra: selectedBenchPlayer.id,
+          jogadorSai: selectedFieldPlayer.id
+        });
+
+        if (!validacao.permissaoSubstituir) {
+          setSubstituicaoMessage({
+            type: 'error',
+            text: validacao.validacoes?.mensagens?.[0] || 'Não é possível realizar a substituição.',
+            visible: true
+          });
+          return;
+        }
+
+        const resultado = await substituicaoControl.registrarSubstituicao({
+          pontoTime1: score.home,
+          pontoTime2: score.away,
+          partidaId: partida?.id,
+          jogadorEntra: selectedBenchPlayer.id,
+          jogadorSai: selectedFieldPlayer.id
+        });
+
+        if (!resultado.success) {
+          setSubstituicaoMessage({
+            type: 'error',
+            text: resultado.message || 'Erro ao registrar substituição.',
+            visible: true
+          });
+          return;
+        }
+
+        setEscalados((current) => ({
+          ...current,
+          [selectedFieldTeam]: current[selectedFieldTeam].map((player) =>
+            player.id === selectedFieldPlayer.id ? selectedBenchPlayer : player
+          ),
+        }));
+
+        setSubstituicaoMessage({
+          type: 'success',
+          text: `${selectedFieldPlayer.nome} substituído por ${selectedBenchPlayer.nome}`,
+          visible: true
+        });
+
+        setFeed((current) => [
+          {
+            id: Date.now(),
+            text: `🔄 Substituição: ${selectedFieldPlayer.nome} por ${selectedBenchPlayer.nome}`
+          },
+          ...current
+        ]);
+
+        setSelectedFieldPlayer(null);
+        setSelectedFieldTeam(null);
+        setSelectedBenchPlayer(null);
+
+        setTimeout(() => {
+          setShowSubstituicao(false);
+          setSubstituicaoMessage({ type: '', text: '', visible: false });
+        }, 1400);
+      } catch (error) {
+        console.error('Erro ao substituir:', error);
+        setSubstituicaoMessage({
+          type: 'error',
+          text: 'Erro ao processar substituição.',
+          visible: true
+        });
+      }
     };
 
     return (
@@ -538,6 +611,21 @@
                         <p className="font-black text-gray-900">{selectedBenchPlayer ? selectedBenchPlayer.nome : '---'}</p>
                       </div>
                     </div>
+
+                    {substituicaoMessage.visible && (
+                      <div className={`mb-4 rounded-2xl border px-4 py-3 flex items-center gap-3 ${
+                        substituicaoMessage.type === 'success'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                          : 'bg-red-50 border-red-200 text-red-800'
+                      }`}>
+                        {substituicaoMessage.type === 'success' ? (
+                          <CheckCircle size={18} className="text-emerald-600" />
+                        ) : (
+                          <AlertCircle size={18} className="text-red-600" />
+                        )}
+                        <span className="text-sm font-medium">{substituicaoMessage.text}</span>
+                      </div>
+                    )}
                     
                     <button
                       type="button"

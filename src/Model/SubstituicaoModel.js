@@ -191,6 +191,73 @@ class SubstituicaoModel {
         }
     }
 
+    findByPlayer(partidaId, jogadorId, db) {
+        try {
+            const stmt = db.prepare(`
+                SELECT s.*,
+                    j_entra.posicao_id AS posicaoEntra,
+                    j_sai.posicao_id AS posicaoSai
+                FROM Substituicao s
+                LEFT JOIN Jogadores j_entra ON s.JogadorEntra = j_entra.id
+                LEFT JOIN Jogadores j_sai ON s.JogadorSai = j_sai.id
+                WHERE s.Ponto_Partida_id = ? AND (s.JogadorEntra = ? OR s.JogadorSai = ?)
+                ORDER BY s.Ponto_pontoTime1 ASC, s.Ponto_pontoTime2 ASC
+            `);
+            return stmt.all(partidaId, jogadorId, jogadorId);
+        } catch (error) {
+            console.error('Erro ao buscar substituições por jogador:', error);
+            throw error;
+        }
+    }
+
+    findSubstitutionsInSet(partidaId, pontoTime1, pontoTime2, db) {
+        try {
+            const stmt = db.prepare(`
+                SELECT s.*,
+                    j_entra.posicao_id AS posicaoEntra,
+                    j_sai.posicao_id AS posicaoSai
+                FROM Substituicao s
+                LEFT JOIN Jogadores j_entra ON s.JogadorEntra = j_entra.id
+                LEFT JOIN Jogadores j_sai ON s.JogadorSai = j_sai.id
+                WHERE s.Ponto_Partida_id = ?
+                  AND ((s.Ponto_pontoTime1 < ?)
+                       OR (s.Ponto_pontoTime1 = ? AND s.Ponto_pontoTime2 <= ?)
+                       OR (s.Ponto_pontoTime2 < ?)
+                       OR (s.Ponto_pontoTime2 = ? AND s.Ponto_pontoTime1 <= ?))
+                ORDER BY s.Ponto_pontoTime1 ASC, s.Ponto_pontoTime2 ASC
+            `);
+            return stmt.all(partidaId, pontoTime1, pontoTime2, pontoTime1, pontoTime2, pontoTime1, pontoTime2);
+        } catch (error) {
+            console.error('Erro ao buscar substituições do set:', error);
+            throw error;
+        }
+    }
+
+    countNormalSubstitutionsInSet(partidaId, pontoTime1, pontoTime2, db) {
+        try {
+            const stmt = db.prepare(`
+                SELECT COUNT(*) as total
+                FROM Substituicao s
+                LEFT JOIN Jogadores j_entra ON s.JogadorEntra = j_entra.id
+                LEFT JOIN Jogadores j_sai ON s.JogadorSai = j_sai.id
+                LEFT JOIN Posicoes p_entra ON j_entra.posicao_id = p_entra.id
+                LEFT JOIN Posicoes p_sai ON j_sai.posicao_id = p_sai.id
+                WHERE s.Ponto_Partida_id = ?
+                  AND ((s.Ponto_pontoTime1 < ?)
+                       OR (s.Ponto_pontoTime1 = ? AND s.Ponto_pontoTime2 <= ?)
+                       OR (s.Ponto_pontoTime2 < ?)
+                       OR (s.Ponto_pontoTime2 = ? AND s.Ponto_pontoTime1 <= ?))
+                  AND p_entra.nome != 'Líbero'
+                  AND p_sai.nome != 'Líbero'
+            `);
+            const result = stmt.get(partidaId, pontoTime1, pontoTime2, pontoTime1, pontoTime2, pontoTime1, pontoTime2);
+            return result?.total || 0;
+        } catch (error) {
+            console.error('Erro ao contar substituições normais do set:', error);
+            throw error;
+        }
+    }
+
     /**
      * Conta o total de substituições até um determinado ponto (para respeitar limite de 6 por set)
      * @param {number} pontoTime1
