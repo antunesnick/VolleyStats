@@ -3,7 +3,7 @@
   import PlayerControl from '../../Control/PlayerControl';
   import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, RefreshCw, MapPin } from 'lucide-react';
   import { useHotkeys } from 'react-hotkeys-hook';
-  import EstatisticaModal from './EstatisticaView';
+  import EstatisticaView from './EstatisticaView';
 
   const VolleyballCourt = ({ players, formation, onPlayerClick }) => {
     const formationMap = {
@@ -90,9 +90,10 @@
     const [score, setScore] = useState({ home: 0, away: 0 });
     const [formation, setFormation] = useState('Padrão 6-6');
     const [isFormationOpen, setIsFormationOpen] = useState(false);
-    const [liveStatus, setLiveStatus] = useState('Aguardando');
-    const [partidaIniciada, setPartidaIniciada] = useState(false);
-  const [activityText, setActivityText] = useState('');
+    const [liveStatus, setLiveStatus] = useState(
+      String(partida?.status || '').toUpperCase() === 'FINALIZADA' ? 'Finalizada' : 'Aguardando'
+    );
+    const [activityText, setActivityText] = useState('');
     const [feed, setFeed] = useState([]);
     const [players, setPlayers] = useState([]);
     const [escalados, setEscalados] = useState({ home: [], away: [] });
@@ -106,6 +107,7 @@
     const [selectedFieldTeam, setSelectedFieldTeam] = useState(null);
     const [selectedBenchPlayer, setSelectedBenchPlayer] = useState(null);
     const [selectedPlayerDetails, setSelectedPlayerDetails] = useState(null);
+    const [showEstatistica, setShowEstatistica] = useState(false);
 
     const homeLabel = useMemo(() => partida?.time1Nome || partida?.time1 || 'Mandante', [partida]);
     const awayLabel = useMemo(() => partida?.time2Nome || partida?.time2 || 'Visitante', [partida]);
@@ -288,51 +290,26 @@ useEffect(() => {
       setShowSubstituicao(false);
     };
 
-  const abrirFinalizarPartida = () => {
-    setPlacarFinalDraft({ home: score.home, away: score.away });
-    setEditandoEncerramento(false);
-    setShowFinalizarPartida(true);
-  };
-
-  const fecharFinalizarPartida = () => {
-    setShowFinalizarPartida(false);
-    setEditandoEncerramento(false);
-  };
-
-  const confirmarFinalizacao = () => {
-    setScore({ home: placarFinalDraft.home, away: placarFinalDraft.away });
-    setFeed((current) => [
-      {
-        id: Date.now(),
-        text: `Partida finalizada: ${homeLabel} ${placarFinalDraft.home} x ${placarFinalDraft.away} ${awayLabel}`,
-      },
-      ...current,
-    ]);
-    setLiveStatus('Finalizada');
-    setPartidaIniciada(false);
-    setShowFinalizarPartida(false);
-    setEditandoEncerramento(false);
-  };
-
-  const handleAcaoPartida = () => {
-    if (liveStatus === 'Finalizada') return;
-
-    if (!partidaIniciada) {
-      setPartidaIniciada(true);
+    const handleIniciarPartida = () => {
       setLiveStatus('Em andamento');
-      return;
-    }
+    };
 
-    setShowFinalizarPartida(true);
-  };
+    const handleAbrirFinalizacao = () => {
+      setShowEstatistica(true);
+    };
 
-  const handlePlacarFinalChange = (campo, valor) => {
-    const numero = Number(valor);
-    setPlacarFinalDraft((current) => ({
-      ...current,
-      [campo]: Number.isNaN(numero) ? 0 : Math.max(0, numero),
-    }));
-  };
+    const handleConfirmarEstatistica = async (finalScore) => {
+      try {
+        const placarFinal = finalScore || score;
+        await window.api.partidas.finalizar(partida.id, placarFinal.home, placarFinal.away);
+        setScore(placarFinal);
+        setLiveStatus('Finalizada');
+        setShowEstatistica(false);
+      } catch (error) {
+        console.error('Erro ao finalizar partida:', error);
+        alert('Não foi possível finalizar a partida.');
+      }
+    };
 
     return (
 
@@ -422,20 +399,31 @@ useEffect(() => {
                 Substituição
               </button>
 
-            <button
-              onClick={handleAcaoPartida}
-              className={`border-2 px-5 py-3 rounded-full shadow-sm transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-2 ${
-                liveStatus === 'Finalizada'
-                  ? 'bg-gray-300 border-white text-gray-600 cursor-not-allowed'
-                  : !partidaIniciada
-                  ? 'bg-[#00FF2F] hover:bg-[#00DD29] border-white text-white' 
-                  : 'bg-black hover:bg-gray-900 border-white text-white'
-              }`}
-              disabled={liveStatus === 'Finalizada'}
-            >
-              {liveStatus === 'Finalizada' ? <Square size={14} /> : !partidaIniciada ? <Play size={14} /> : <Download size={14} />}
-              {liveStatus === 'Finalizada' ? 'Partida Finalizada' : !partidaIniciada ? 'Iniciar Partida' : 'Finalizar Partida'}
-            </button>
+              {liveStatus === 'Aguardando' && (
+                <button
+                  onClick={handleIniciarPartida}
+                  className="border-2 px-5 py-3 rounded-full shadow-sm transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-2 bg-[#00FF2F] hover:bg-[#00DD29] border-white text-white"
+                >
+                  <Play size={14} />
+                  Iniciar Partida
+                </button>
+              )}
+
+              {liveStatus === 'Em andamento' && (
+                <button
+                  onClick={handleAbrirFinalizacao}
+                  className="border-2 px-5 py-3 rounded-full shadow-sm transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-2 bg-red-500 hover:bg-red-600 border-white text-white"
+                >
+                  <Square size={14} />
+                  Finalizar Partida
+                </button>
+              )}
+
+              {liveStatus === 'Finalizada' && (
+                <div className="border-2 px-5 py-3 rounded-full shadow-sm text-[11px] font-black uppercase tracking-widest bg-emerald-600 border-white text-white">
+                  Partida Finalizada
+                </div>
+              )}
 
         
             </div>
@@ -666,21 +654,17 @@ useEffect(() => {
             </div>
           </div>
         )}
-  
-      <EstatisticaModal
-        open={showFinalizarPartida}
-        onClose={fecharFinalizarPartida}
-        homeLabel={homeLabel}
-        awayLabel={awayLabel}
-        matchInfo={matchInfo}
-        score={score}
-        draftScore={placarFinalDraft}
-        onDraftScoreChange={handlePlacarFinalChange}
-        onConfirm={confirmarFinalizacao}
-        onToggleEdit={() => setEditandoEncerramento((current) => !current)}
-        editMode={editandoEncerramento}
-      />
-    </div>
+
+        <EstatisticaView
+          open={showEstatistica}
+          onClose={() => setShowEstatistica(false)}
+          homeLabel={homeLabel}
+          awayLabel={awayLabel}
+          matchInfo={matchInfo}
+          score={score}
+          onConfirm={handleConfirmarEstatistica}
+        />
+      </div>
     );
   };
 

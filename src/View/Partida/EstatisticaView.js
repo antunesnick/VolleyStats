@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import EstatisticaControl from '../../Control/EstatisticaControl';
 
 const TAB_ITEMS = [
   { id: 'geral', label: 'Geral' },
@@ -6,26 +7,42 @@ const TAB_ITEMS = [
   { id: 'sets', label: 'Sets' },
 ];
 
-const EstatisticaModal = ({
+const EstatisticaView = ({
   open,
   onClose,
   homeLabel,
   awayLabel,
   matchInfo,
   score,
-  draftScore,
-  onDraftScoreChange,
   onConfirm,
-  onToggleEdit,
-  editMode,
 }) => {
-  const [activeTab, setActiveTab] = useState('geral');
+  const initialState = EstatisticaControl.criarEstadoInicial(score);
+  const [activeTab, setActiveTab] = useState(initialState.activeTab);
+  const [editMode, setEditMode] = useState(initialState.editMode);
+  const [draftScore, setDraftScore] = useState(initialState.draftScore);
 
   useEffect(() => {
     if (open) {
-      setActiveTab('geral');
+      const resetState = EstatisticaControl.resetarAoAbrir(score);
+      setActiveTab(resetState.activeTab);
+      setEditMode(resetState.editMode);
+      setDraftScore(resetState.draftScore);
     }
-  }, [open]);
+  }, [open, score]);
+
+  const handleDraftScoreChange = (side, value) => {
+    setDraftScore((current) => EstatisticaControl.alterarPlacarRascunho(current, side, value));
+  };
+
+  const handleToggleEdit = () => {
+    const nextState = EstatisticaControl.alternarModoEdicao(editMode, score, draftScore);
+    setEditMode(nextState.editMode);
+    setDraftScore(nextState.draftScore);
+  };
+
+  const handleConfirm = () => {
+    EstatisticaControl.confirmar(onConfirm, draftScore);
+  };
 
   if (!open) {
     return null;
@@ -76,7 +93,7 @@ const EstatisticaModal = ({
               </div>
               <button
                 type="button"
-                onClick={onToggleEdit}
+                onClick={handleToggleEdit}
                 className={`rounded-full px-5 py-3 text-[11px] font-black uppercase tracking-widest transition-colors ${
                   editMode
                     ? 'bg-gray-900 text-white hover:bg-gray-800'
@@ -109,7 +126,7 @@ const EstatisticaModal = ({
                         type="number"
                         min="0"
                         value={draftScore.home}
-                        onChange={(e) => onDraftScoreChange('home', e.target.value)}
+                        onChange={(e) => handleDraftScoreChange('home', e.target.value)}
                         className="w-full text-center text-5xl font-black text-gray-900 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100"
                       />
                     </div>
@@ -120,7 +137,7 @@ const EstatisticaModal = ({
                         type="number"
                         min="0"
                         value={draftScore.away}
-                        onChange={(e) => onDraftScoreChange('away', e.target.value)}
+                        onChange={(e) => handleDraftScoreChange('away', e.target.value)}
                         className="w-full text-center text-5xl font-black text-gray-900 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100"
                       />
                     </div>
@@ -176,7 +193,7 @@ const EstatisticaModal = ({
           </button>
           <button
             type="button"
-            onClick={onConfirm}
+            onClick={handleConfirm}
             className="rounded-full bg-green-500 px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-green-600 transition-colors"
           >
             Confirmar e abrir minha parte
@@ -187,4 +204,4 @@ const EstatisticaModal = ({
   );
 };
 
-export default EstatisticaModal;
+export default EstatisticaView;
