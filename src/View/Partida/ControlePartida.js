@@ -785,6 +785,7 @@ useEffect(() => { scoreRef.current = score; }, [score]);
           awayLabel={awayLabel}
           matchInfo={matchInfo}
           score={score}
+          partidaId={partida?.id}
           onConfirm={handleConfirmarEstatistica}
         />
       </div>
