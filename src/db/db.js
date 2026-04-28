@@ -205,6 +205,8 @@ function initDatabase() {
             CREATE TABLE IF NOT EXISTS 'Set' (
                 NumSet INTEGER NOT NULL,
                 Partida_id INTEGER NOT NULL,
+                pontosTime1 INTEGER,
+                pontosTime2 INTEGER,
                 PRIMARY KEY (NumSet, Partida_id),
                 FOREIGN KEY (Partida_id) REFERENCES Partidas (id)
             );
