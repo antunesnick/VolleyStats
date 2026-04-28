@@ -113,6 +113,73 @@ class PontoControl {
       throw e;
     }
   }
+  // Adicione este método dentro da classe PontoControl:
+avancarSet(partida_id, numSet, pontosSetTime1, pontosSetTime2) {
+  const transaction = db.transaction(() => {
+    // 1. Salva o placar final do set que acabou
+    const updateSet = db.prepare(
+      'UPDATE "Set" SET pontosTime1 = ?, pontosTime2 = ? WHERE NumSet = ? AND Partida_id = ?'
+    );
+    updateSet.run(pontosSetTime1, pontosSetTime2, numSet, partida_id);
+
+    // 2. Incrementa os sets ganhos na Partida (pontosTime1/2 = sets vencidos)
+    const colVencedor = pontosSetTime1 > pontosSetTime2 ? 'pontosTime1' : 'pontosTime2';
+    const updatePartida = db.prepare(
+      `UPDATE Partidas SET ${colVencedor} = COALESCE(${colVencedor}, 0) + 1 WHERE id = ?`
+    );
+    updatePartida.run(partida_id);
+
+    return numSet + 1; // Retorna o próximo número de set
+  });
+
+  try {
+    return transaction();
+  } catch (e) {
+    throw e;
+  }
+}
+
+  // Garante que o Set existe e salva/atualiza o placar do set
+  atualizarPlacarSet(partida_id, numSet, pontosTime1, pontosTime2) {
+    try {
+      db.prepare('INSERT OR IGNORE INTO "Set" (NumSet, Partida_id) VALUES (?, ?)')
+        .run(numSet, partida_id);
+      db.prepare('UPDATE "Set" SET pontosTime1 = ?, pontosTime2 = ? WHERE NumSet = ? AND Partida_id = ?')
+        .run(pontosTime1, pontosTime2, numSet, partida_id);
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  // Carrega o placar salvo de um set específico
+  buscarPlacarSet(partida_id, numSet) {
+    try {
+      const row = db.prepare(
+        'SELECT pontosTime1, pontosTime2 FROM "Set" WHERE Partida_id = ? AND NumSet = ?'
+      ).get(partida_id, numSet);
+      return { home: row?.pontosTime1 ?? 0, away: row?.pontosTime2 ?? 0 };
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  // Incrementa/decrementa os sets ganhos na Partida (+1, 0 ou 0, +1)
+  atualizarSetsGanhos(partida_id, deltaTime1, deltaTime2) {
+    try {
+      db.prepare(`
+        UPDATE Partidas 
+        SET pontosTime1 = MAX(0, COALESCE(pontosTime1, 0) + ?),
+            pontosTime2 = MAX(0, COALESCE(pontosTime2, 0) + ?)
+        WHERE id = ?
+      `).run(deltaTime1, deltaTime2, partida_id);
+      const row = db.prepare(
+        'SELECT pontosTime1, pontosTime2 FROM Partidas WHERE id = ?'
+      ).get(partida_id);
+      return { home: row?.pontosTime1 ?? 0, away: row?.pontosTime2 ?? 0 };
+    } catch (e) {
+      throw e;
+    }
+  }
 }
 
 export default PontoControl;

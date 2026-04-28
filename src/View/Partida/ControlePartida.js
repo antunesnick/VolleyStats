@@ -87,7 +87,11 @@
   };
 
   const ControlePartida = ({ partida, aoVoltar }) => {
-    const [score, setScore] = useState({ home: 0, away: 0 });
+ const [score, setScore] = useState({ home: 0, away: 0 }); // pontos dentro do set
+  const [setsGanhos, setSetsGanhos] = useState({              // sets ganhos na partida
+    home: partida?.pontosTime1 ?? 0,
+    away: partida?.pontosTime2 ?? 0,
+  });
     const [formation, setFormation] = useState('Padrão 6-6');
     const [isFormationOpen, setIsFormationOpen] = useState(false);
     const [liveStatus, setLiveStatus] = useState(
@@ -112,26 +116,49 @@
     const homeLabel = useMemo(() => partida?.time1Nome || partida?.time1 || 'Mandante', [partida]);
     const awayLabel = useMemo(() => partida?.time2Nome || partida?.time2 || 'Visitante', [partida]);
 
-    useHotkeys('shift+up', (e) => {
-      e.preventDefault(setScore({ home: score.home+1, away: score.away }));
-      ;
-    });
-
-    useHotkeys('tab+up', (e) => {  
+      useHotkeys('shift+up', (e) => {
       e.preventDefault();
-      setScore({ home: score.home, away: score.away+1 });
+      setScore(current => {
+        const newScore = { home: current.home + 1, away: current.away };
+        PontoControl.getInstance().atualizarPlacarSet(
+          parseInt(partida.id), currentSetRef.current, newScore.home, newScore.away
+        );
+        return newScore;
+      });
     });
 
-    useHotkeys('shift+down', (e) => {  
+    useHotkeys('alt+up', (e) => {
       e.preventDefault();
-      setScore({ home: Math.max(0, score.home-1), away: score.away });
+      setScore(current => {
+        const newScore = { home: current.home, away: current.away + 1 };
+        PontoControl.getInstance().atualizarPlacarSet(
+          parseInt(partida.id), currentSetRef.current, newScore.home, newScore.away
+        );
+        return newScore;
+      });
     });
 
-    useHotkeys('tab+down', (e) => {
+    useHotkeys('shift+down', (e) => {
       e.preventDefault();
-      setScore({ home: score.home, away: Math.max(0, score.away-1) });
+      setScore(current => {
+        const newScore = { home: Math.max(0, current.home - 1), away: current.away };
+        PontoControl.getInstance().atualizarPlacarSet(
+          parseInt(partida.id), currentSetRef.current, newScore.home, newScore.away
+        );
+        return newScore;
+      });
     });
 
+    useHotkeys('alt+down', (e) => {
+      e.preventDefault();
+      setScore(current => {
+        const newScore = { home: current.home, away: Math.max(0, current.away - 1) };
+        PontoControl.getInstance().atualizarPlacarSet(
+          parseInt(partida.id), currentSetRef.current, newScore.home, newScore.away
+        );
+        return newScore;
+      });
+    });
     const [buffer, setBuffer] = useState({ numero: '', acao: '', qualidade: '' });
 
     useHotkeys('ctrl+1, ctrl+2, ctrl+3, ctrl+4, ctrl+5, ctrl+6, ctrl+7, ctrl+8, ctrl+9, ctrl+0', (event) => {
@@ -186,7 +213,7 @@
   tipoAcao,
   tecla
 );
-        carregarPontosDoSet(currentSet); // Atualiza a barra lateral
+        carregarDadosDoSet(currentSet); // Atualiza a barra lateral
       }
       else {
    alert('Jogador não encontrado para o número: ' + buffer.numero);
@@ -208,24 +235,25 @@
     const currentSetRef = useRef(currentSet);
     useEffect(() => { currentSetRef.current = currentSet; }, [currentSet]);
 
-    // 2. Corrigir carregarPontosDoSet para usar a ref
-    const carregarPontosDoSet = (numSet) => {
+   const carregarDadosDoSet = (numSet) => {
   try {
     const control = PontoControl.getInstance();
-    const pontos = control.buscarPontosPorSet(
-      parseInt(partida.id),   // ← forçar inteiro
-      parseInt(numSet)         // ← forçar inteiro
-    );
-    console.log('Pontos carregados:', pontos);
+    const placar = control.buscarPlacarSet(parseInt(partida.id), parseInt(numSet));
+    setScore({ home: placar.home, away: placar.away });
+    const pontos = control.buscarPontosPorSet(parseInt(partida.id), parseInt(numSet));
     setPontosDoSet(pontos);
   } catch (error) {
-    console.error('Erro ao carregar pontos:', error);
+    console.error('Erro ao carregar dados do set:', error.message);
+    alert(`Erro ao carregar set ${numSet}: ${error.message}`); // ← temporário para diagnóstico
   }
 };
 
-useEffect(() => {
-  if (partida?.id) carregarPontosDoSet(currentSet);
-}, [currentSet, partida?.id]);
+    
+
+    // Substitua o useEffect de currentSet por este:
+    useEffect(() => {
+      if (partida?.id) carregarDadosDoSet(currentSet);
+    }, [currentSet, partida?.id]);
 
     const matchInfo = useMemo(() => {
       let matchDate = 'Data não definida';
@@ -269,14 +297,7 @@ useEffect(() => {
       }
     }, [players, escalados.home.length, escalados.away.length]);
 
-  useEffect(() => {
-    const loadScore = async () => {
-      if(partida?.pontosTime1 !== null && partida?.pontosTime2 !== null) {
-        setScore({ home: partida.pontosTime1, away: partida.pontosTime2 });
-      }
-    }
-    loadScore();
-  },[]);
+ 
 
     const benchPlayers = useMemo(() => {
       const escaladosIds = new Set(escalados.home.map((player) => player?.id));
@@ -291,8 +312,24 @@ useEffect(() => {
     };
 
     const changeScore = (side, delta) => {
-      setScore((current) => ({ ...current, [side]: Math.max(0, current[side] + delta) }));
-    };
+  setScore(current => {
+    const newScore = { ...current, [side]: Math.max(0, current[side] + delta) };
+    try {
+      PontoControl.getInstance().atualizarPlacarSet(
+        parseInt(partida.id),
+        currentSetRef.current,  // ← usa ref, nunca fica stale
+        newScore.home,
+        newScore.away
+      );
+    } catch (e) {
+      console.error('Erro ao salvar placar:', e);
+    }
+    return newScore;
+  });
+};
+
+  const scoreRef = useRef(score);
+useEffect(() => { scoreRef.current = score; }, [score]);
 
     const handleSubstituir = () => {
       if (!selectedFieldTeam || !selectedFieldPlayer || !selectedBenchPlayer) return;
@@ -459,17 +496,70 @@ useEffect(() => {
               <p className="text-[11px] uppercase tracking-widest font-bold text-gray-500 mt-1">{matchInfo.date}</p>
             </div>
 
-            {/* ScoreBoard within Side Panel */}
-            <div className="p-6 border-b border-gray-100 grid grid-cols-2 gap-4">
-              <div className="bg-gray-900 rounded-2xl p-4 text-center cursor-pointer hover:bg-gray-800 transition" onClick={() => changeScore('home', 1)}>
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Mandante</span>
-                <span className="text-4xl font-black text-white">{score.home}</span>
-              </div>
-              <div className="bg-orange-500 rounded-2xl p-4 text-center cursor-pointer hover:bg-orange-600 transition" onClick={() => changeScore('away', 1)}>
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-200 block mb-1">Visitante</span>
-                <span className="text-4xl font-black text-white">{score.away}</span>
-              </div>
-            </div>
+            {/* Sets ganhos na partida */}
+<div className="px-6 pt-5 pb-3 border-b border-gray-100 bg-gray-50/50">
+  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 text-center">
+    Sets da Partida
+  </p>
+  <div className="grid grid-cols-2 gap-3">
+    {/* Mandante */}
+    <div className="flex items-center justify-between bg-white border border-gray-100 rounded-2xl px-3 py-2 shadow-sm">
+      <button
+        onClick={() => {
+          const control = PontoControl.getInstance();
+          const upd = control.atualizarSetsGanhos(parseInt(partida.id), -1, 0);
+          setSetsGanhos(upd);
+        }}
+        className="w-7 h-7 rounded-full bg-gray-100 text-gray-600 font-bold text-base hover:bg-gray-200 transition flex items-center justify-center"
+      >−</button>
+      <span className="text-2xl font-black text-gray-900">{setsGanhos.home}</span>
+      <button
+        onClick={() => {
+          const control = PontoControl.getInstance();
+          const upd = control.atualizarSetsGanhos(parseInt(partida.id), 1, 0);
+          setSetsGanhos(upd);
+        }}
+        className="w-7 h-7 rounded-full bg-gray-900 text-white font-bold text-base hover:bg-gray-700 transition flex items-center justify-center"
+      >+</button>
+    </div>
+    {/* Visitante */}
+    <div className="flex items-center justify-between bg-white border border-orange-100 rounded-2xl px-3 py-2 shadow-sm">
+      <button
+        onClick={() => {
+          const control = PontoControl.getInstance();
+          const upd = control.atualizarSetsGanhos(parseInt(partida.id), 0, -1);
+          setSetsGanhos(upd);
+        }}
+        className="w-7 h-7 rounded-full bg-orange-100 text-orange-600 font-bold text-base hover:bg-orange-200 transition flex items-center justify-center"
+      >−</button>
+      <span className="text-2xl font-black text-orange-500">{setsGanhos.away}</span>
+      <button
+        onClick={() => {
+          const control = PontoControl.getInstance();
+          const upd = control.atualizarSetsGanhos(parseInt(partida.id), 0, 1);
+          setSetsGanhos(upd);
+        }}
+        className="w-7 h-7 rounded-full bg-orange-500 text-white font-bold text-base hover:bg-orange-400 transition flex items-center justify-center"
+      >+</button>
+    </div>
+  </div>
+</div>
+
+{/* Placar do set atual (clicável para mudança rápida) */}
+<div className="p-6 border-b border-gray-100 grid grid-cols-2 gap-4">
+  <div className="bg-gray-900 rounded-2xl p-4 text-center cursor-pointer hover:bg-gray-800 transition" onClick={() => changeScore('home', 1)}>
+    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">
+      {homeLabel} — Set {currentSet}
+    </span>
+    <span className="text-4xl font-black text-white">{score.home}</span>
+  </div>
+  <div className="bg-orange-500 rounded-2xl p-4 text-center cursor-pointer hover:bg-orange-600 transition" onClick={() => changeScore('away', 1)}>
+    <span className="text-[10px] font-black uppercase tracking-widest text-orange-200 block mb-1">
+      {awayLabel} — Set {currentSet}
+    </span>
+    <span className="text-4xl font-black text-white">{score.away}</span>
+  </div>
+</div>
 
             {/* Pontos do Set */}
 <div className="flex-1 overflow-auto p-6 bg-gray-50/30">
@@ -478,21 +568,8 @@ useEffect(() => {
       Pontos — Set {currentSet}
     </h3>
     <div className="flex items-center gap-1">
-      <button
-        onClick={() => {
-          const novoSet = Math.max(1, currentSet - 1);
-          setCurrentSet(novoSet);
-          carregarPontosDoSet(novoSet); // ← já carrega com o valor novo
-        }}
-      >‹</button>
-
-      <button
-        onClick={() => {
-          const novoSet = currentSet + 1;
-          setCurrentSet(novoSet);
-          carregarPontosDoSet(novoSet);
-        }}
-      >›</button>
+      <button onClick={() => setCurrentSet(prev => Math.max(1, prev - 1))}>‹</button>
+    <button onClick={() => setCurrentSet(prev => prev + 1)}>›</button>
     </div>
   </div>
 
