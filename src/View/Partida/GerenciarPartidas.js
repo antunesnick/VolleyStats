@@ -397,7 +397,7 @@ const formatarDataBrasil = (dataString) => {
                 <button 
                 onClick={() => abrirControlePartida(partida.id)}
                 className="bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all transform hover:scale-105 active:scale-95 shadow-lg">
-                  Iniciar Controle
+                  {partida.status === 'FINALIZADA' ? 'Visualizar Partida' : 'Iniciar Controle'}
                 </button>
               </div>
             </div>
