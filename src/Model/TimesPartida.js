@@ -27,6 +27,10 @@ class TimesPartida {
             this.banco.push(jogadorSai);
         }
     }
+
+    static jogadorNaLinha(jogador) {
+        return this.linha.includes(jogador);
+    }
 }
 
 module.exports = TimesPartida;

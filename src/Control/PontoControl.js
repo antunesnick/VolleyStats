@@ -23,6 +23,7 @@ class PontoControl {
      */
     gravarPonto(partida, numSet, pontoTime1, pontoTime2, jogador, tipoAcao, qualidade) {
         const gravarTransaction = db.transaction(() => {
+            
             const set = new SetPartida(numSet, partida);
 
             const ponto = new Ponto(pontoTime1, pontoTime2, set);
