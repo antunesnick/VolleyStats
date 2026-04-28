@@ -268,7 +268,7 @@
       return {
         name: partida?.nome || 'Controle de Partida',
         date: matchDate,
-        gymnasium: "Arena Central"
+        gymnasium: partida?.ginasioNome || "Arena Central"
       };
     }, [partida]);
 
