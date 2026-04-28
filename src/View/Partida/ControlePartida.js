@@ -708,6 +708,7 @@ useEffect(() => {
           awayLabel={awayLabel}
           matchInfo={matchInfo}
           score={score}
+          partidaId={partida?.id}
           onConfirm={handleConfirmarEstatistica}
         />
       </div>
