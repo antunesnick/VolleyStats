@@ -1,16 +1,13 @@
 import React, { useEffect, useState } from "react";
-import Swal from 'sweetalert2';
+import { useNavigate } from "react-router-dom";
 import GinasioControl from "../../Control/GinasioControl";
+import { Alertas } from "../../utils/Alertas";
 
 const initialFormData = {
   nome: "",
   cidade: "",
   endereco: "",
   estado: "",
-};
-
-const swalBaseOptions = {
-  backdrop: false,
 };
 
 const ESTADOS_UF = [
@@ -20,6 +17,7 @@ const ESTADOS_UF = [
 ];
 
 const Ginasio = () => {
+  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [ginasios, setGinasios] = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -45,13 +43,7 @@ const Ginasio = () => {
       const dadosDoBanco = await GinasioControl.listarGinasios();
       setGinasios(ordenarPorNome(dadosDoBanco || []));
     } catch (e) {
-      await Swal.fire({
-        ...swalBaseOptions,
-        title: "Erro!",
-        text: "Nao foi possivel carregar os ginasios.",
-        icon: "error",
-        confirmButtonColor: "#920A13",
-      });
+      Alertas.erro("Nao foi possivel carregar os ginasios.");
     }
   };
 
@@ -77,13 +69,7 @@ const Ginasio = () => {
       const resultado = await GinasioControl.pesquisarGinasio(filtro);
       setGinasios(ordenarPorNome(resultado || []));
     } catch (e) {
-      await Swal.fire({
-        ...swalBaseOptions,
-        title: "Erro!",
-        text: "Nao foi possivel pesquisar os ginasios.",
-        icon: "error",
-        confirmButtonColor: "#920A13",
-      });
+      Alertas.erro("Nao foi possivel pesquisar os ginasios.");
     }
   };
 
@@ -161,19 +147,9 @@ const Ginasio = () => {
   };
 
   const handleExcluirGinasio = async (id) => {
-    const result = await Swal.fire({
-      ...swalBaseOptions,
-      title: "Tem certeza?",
-      text: "Essa acao nao pode ser desfeita!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#920A13",
-      cancelButtonColor: "#6c757d",
-      confirmButtonText: "Sim, excluir",
-      cancelButtonText: "Cancelar",
-    });
+    const confirmado = await Alertas.confirmacao("Essa acao nao pode ser desfeita!", "Tem certeza?");
 
-    if (!result.isConfirmed) {
+    if (!confirmado) {
       return;
     }
 
@@ -187,21 +163,9 @@ const Ginasio = () => {
         setIsModalOpen(false);
       }
 
-      await Swal.fire({
-        ...swalBaseOptions,
-        title: "Sucesso!",
-        text: "Ginasio excluido com sucesso.",
-        icon: "success",
-        confirmButtonColor: "#920A13",
-      });
+      Alertas.sucesso("Ginasio excluido com sucesso.");
     } catch (e) {
-      await Swal.fire({
-        ...swalBaseOptions,
-        title: "Erro!",
-        text: "Erro ao excluir ginasio.",
-        icon: "error",
-        confirmButtonColor: "#920A13",
-      });
+      Alertas.erro("Erro ao excluir ginasio.");
     }
   };
 
@@ -227,19 +191,12 @@ const Ginasio = () => {
     };
 
     if (editingId !== null) {
-      const confirmacao = await Swal.fire({
-        ...swalBaseOptions,
-        title: "Confirmar alteracao?",
-        text: "Deseja salvar as alteracoes deste ginasio?",
-        icon: "question",
-        showCancelButton: true,
-        confirmButtonColor: "#920A13",
-        cancelButtonColor: "#6c757d",
-        confirmButtonText: "Sim, salvar",
-        cancelButtonText: "Cancelar",
-      });
+      const confirmacao = await Alertas.confirmacao(
+        "Deseja salvar as alteracoes deste ginasio?",
+        "Confirmar alteracao?"
+      );
 
-      if (!confirmacao.isConfirmed) {
+      if (!confirmacao) {
         return;
       }
 
@@ -254,21 +211,9 @@ const Ginasio = () => {
           )
         );
 
-        await Swal.fire({
-          ...swalBaseOptions,
-          title: "Sucesso!",
-          text: "Ginasio alterado com sucesso.",
-          icon: "success",
-          confirmButtonColor: "#920A13",
-        });
+        Alertas.sucesso("Ginasio alterado com sucesso.");
       } catch (e) {
-        await Swal.fire({
-          ...swalBaseOptions,
-          title: "Erro!",
-          text: e?.message || "Erro ao alterar ginasio.",
-          icon: "error",
-          confirmButtonColor: "#920A13",
-        });
+        Alertas.erro(e?.message || "Erro ao alterar ginasio.");
         return;
       }
     } else {
@@ -289,13 +234,7 @@ const Ginasio = () => {
           ));
         }
       } catch (e) {
-        await Swal.fire({
-          ...swalBaseOptions,
-          title: "Erro!",
-          text: e?.message || "Erro ao cadastrar ginasio.",
-          icon: "error",
-          confirmButtonColor: "#920A13",
-        });
+        Alertas.erro(e?.message || "Erro ao cadastrar ginasio.");
         return;
       }
     }
@@ -305,7 +244,14 @@ const Ginasio = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 p-8">
-      <div className="flex justify-between items-center mb-8 border-b-2 border-red-600 pb-4">
+      <div className="flex justify-between items-center gap-4 mb-8 border-b-2 border-red-600 pb-4">
+        <button
+          type="button"
+          className="bg-black hover:bg-gray-800 text-white font-bold py-3 px-5 rounded-lg shadow-md transition-colors"
+          onClick={() => navigate("/")}
+        >
+          Voltar
+        </button>
         <div>
           <h1 className="text-4xl font-black text-black tracking-tight uppercase">
             Ginásios
