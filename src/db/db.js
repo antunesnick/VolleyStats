@@ -223,17 +223,19 @@ function initDatabase() {
                 Nome VARCHAR(45)
             );
 
-            CREATE TABLE IF NOT EXISTS Acao (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                Ponto_pontoTime1 INTEGER NOT NULL,
-                Ponto_pontoTime2 INTEGER NOT NULL,
-                Ponto_Partida_id INTEGER NOT NULL,
-                Jogador_id INTEGER NOT NULL,
-                Qualidade TEXT CHECK(Qualidade IN ('A', 'B', 'C')),
-                idTipoAcao INTEGER NOT NULL,
-                FOREIGN KEY (Ponto_pontoTime1, Ponto_pontoTime2) REFERENCES Ponto (pontoTime1, pontoTime2),
-                FOREIGN KEY (Jogador_id) REFERENCES Jogadores (id),
-                FOREIGN KEY (idTipoAcao) REFERENCES TipoAcao (idTipoAcao)
+           CREATE TABLE IF NOT EXISTS Acao (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            Ponto_pontoTime1 INTEGER NOT NULL,
+            Ponto_pontoTime2 INTEGER NOT NULL,
+            Ponto_Partida_id INTEGER NOT NULL,
+            Ponto_NumSet INTEGER NOT NULL,
+            Jogador_id INTEGER NOT NULL,
+            Qualidade TEXT CHECK(Qualidade IN ('A', 'B', 'C')),
+            idTipoAcao INTEGER NOT NULL,
+            -- CORREÇÃO DA FOREIGN KEY AQUI:
+            FOREIGN KEY (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id) REFERENCES Ponto (pontoTime1, pontoTime2, NumSet, Set_Partida_id),
+            FOREIGN KEY (Jogador_id) REFERENCES Jogadores (id),
+            FOREIGN KEY (idTipoAcao) REFERENCES TipoAcao (idTipoAcao)
             );
 
             CREATE TABLE IF NOT EXISTS Substituicao (

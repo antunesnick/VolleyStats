@@ -61,16 +61,58 @@ class PontoControl {
         }
     }
 
-    buscarPontosPorSet(partida_id, numSet) {
-        try {
-            const sql = db.prepare(
-                'SELECT * FROM Ponto WHERE Set_Partida_id = ? AND NumSet = ? ORDER BY pontoTime1 ASC, pontoTime2 ASC'
-            );
-            return sql.all(partida_id, numSet);
-        } catch (e) {
-            throw e;
+      buscarPontosPorSet(partida_id, numSet) {
+    try {
+      const sql = db.prepare(`
+        SELECT 
+          P.pontoTime1, P.pontoTime2,
+          A.id AS acaoId,
+          A.Qualidade AS qualidade,
+          J.nome AS jogadorNome,
+          J.NumCamisa AS jogadorNumero,
+          T.Nome AS tipoAcaoNome
+        FROM Ponto P
+        LEFT JOIN Acao A ON P.pontoTime1 = A.Ponto_pontoTime1 
+                        AND P.pontoTime2 = A.Ponto_pontoTime2 
+                        AND P.NumSet = A.Ponto_NumSet 
+                        AND P.Set_Partida_id = A.Ponto_Partida_id
+        LEFT JOIN Jogadores J ON A.Jogador_id = J.id
+        LEFT JOIN TipoAcao T ON A.idTipoAcao = T.idTipoAcao
+        WHERE P.Set_Partida_id = ? AND P.NumSet = ?
+        ORDER BY P.pontoTime1 ASC, P.pontoTime2 ASC, A.id ASC
+      `);
+      const rows = sql.all(partida_id, numSet);
+      
+      // Agrupando todas as ações dentro do respectivo ponto
+      const pontosMap = new Map();
+      
+      for (const row of rows) {
+        const key = `${row.pontoTime1}-${row.pontoTime2}`;
+        if (!pontosMap.has(key)) {
+          pontosMap.set(key, {
+            pontoTime1: row.pontoTime1,
+            pontoTime2: row.pontoTime2,
+            acoes: []
+          });
         }
+        
+        if (row.acaoId) {
+          pontosMap.get(key).acoes.push({
+            id: row.acaoId,
+            jogadorNome: row.jogadorNome,
+            jogadorNumero: row.jogadorNumero,
+            tipoAcaoNome: row.tipoAcaoNome,
+            qualidade: row.qualidade
+          });
+        }
+      }
+      
+      // Retorna uma array com os pontos e a lista de ações de cada um
+      return Array.from(pontosMap.values());
+    } catch (e) {
+      throw e;
     }
+  }
 }
 
 export default PontoControl;

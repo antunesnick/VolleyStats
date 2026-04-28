@@ -16,12 +16,12 @@ class PartidaModel {
     }
 
     findAll(db) {
-        const stmt = db.prepare('SELECT * FROM Partida');
+        const stmt = db.prepare('SELECT * FROM Partidas');
         return stmt.all();
     }
 
     findPartidaFiltered(filter, db) {
-        const stmt = db.prepare('SELECT * FROM Partida WHERE status = ?');
+        const stmt = db.prepare('SELECT * FROM Partidas WHERE status = ?');
         return stmt.all(filter.status);
     }
 
@@ -58,7 +58,7 @@ class PartidaModel {
                 t1.nome AS time1Nome,
                 t2.nome AS time2Nome,
                 g.nome AS ginasioNome
-            FROM Partida p
+            FROM Partidas p
             LEFT JOIN Times t1 ON t1.id = p.time1
             LEFT JOIN Times t2 ON t2.id = p.time2
             LEFT JOIN Ginasios g ON g.id = p.ginasio_id
@@ -149,14 +149,14 @@ class PartidaModel {
     }
     
     delete(id, db) {
-        const stmt = db.prepare('DELETE FROM Partida WHERE id = ?');
+        const stmt = db.prepare('DELETE FROM Partidas WHERE id = ?');
         stmt.run(id);
         return { success: true };
     }
 
     finalize(id, pontosTime1, pontosTime2, db) {
         const stmt = db.prepare(`
-            UPDATE Partida 
+            UPDATE Partidas 
             SET status = 'FINALIZADA', pontosTime1 = ?, pontosTime2 = ?
             WHERE id = ?
         `);

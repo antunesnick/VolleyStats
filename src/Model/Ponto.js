@@ -14,21 +14,18 @@ class Ponto {
         this.eventoList = [];
     }
 
-    criarPonto(db) {
-        try {
-            // Garante que o Set existe antes de inserir o Ponto (FK obrigatória)
-            this.set.criarSet(db);
+      criarPonto(db) {
+    try {
+      this.set.criarSet(db);
 
-            // Tabela: Ponto | Colunas: pontoTime1, pontoTime2, NumSet, Set_Partida_id
-            const sql = db.prepare(
-                'INSERT INTO Ponto (pontoTime1, pontoTime2, NumSet, Set_Partida_id) VALUES (?, ?, ?, ?)'
-            );
-            sql.run(this.pontoTime1, this.pontoTime2, this.set.numSet, this.set.partida.id);
-        } catch (e) {
-            throw e;
-        }
+      const sql = db.prepare(
+        'INSERT OR IGNORE INTO Ponto (pontoTime1, pontoTime2, NumSet, Set_Partida_id) VALUES (?, ?, ?, ?)'
+      );
+      sql.run(this.pontoTime1, this.pontoTime2, this.set.numSet, this.set.partida.id);
+    } catch (e) {
+      throw e;
     }
-
+  }
     addEvento(evento, db) {
         this.eventoList.push(evento);
         if (evento instanceof Acao) {

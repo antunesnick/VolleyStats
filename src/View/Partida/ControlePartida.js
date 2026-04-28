@@ -1,4 +1,4 @@
-  import React, { use, useEffect, useMemo, useState } from 'react';
+ import React, { use, useEffect, useMemo, useState, useRef } from 'react';
   import PontoControl from '../../Control/PontoControl' 
   import PlayerControl from '../../Control/PlayerControl';
   import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, RefreshCw, MapPin } from 'lucide-react';
@@ -165,22 +165,32 @@
        try {
         alert(`Registrando Ponto: Jogador ${buffer.numero}, Ação ${buffer.acao}, Qualidade ${tecla}`);
     const control = PontoControl.getInstance();
-    const jogador = players.find(p => String(p.numero) === String(buffer.numero));
+    const jogador = players.find(p => String(p.numero) === String(buffer.numero));  
     const tipoAcaoMap = { S: 1, A: 2, B: 3, R: 4, D: 5 }; // IDs conforme sua tabela TipoAcao
     const tipoAcao = { idTipoAcao: tipoAcaoMap[buffer.acao] };
 
     if (jogador && partida?.id) {
+      console.log('=== GRAVANDO PONTO ===');
+    console.log('partida.id:', partida.id);
+    console.log('currentSet:', currentSet);
+    console.log('score:', score.home, score.away);
+    console.log('jogador:', jogador);
+    console.log('tipoAcao:', tipoAcao);
+    console.log('qualidade (tecla):', tecla);
       control.gravarPonto(
-          partida,
-          currentSet,
-          score.home,
-          score.away,
-          jogador,
-          tipoAcao,
-          tecla // qualidade: A, B ou C
-        );
-        carregarPontosDoSet(); // Atualiza a barra lateral
+  { ...partida, id: parseInt(partida.id) }, // ← id como inteiro
+  parseInt(currentSet),
+  score.home,
+  score.away,
+  jogador,
+  tipoAcao,
+  tecla
+);
+        carregarPontosDoSet(currentSet); // Atualiza a barra lateral
       }
+      else {
+   alert('Jogador não encontrado para o número: ' + buffer.numero);
+}
     } catch (error) {
       alert('Erro ao registrar ponto: ' + error.message);
     }
@@ -195,18 +205,26 @@
 
     const estaDigitando = buffer.numero.length > 0;
 
-    const carregarPontosDoSet = () => {
+    const currentSetRef = useRef(currentSet);
+    useEffect(() => { currentSetRef.current = currentSet; }, [currentSet]);
+
+    // 2. Corrigir carregarPontosDoSet para usar a ref
+    const carregarPontosDoSet = (numSet) => {
   try {
-      const control = PontoControl.getInstance();
-      const pontos = control.buscarPontosPorSet(partida.id, currentSet);
-      setPontosDoSet(pontos);
-    } catch (error) {
-      console.error('Erro ao carregar pontos do set:', error);
-    }
-  };
+    const control = PontoControl.getInstance();
+    const pontos = control.buscarPontosPorSet(
+      parseInt(partida.id),   // ← forçar inteiro
+      parseInt(numSet)         // ← forçar inteiro
+    );
+    console.log('Pontos carregados:', pontos);
+    setPontosDoSet(pontos);
+  } catch (error) {
+    console.error('Erro ao carregar pontos:', error);
+  }
+};
 
 useEffect(() => {
-  if (partida?.id) carregarPontosDoSet();
+  if (partida?.id) carregarPontosDoSet(currentSet);
 }, [currentSet, partida?.id]);
 
     const matchInfo = useMemo(() => {
@@ -461,12 +479,19 @@ useEffect(() => {
     </h3>
     <div className="flex items-center gap-1">
       <button
-        onClick={() => setCurrentSet(s => Math.max(1, s - 1))}
-        className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-black flex items-center justify-center transition"
+        onClick={() => {
+          const novoSet = Math.max(1, currentSet - 1);
+          setCurrentSet(novoSet);
+          carregarPontosDoSet(novoSet); // ← já carrega com o valor novo
+        }}
       >‹</button>
+
       <button
-        onClick={() => setCurrentSet(s => s + 1)}
-        className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-black flex items-center justify-center transition"
+        onClick={() => {
+          const novoSet = currentSet + 1;
+          setCurrentSet(novoSet);
+          carregarPontosDoSet(novoSet);
+        }}
       >›</button>
     </div>
   </div>
@@ -476,22 +501,43 @@ useEffect(() => {
                 Nenhum ponto registrado neste set.
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {pontosDoSet.map((ponto, index) => (
                   <div
-                    key={index}
-                    className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between"
+                    key={`${ponto.pontoTime1}-${ponto.pontoTime2}-${index}`}
+                    className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-2"
                   >
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                      Rally {index + 1}
-                    </span>
-                    <span className="text-sm font-black text-gray-900 font-mono">
-                      {ponto.ponto_time1} × {ponto.ponto_time2}
-                    </span>
+                    {/* Cabeçalho do Ponto (Placar) */}
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                        Rally {index + 1}
+                      </span>
+                      <span className="text-sm font-black text-gray-900 font-mono">
+                        {ponto.pontoTime1} × {ponto.pontoTime2}
+                      </span>
+                    </div>
+                    
+                    {/* Lista de Ações ocorridas neste ponto */}
+                    {ponto.acoes && ponto.acoes.length > 0 && (
+                      <div className="mt-1 pt-2 border-t border-gray-50 flex flex-col gap-1.5">
+                        {ponto.acoes.map((acao, idx) => (
+                          <div key={idx} className="flex justify-between items-center text-xs text-gray-600 bg-gray-50/50 p-1.5 rounded-lg">
+                            <span className="font-medium truncate pr-2">
+                              #{acao.jogadorNumero || '00'} - {acao.jogadorNome || 'Jogador'}
+                            </span>
+                            <div className="flex gap-2 items-center flex-shrink-0">
+                              <span className="font-bold text-gray-800">{acao.tipoAcaoNome}</span>
+                              <span className="font-bold bg-white border border-gray-200 px-2 py-0.5 rounded text-[10px] shadow-sm">
+                                {acao.qualidade}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
-              </div>
-            )}
+              </div>            )}
           </div>
                       {/* Command Bar Form */}
             <div className="p-6 border-t border-gray-100 bg-white">
