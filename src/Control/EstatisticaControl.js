@@ -76,6 +76,21 @@ class EstatisticaControl {
     }, { home: 0, away: 0 });
   }
 
+  obterResultadoPartida(statistics, draftSets) {
+    const resultadoPartida = statistics?.resultadoPartida;
+    const hasResultadoPartida = resultadoPartida
+      && (Number(resultadoPartida.home) > 0 || Number(resultadoPartida.away) > 0);
+
+    if (hasResultadoPartida) {
+      return {
+        home: normalizeScoreValue(resultadoPartida.home),
+        away: normalizeScoreValue(resultadoPartida.away),
+      };
+    }
+
+    return this.calcularResultadoSets(draftSets);
+  }
+
   carregarResumo(partidaId) {
     try {
       const statistics = buscarEstatisticasPartida(partidaId);
@@ -105,9 +120,9 @@ class EstatisticaControl {
     };
   }
 
-  confirmar(onConfirm, draftSets) {
+  confirmar(onConfirm, statistics, draftSets) {
     if (typeof onConfirm === "function") {
-      onConfirm(this.calcularResultadoSets(draftSets));
+      onConfirm(this.obterResultadoPartida(statistics, draftSets));
     }
   }
 }

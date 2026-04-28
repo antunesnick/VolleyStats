@@ -15,12 +15,26 @@ export const buildEmptyStatistics = () => ({
     pontos: 0,
     acoes: 0,
   },
+  resultadoPartida: {
+    home: 0,
+    away: 0,
+  },
   resultadoSets: {
     home: 0,
     away: 0,
   },
   jogadores: [],
   sets: [],
+});
+
+const buildResultFromPartida = (partidaScore = {}) => ({
+  home: normalizeScoreValue(partidaScore.home),
+  away: normalizeScoreValue(partidaScore.away),
+});
+
+const buildEmptyStatisticsWithPartida = (partidaScore) => ({
+  ...buildEmptyStatistics(),
+  resultadoPartida: buildResultFromPartida(partidaScore),
 });
 
 const ensureSetScoreColumns = () => {
@@ -57,9 +71,11 @@ const createPlayerStats = (row) => ({
   }, {}),
 });
 
-export const buildStatisticsFromRows = (rows = []) => {
+export const buildStatisticsFromRows = (rows = [], partidaScore = {}) => {
+  const resultadoPartida = buildResultFromPartida(partidaScore);
+
   if (!rows.length) {
-    return buildEmptyStatistics();
+    return buildEmptyStatisticsWithPartida(resultadoPartida);
   }
 
   const jogadoresMap = new Map();
@@ -166,6 +182,7 @@ export const buildStatisticsFromRows = (rows = []) => {
       pontos: sets.reduce((sum, setStats) => sum + setStats.pontos, 0),
       acoes: totalAcoes,
     },
+    resultadoPartida,
     resultadoSets,
     jogadores,
     sets,
@@ -178,6 +195,17 @@ export const buscarEstatisticasPartida = (partidaId) => {
   }
 
   ensureSetScoreColumns();
+
+  const partidaRow = db.prepare(`
+    SELECT pontosTime1, pontosTime2
+    FROM Partidas
+    WHERE id = ?
+  `).get(Number(partidaId));
+
+  const partidaScore = {
+    home: partidaRow?.pontosTime1,
+    away: partidaRow?.pontosTime2,
+  };
 
   const sql = db.prepare(`
     SELECT
@@ -205,7 +233,7 @@ export const buscarEstatisticasPartida = (partidaId) => {
     ORDER BY S.NumSet ASC, (P.pontoTime1 + P.pontoTime2) ASC, P.pontoTime1 ASC, P.pontoTime2 ASC, A.id ASC
   `);
 
-  return buildStatisticsFromRows(sql.all(Number(partidaId)));
+  return buildStatisticsFromRows(sql.all(Number(partidaId)), partidaScore);
 };
 
 export const salvarPontuacaoSets = (partidaId, sets = []) => {

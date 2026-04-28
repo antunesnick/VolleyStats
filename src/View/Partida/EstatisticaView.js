@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import EstatisticaControl from '../../Control/EstatisticaControl';
 
 const TAB_ITEMS = [
@@ -36,12 +36,8 @@ const EstatisticaView = ({
   const [draftSets, setDraftSets] = useState(initialState.draftSets);
   const [statistics, setStatistics] = useState(initialState.statistics);
   const [statisticsError, setStatisticsError] = useState(initialState.statisticsError);
-  const [setsSavedMessage, setSetsSavedMessage] = useState('');
 
-  const resultadoSets = useMemo(
-    () => EstatisticaControl.calcularResultadoSets(draftSets),
-    [draftSets],
-  );
+  const resultadoPartida = EstatisticaControl.obterResultadoPartida(statistics, draftSets);
 
   useEffect(() => {
     if (open) {
@@ -52,13 +48,11 @@ const EstatisticaView = ({
       setDraftSets(resumoState.draftSets);
       setStatistics(resumoState.statistics);
       setStatisticsError(resumoState.statisticsError);
-      setSetsSavedMessage('');
     }
   }, [open, score, partidaId]);
 
   const handleDraftSetChange = (numSet, side, value) => {
     setDraftSets((current) => EstatisticaControl.alterarPlacarSet(current, numSet, side, value));
-    setSetsSavedMessage('');
   };
 
   const handleSaveSets = () => {
@@ -67,18 +61,17 @@ const EstatisticaView = ({
       setStatistics(nextState.statistics);
       setDraftSets(nextState.draftSets);
       setStatisticsError(nextState.statisticsError);
-      setSetsSavedMessage('Pontuacao dos sets salva.');
-      return nextState.draftSets;
+      return nextState;
     } catch (error) {
       console.error('Erro ao salvar sets:', error);
       setStatisticsError('Nao foi possivel salvar a pontuacao dos sets.');
-      return draftSets;
+      return { statistics, draftSets };
     }
   };
 
   const handleConfirm = () => {
-    const savedDraftSets = handleSaveSets();
-    EstatisticaControl.confirmar(onConfirm, savedDraftSets);
+    const savedState = handleSaveSets();
+    EstatisticaControl.confirmar(onConfirm, savedState.statistics, savedState.draftSets);
   };
 
   if (!open) {
@@ -109,12 +102,6 @@ const EstatisticaView = ({
           </div>
         )}
 
-        {setsSavedMessage && (
-          <div className="mb-5 rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-sm font-bold text-green-700">
-            {setsSavedMessage}
-          </div>
-        )}
-
         <div className="flex flex-wrap gap-3 mb-6 border-b border-gray-100 pb-4">
           {TAB_ITEMS.map((item) => (
             <button
@@ -135,7 +122,7 @@ const EstatisticaView = ({
         {activeTab === 'geral' && (
           <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-4">
-              <StatCard label="Resultado" value={`${resultadoSets.home} x ${resultadoSets.away}`} />
+              <StatCard label="Sets da partida" value={`${resultadoPartida.home} x ${resultadoPartida.away}`} />
               <StatCard label="Sets registrados" value={statistics.totals.sets} />
               <StatCard label="Pontos registrados" value={statistics.totals.pontos} />
               <StatCard label="Acoes registradas" value={statistics.totals.acoes} />
@@ -282,15 +269,6 @@ const EstatisticaView = ({
                   );
                 })}
 
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleSaveSets}
-                    className="rounded-full bg-gray-900 px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-gray-800 transition-colors"
-                  >
-                    Salvar sets
-                  </button>
-                </div>
               </>
             )}
           </div>
