@@ -1,8 +1,10 @@
-  import React, { use, useEffect, useMemo, useState } from 'react';
+ import React, { use, useEffect, useMemo, useState, useRef } from 'react';
+  import PontoControl from '../../Control/PontoControl' 
   import PlayerControl from '../../Control/PlayerControl';
   import SubstituicaoControl from '../../Control/SubstituicaoControl';
   import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, RefreshCw, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
   import { useHotkeys } from 'react-hotkeys-hook';
+  import EstatisticaView from './EstatisticaView';
 
   const VolleyballCourt = ({ players, formation, onPlayerClick }) => {
     const formationMap = {
@@ -86,45 +88,79 @@
   };
 
   const ControlePartida = ({ partida, aoVoltar }) => {
-    const [score, setScore] = useState({ home: 0, away: 0 });
+ const [score, setScore] = useState({ home: 0, away: 0 }); // pontos dentro do set
+  const [setsGanhos, setSetsGanhos] = useState({              // sets ganhos na partida
+    home: partida?.pontosTime1 ?? 0,
+    away: partida?.pontosTime2 ?? 0,
+  });
     const [formation, setFormation] = useState('Padrão 6-6');
     const [isFormationOpen, setIsFormationOpen] = useState(false);
-    const [liveStatus, setLiveStatus] = useState('Aguardando');
+    const [liveStatus, setLiveStatus] = useState(
+      String(partida?.status || '').toUpperCase() === 'FINALIZADA' ? 'Finalizada' : 'Aguardando'
+    );
     const [activityText, setActivityText] = useState('');
     const [feed, setFeed] = useState([]);
     const [players, setPlayers] = useState([]);
     const [escalados, setEscalados] = useState({ home: [], away: [] });
-    
+    const [currentSet, setCurrentSet] = useState(1);
+    const [pontosDoSet, setPontosDoSet] = useState([]);
     const [showSubstituicao, setShowSubstituicao] = useState(false);
-    const [selectedFieldPlayer, setSelectedFieldPlayer] = useState(null);
+    const [showFinalizarPartida, setShowFinalizarPartida] = useState(false);
+    const [editandoEncerramento, setEditandoEncerramento] = useState(false);
+    const [placarFinalDraft, setPlacarFinalDraft] = useState({ home: 0, away: 0 });
+  const [selectedFieldPlayer, setSelectedFieldPlayer] = useState(null);
     const [selectedFieldTeam, setSelectedFieldTeam] = useState(null);
     const [selectedBenchPlayer, setSelectedBenchPlayer] = useState(null);
     const [selectedPlayerDetails, setSelectedPlayerDetails] = useState(null);
     const [substituicaoMessage, setSubstituicaoMessage] = useState({ type: '', text: '', visible: false });
+    const [showEstatistica, setShowEstatistica] = useState(false);
 
     const homeLabel = useMemo(() => partida?.time1Nome || partida?.time1 || 'Mandante', [partida]);
     const awayLabel = useMemo(() => partida?.time2Nome || partida?.time2 || 'Visitante', [partida]);
 
-    useHotkeys('shift+up', (e) => {
-      e.preventDefault(setScore({ home: score.home+1, away: score.away }));
-      ;
-    });
-
-    useHotkeys('tab+up', (e) => {  
+      useHotkeys('shift+up', (e) => {
       e.preventDefault();
-      setScore({ home: score.home, away: score.away+1 });
+      setScore(current => {
+        const newScore = { home: current.home + 1, away: current.away };
+        PontoControl.getInstance().atualizarPlacarSet(
+          parseInt(partida.id), currentSetRef.current, newScore.home, newScore.away
+        );
+        return newScore;
+      });
     });
 
-    useHotkeys('shift+down', (e) => {  
+    useHotkeys('alt+up', (e) => {
       e.preventDefault();
-      setScore({ home: Math.max(0, score.home-1), away: score.away });
+      setScore(current => {
+        const newScore = { home: current.home, away: current.away + 1 };
+        PontoControl.getInstance().atualizarPlacarSet(
+          parseInt(partida.id), currentSetRef.current, newScore.home, newScore.away
+        );
+        return newScore;
+      });
     });
 
-    useHotkeys('tab+down', (e) => {
+    useHotkeys('shift+down', (e) => {
       e.preventDefault();
-      setScore({ home: score.home, away: Math.max(0, score.away-1) });
+      setScore(current => {
+        const newScore = { home: Math.max(0, current.home - 1), away: current.away };
+        PontoControl.getInstance().atualizarPlacarSet(
+          parseInt(partida.id), currentSetRef.current, newScore.home, newScore.away
+        );
+        return newScore;
+      });
     });
 
+    useHotkeys('alt+down', (e) => {
+      e.preventDefault();
+      setScore(current => {
+        const newScore = { home: current.home, away: Math.max(0, current.away - 1) };
+        PontoControl.getInstance().atualizarPlacarSet(
+          parseInt(partida.id), currentSetRef.current, newScore.home, newScore.away
+        );
+        return newScore;
+      });
+    });
     const [buffer, setBuffer] = useState({ numero: '', acao: '', qualidade: '' });
 
     useHotkeys('ctrl+1, ctrl+2, ctrl+3, ctrl+4, ctrl+5, ctrl+6, ctrl+7, ctrl+8, ctrl+9, ctrl+0', (event) => {
@@ -155,7 +191,38 @@
       setBuffer((prev) => ({ ...prev, qualidade: tecla }));
       console.log("Scout registrado com sucesso:", codigoScout);
       // -> MANDAR O BUFFER PARA O BANCO AQUI <-
-      
+       try {
+        alert(`Registrando Ponto: Jogador ${buffer.numero}, Ação ${buffer.acao}, Qualidade ${tecla}`);
+    const control = PontoControl.getInstance();
+    const jogador = players.find(p => String(p.numero) === String(buffer.numero));  
+    const tipoAcaoMap = { S: 1, A: 2, B: 3, R: 4, D: 5 }; // IDs conforme sua tabela TipoAcao
+    const tipoAcao = { idTipoAcao: tipoAcaoMap[buffer.acao] };
+
+    if (jogador && partida?.id) {
+      console.log('=== GRAVANDO PONTO ===');
+    console.log('partida.id:', partida.id);
+    console.log('currentSet:', currentSet);
+    console.log('score:', score.home, score.away);
+    console.log('jogador:', jogador);
+    console.log('tipoAcao:', tipoAcao);
+    console.log('qualidade (tecla):', tecla);
+      control.gravarPonto(
+  { ...partida, id: parseInt(partida.id) }, // ← id como inteiro
+  parseInt(currentSet),
+  score.home,
+  score.away,
+  jogador,
+  tipoAcao,
+  tecla
+);
+        carregarDadosDoSet(currentSet); // Atualiza a barra lateral
+      }
+      else {
+   alert('Jogador não encontrado para o número: ' + buffer.numero);
+}
+    } catch (error) {
+      alert('Erro ao registrar ponto: ' + error.message);
+    }
       // Limpa o buffer para o próximo rally
       setBuffer({ numero: '', acao: '', qualidade: '' });
     }
@@ -166,6 +233,29 @@
     });
 
     const estaDigitando = buffer.numero.length > 0;
+
+    const currentSetRef = useRef(currentSet);
+    useEffect(() => { currentSetRef.current = currentSet; }, [currentSet]);
+
+   const carregarDadosDoSet = (numSet) => {
+  try {
+    const control = PontoControl.getInstance();
+    const placar = control.buscarPlacarSet(parseInt(partida.id), parseInt(numSet));
+    setScore({ home: placar.home, away: placar.away });
+    const pontos = control.buscarPontosPorSet(parseInt(partida.id), parseInt(numSet));
+    setPontosDoSet(pontos);
+  } catch (error) {
+    console.error('Erro ao carregar dados do set:', error.message);
+    alert(`Erro ao carregar set ${numSet}: ${error.message}`); // ← temporário para diagnóstico
+  }
+};
+
+    
+
+    // Substitua o useEffect de currentSet por este:
+    useEffect(() => {
+      if (partida?.id) carregarDadosDoSet(currentSet);
+    }, [currentSet, partida?.id]);
 
     const matchInfo = useMemo(() => {
       let matchDate = 'Data não definida';
@@ -209,14 +299,7 @@
       }
     }, [players, escalados.home.length, escalados.away.length]);
 
-  useEffect(() => {
-    const loadScore = async () => {
-      if(partida?.pontosTime1 !== null && partida?.pontosTime2 !== null) {
-        setScore({ home: partida.pontosTime1, away: partida.pontosTime2 });
-      }
-    }
-    loadScore();
-  },[]);
+ 
 
     const benchPlayers = useMemo(() => {
       const escaladosIds = new Set(escalados.home.map((player) => player?.id));
@@ -231,8 +314,24 @@
     };
 
     const changeScore = (side, delta) => {
-      setScore((current) => ({ ...current, [side]: Math.max(0, current[side] + delta) }));
-    };
+  setScore(current => {
+    const newScore = { ...current, [side]: Math.max(0, current[side] + delta) };
+    try {
+      PontoControl.getInstance().atualizarPlacarSet(
+        parseInt(partida.id),
+        currentSetRef.current,  // ← usa ref, nunca fica stale
+        newScore.home,
+        newScore.away
+      );
+    } catch (e) {
+      console.error('Erro ao salvar placar:', e);
+    }
+    return newScore;
+  });
+};
+
+  const scoreRef = useRef(score);
+useEffect(() => { scoreRef.current = score; }, [score]);
 
     const handleSubstituir = async () => {
       if (!selectedFieldTeam || !selectedFieldPlayer || !selectedBenchPlayer) {
@@ -316,6 +415,27 @@
           text: 'Erro ao processar substituição.',
           visible: true
         });
+      }
+    };
+
+    const handleIniciarPartida = () => {
+      setLiveStatus('Em andamento');
+    };
+
+    const handleAbrirFinalizacao = () => {
+      setShowEstatistica(true);
+    };
+
+    const handleConfirmarEstatistica = async (finalScore) => {
+      try {
+        const placarFinal = finalScore || score;
+        await window.api.partidas.finalizar(partida.id, placarFinal.home, placarFinal.away);
+        setScore(placarFinal);
+        setLiveStatus('Finalizada');
+        setShowEstatistica(false);
+      } catch (error) {
+        console.error('Erro ao finalizar partida:', error);
+        alert('Não foi possível finalizar a partida.');
       }
     };
 
@@ -407,17 +527,31 @@
                 Substituição
               </button>
 
-              <button
-                onClick={() => setLiveStatus(liveStatus === 'Aguardando' ? 'Em andamento' : 'Aguardando')}
-                className={`border-2 px-5 py-3 rounded-full shadow-sm transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-2 ${
-                  liveStatus === 'Aguardando' 
-                    ? 'bg-[#00FF2F] hover:bg-[#00DD29] border-white text-white' 
-                    : 'bg-red-500 hover:bg-red-600 border-white text-white'
-                }`}
-              >
-                {liveStatus === 'Aguardando' ? <Play size={14} /> : <Square size={14} />}
-                {liveStatus === 'Aguardando' ? 'Iniciar Partida' : 'Pausar Partida'}
-              </button>
+              {liveStatus === 'Aguardando' && (
+                <button
+                  onClick={handleIniciarPartida}
+                  className="border-2 px-5 py-3 rounded-full shadow-sm transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-2 bg-[#00FF2F] hover:bg-[#00DD29] border-white text-white"
+                >
+                  <Play size={14} />
+                  Iniciar Partida
+                </button>
+              )}
+
+              {liveStatus === 'Em andamento' && (
+                <button
+                  onClick={handleAbrirFinalizacao}
+                  className="border-2 px-5 py-3 rounded-full shadow-sm transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-2 bg-red-500 hover:bg-red-600 border-white text-white"
+                >
+                  <Square size={14} />
+                  Finalizar Partida
+                </button>
+              )}
+
+              {liveStatus === 'Finalizada' && (
+                <div className="border-2 px-5 py-3 rounded-full shadow-sm text-[11px] font-black uppercase tracking-widest bg-emerald-600 border-white text-white">
+                  Partida Finalizada
+                </div>
+              )}
 
         
             </div>
@@ -435,37 +569,127 @@
               <p className="text-[11px] uppercase tracking-widest font-bold text-gray-500 mt-1">{matchInfo.date}</p>
             </div>
 
-            {/* ScoreBoard within Side Panel */}
-            <div className="p-6 border-b border-gray-100 grid grid-cols-2 gap-4">
-              <div className="bg-gray-900 rounded-2xl p-4 text-center cursor-pointer hover:bg-gray-800 transition" onClick={() => changeScore('home', 1)}>
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Mandante</span>
-                <span className="text-4xl font-black text-white">{score.home}</span>
-              </div>
-              <div className="bg-orange-500 rounded-2xl p-4 text-center cursor-pointer hover:bg-orange-600 transition" onClick={() => changeScore('away', 1)}>
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-200 block mb-1">Visitante</span>
-                <span className="text-4xl font-black text-white">{score.away}</span>
-              </div>
-            </div>
+            {/* Sets ganhos na partida */}
+<div className="px-6 pt-5 pb-3 border-b border-gray-100 bg-gray-50/50">
+  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 text-center">
+    Sets da Partida
+  </p>
+  <div className="grid grid-cols-2 gap-3">
+    {/* Mandante */}
+    <div className="flex items-center justify-between bg-white border border-gray-100 rounded-2xl px-3 py-2 shadow-sm">
+      <button
+        onClick={() => {
+          const control = PontoControl.getInstance();
+          const upd = control.atualizarSetsGanhos(parseInt(partida.id), -1, 0);
+          setSetsGanhos(upd);
+        }}
+        className="w-7 h-7 rounded-full bg-gray-100 text-gray-600 font-bold text-base hover:bg-gray-200 transition flex items-center justify-center"
+      >−</button>
+      <span className="text-2xl font-black text-gray-900">{setsGanhos.home}</span>
+      <button
+        onClick={() => {
+          const control = PontoControl.getInstance();
+          const upd = control.atualizarSetsGanhos(parseInt(partida.id), 1, 0);
+          setSetsGanhos(upd);
+        }}
+        className="w-7 h-7 rounded-full bg-gray-900 text-white font-bold text-base hover:bg-gray-700 transition flex items-center justify-center"
+      >+</button>
+    </div>
+    {/* Visitante */}
+    <div className="flex items-center justify-between bg-white border border-orange-100 rounded-2xl px-3 py-2 shadow-sm">
+      <button
+        onClick={() => {
+          const control = PontoControl.getInstance();
+          const upd = control.atualizarSetsGanhos(parseInt(partida.id), 0, -1);
+          setSetsGanhos(upd);
+        }}
+        className="w-7 h-7 rounded-full bg-orange-100 text-orange-600 font-bold text-base hover:bg-orange-200 transition flex items-center justify-center"
+      >−</button>
+      <span className="text-2xl font-black text-orange-500">{setsGanhos.away}</span>
+      <button
+        onClick={() => {
+          const control = PontoControl.getInstance();
+          const upd = control.atualizarSetsGanhos(parseInt(partida.id), 0, 1);
+          setSetsGanhos(upd);
+        }}
+        className="w-7 h-7 rounded-full bg-orange-500 text-white font-bold text-base hover:bg-orange-400 transition flex items-center justify-center"
+      >+</button>
+    </div>
+  </div>
+</div>
 
-            {/* Feed */}
-            <div className="flex-1 overflow-auto p-6 bg-gray-50/30">
-              <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500 mb-4">Feed da Partida</h3>
-              {feed.length === 0 ? (
-                <div className="text-center p-6 border-2 border-dashed border-gray-200 rounded-xl text-sm font-medium text-gray-400">
-                  Nenhuma jogada registrada.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {feed.map((item) => (
-                    <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-sm font-medium text-gray-700">
-                      {item.text}
+{/* Placar do set atual (clicável para mudança rápida) */}
+<div className="p-6 border-b border-gray-100 grid grid-cols-2 gap-4">
+  <div className="bg-gray-900 rounded-2xl p-4 text-center cursor-pointer hover:bg-gray-800 transition" onClick={() => changeScore('home', 1)}>
+    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">
+      {homeLabel} — Set {currentSet}
+    </span>
+    <span className="text-4xl font-black text-white">{score.home}</span>
+  </div>
+  <div className="bg-orange-500 rounded-2xl p-4 text-center cursor-pointer hover:bg-orange-600 transition" onClick={() => changeScore('away', 1)}>
+    <span className="text-[10px] font-black uppercase tracking-widest text-orange-200 block mb-1">
+      {awayLabel} — Set {currentSet}
+    </span>
+    <span className="text-4xl font-black text-white">{score.away}</span>
+  </div>
+</div>
+
+            {/* Pontos do Set */}
+<div className="flex-1 overflow-auto p-6 bg-gray-50/30">
+  <div className="flex items-center justify-between mb-4">
+    <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500">
+      Pontos — Set {currentSet}
+    </h3>
+    <div className="flex items-center gap-1">
+      <button onClick={() => setCurrentSet(prev => Math.max(1, prev - 1))}>‹</button>
+    <button onClick={() => setCurrentSet(prev => prev + 1)}>›</button>
+    </div>
+  </div>
+
+            {pontosDoSet.length === 0 ? (
+              <div className="text-center p-6 border-2 border-dashed border-gray-200 rounded-xl text-sm font-medium text-gray-400">
+                Nenhum ponto registrado neste set.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pontosDoSet.map((ponto, index) => (
+                  <div
+                    key={`${ponto.pontoTime1}-${ponto.pontoTime2}-${index}`}
+                    className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-2"
+                  >
+                    {/* Cabeçalho do Ponto (Placar) */}
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                        Rally {index + 1}
+                      </span>
+                      <span className="text-sm font-black text-gray-900 font-mono">
+                        {ponto.pontoTime1} × {ponto.pontoTime2}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Command Bar Form */}
+                    
+                    {/* Lista de Ações ocorridas neste ponto */}
+                    {ponto.acoes && ponto.acoes.length > 0 && (
+                      <div className="mt-1 pt-2 border-t border-gray-50 flex flex-col gap-1.5">
+                        {ponto.acoes.map((acao, idx) => (
+                          <div key={idx} className="flex justify-between items-center text-xs text-gray-600 bg-gray-50/50 p-1.5 rounded-lg">
+                            <span className="font-medium truncate pr-2">
+                              #{acao.jogadorNumero || '00'} - {acao.jogadorNome || 'Jogador'}
+                            </span>
+                            <div className="flex gap-2 items-center flex-shrink-0">
+                              <span className="font-bold text-gray-800">{acao.tipoAcaoNome}</span>
+                              <span className="font-bold bg-white border border-gray-200 px-2 py-0.5 rounded text-[10px] shadow-sm">
+                                {acao.qualidade}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>            )}
+          </div>
+                      {/* Command Bar Form */}
             <div className="p-6 border-t border-gray-100 bg-white">
               <form onSubmit={handleSendAction} className="relative">
                 <input
@@ -641,6 +865,16 @@
             </div>
           </div>
         )}
+
+        <EstatisticaView
+          open={showEstatistica}
+          onClose={() => setShowEstatistica(false)}
+          homeLabel={homeLabel}
+          awayLabel={awayLabel}
+          matchInfo={matchInfo}
+          score={score}
+          onConfirm={handleConfirmarEstatistica}
+        />
       </div>
     );
   };

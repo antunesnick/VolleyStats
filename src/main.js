@@ -5,6 +5,8 @@ const GinasioControlModule = require('./Control/GinasioControl');
 const GinasioControl = GinasioControlModule.default || GinasioControlModule;
 const PartidaControl = require('./Control/PartidaControl');
 const url = require('url');
+const xlsx = require('xlsx');
+const ExcelImportControl = require('./Control/ExcelImportControl').default;
 
 const { initDatabase } = require('./db/db');
 const TournamentControl = require('./Control/TournamentControl').default;
@@ -49,6 +51,10 @@ ipcMain.handle('partidas:create', async (event, data) => {
 
 ipcMain.handle('partidas:update', async (event, data) => {
     return await PartidaControl.getInstance().updatePartida(data);
+});
+
+ipcMain.handle('partidas:updateVideoLink', async (event, id, link) => {
+  return await PartidaControl.getInstance().updateVideoLink(id, link);
 });
 
 ipcMain.handle('partidas:delete', async (event, id) => {
@@ -161,6 +167,14 @@ app.whenReady().then(() => {
 
   ipcMain.handle('tournaments:delete', async (_event, id) => {
     return TournamentControl.deleteTournament(id);
+  });
+  
+  ipcMain.handle('excel:importar', async () => {
+    return await ExcelImportControl.getInstance().importarExcel();
+  });
+
+  ipcMain.handle('excel:salvar', async (event, dados) => {
+    return await ExcelImportControl.getInstance().salvarDados(dados);
   });
 
   createWindow();

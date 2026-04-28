@@ -50,10 +50,55 @@ const GerenciarPartidas = ({tournamentId}) => {
     ginasio_id: '',
     time1: '',
     time2: '',
+    videoLink: '',
     torneio_id: tournamentId
   };
+
   const [formData, setFormData] = useState(estadoInicialForm);
   const [placar, setPlacar] = useState({ pontosTime1: '', pontosTime2: '' });
+
+  const [videoLinkAtualizando, setVideoLinkAtualizando] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmLabel: 'Confirmar',
+    onConfirm: null
+  });
+
+  const showToast = (type, text) => {
+    showToastMessage(setToasts, type, text);
+  };
+
+  const abrirConfirmacao = ({ title, message, confirmLabel = 'Confirmar', onConfirm }) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      confirmLabel,
+      onConfirm
+    });
+  };
+
+  const fecharConfirmacao = () => {
+    setConfirmDialog({
+      isOpen: false,
+      title: '',
+      message: '',
+      confirmLabel: 'Confirmar',
+      onConfirm: null
+    });
+  };
+
+  const confirmarAcao = async () => {
+    try {
+      if (typeof confirmDialog.onConfirm === 'function') {
+        await confirmDialog.onConfirm();
+      }
+    } finally {
+      fecharConfirmacao();
+    }
+  };
 
   useEffect(() => {
     if(tournamentId)
