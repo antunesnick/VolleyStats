@@ -1,6 +1,7 @@
 import { dialog } from 'electron';
 const xlsx = require('xlsx');
 const fs = require('fs');
+import db from '../db/db';
 
 class ExcelImportControl {
     static #instance;
@@ -128,12 +129,75 @@ class ExcelImportControl {
         }
     }
 
-    async salvarDados(dadosPlanilha) {
+ async salvarDados(dadosPlanilha) {
+        if (!dadosPlanilha || dadosPlanilha.length === 0) {
+            return { success: false, error: 'Nenhum dado válido para salvar.' };
+        }
         try {
-            // Integração futura com o seu PlayerControl para base de dados
-            return { success: true };
+            // Utilizamos uma transaction para garantir que nada fique inconsistente caso dê erro no meio
+            const saveTransaction = db.transaction((dados) => {
+                const findJogador = db.prepare('SELECT id FROM Jogadores WHERE lower(nome) = lower(?)');
+                // Atribui posição_id = 1 como padrão para evitar quebra de Foreign Key
+                const insertJogador = db.prepare('INSERT INTO Jogadores (nome, numCamisa, posicao_id) VALUES (?, ?, 1)');
+                
+                // Prepara a inserção na tabela Acao com os campos Ponto como nulos
+                const insertAcao = db.prepare(`
+                    INSERT INTO Acao (Jogador_id, idTipoAcao, Ponto_pontoTime1, Ponto_pontoTime2, Ponto_Partida_id, Ponto_NumSet) 
+                    VALUES (?, ?, NULL, NULL, NULL, NULL)
+                `);
+
+                let jogadoresAtualizados = 0;
+                let acoesInseridas = 0;
+
+                for (const row of dados) {
+                    const nome = row['Nome'];
+                    const camisa = row['Camisa'] !== '-' ? row['Camisa'] : null;
+                    
+                    if (!nome) continue;
+
+                    let jogador = findJogador.get(nome);
+                    let jogadorId;
+
+                    // Verifica se o jogador já existe, se não, cadastra
+                    if (jogador) {
+                        jogadorId = jogador.id;
+                    } else {
+                        const info = insertJogador.run(nome, camisa);
+                        jogadorId = info.lastInsertRowid;
+                    }
+
+                    // Helper para inserir "X" linhas da mesma ação (para representar a estatística)
+                    const inserirAcoesEmMassa = (quantidade, tipoAcaoId) => {
+                        const qtd = parseInt(quantidade) || 0;
+                        for (let i = 0; i < qtd; i++) {
+                            insertAcao.run(jogadorId, tipoAcaoId);
+                            acoesInseridas++;
+                        }
+                    };
+
+                    // Tipos de ação mapeados do seu script: 
+                    // 1: Saque, 2: Ataque, 3: Bloqueio, 4: Recepção
+                    inserirAcoesEmMassa(row['Saque (Pts)'], 1);
+                    inserirAcoesEmMassa(row['Ataque (Pts)'], 2);
+                    inserirAcoesEmMassa(row['Bloqueio (Pts)'], 3);
+                    inserirAcoesEmMassa(row['Recepção (Pos%)'], 4); // Lança o valor como número de ações positivas
+
+                    jogadoresAtualizados++;
+                }
+
+                return { jogadoresAtualizados, acoesInseridas };
+            });
+
+            // Executa a transação
+            const resultado = saveTransaction(dadosPlanilha);
+
+            return { 
+                success: true, 
+                message: `Importação concluída: ${resultado.jogadoresAtualizados} jogadores processados, resultando em ${resultado.acoesInseridas} ações importadas para o banco.` 
+            };
         } catch (error) {
-            return { success: false, error: 'Erro ao registar dados na base de dados.' };
+            console.error("Erro ao salvar dados do excel no banco:", error);
+            return { success: false, error: 'Erro ao registrar dados no banco de dados. Verifique o console.' };
         }
     }
 }
