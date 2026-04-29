@@ -3,6 +3,8 @@ import logoTime from '../assets/logoTransparent.png';
 import ControlePartida from './ControlePartida';
 import { Alertas } from '../../utils/Alertas';
 
+const ACTIVE_MATCH_STORAGE_KEY = 'volleystats.activeMatch';
+
 const CustomSelect = ({ label, icon, children, ...props }) => (
   <div className="flex-1 min-w-[260px]">
     <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -104,6 +106,39 @@ const GerenciarPartidas = ({tournamentId}) => {
     if(tournamentId)
       carregarTudo();
   }, [tournamentId]);
+
+  useEffect(() => {
+    const restoreActiveMatch = async () => {
+      if (!tournamentId || partidaParaControlar) {
+        return;
+      }
+
+      const rawActiveMatch = sessionStorage.getItem(ACTIVE_MATCH_STORAGE_KEY);
+      if (!rawActiveMatch) {
+        return;
+      }
+
+      try {
+        const activeMatch = JSON.parse(rawActiveMatch);
+        if (Number(activeMatch?.tournamentId) !== Number(tournamentId) || !activeMatch?.partidaId) {
+          return;
+        }
+
+        const partidaBanco = await window.api.partidas.findById(activeMatch.partidaId);
+        if (partidaBanco) {
+          setPartidaParaControlar(partidaBanco);
+          setIsControleCarregado(true);
+        } else {
+          sessionStorage.removeItem(ACTIVE_MATCH_STORAGE_KEY);
+        }
+      } catch (error) {
+        console.error('Erro ao restaurar controle da partida:', error);
+        sessionStorage.removeItem(ACTIVE_MATCH_STORAGE_KEY);
+      }
+    };
+
+    restoreActiveMatch();
+  }, [tournamentId, partidaParaControlar]);
 
 const formatarDataBrasil = (dataString) => {
   if (!dataString) return '';
@@ -248,6 +283,10 @@ const formatarDataBrasil = (dataString) => {
         Alertas.erro('Partida não encontrada no banco de dados.');
         return;
       }
+      sessionStorage.setItem(ACTIVE_MATCH_STORAGE_KEY, JSON.stringify({
+        tournamentId,
+        partidaId: partidaBanco.id,
+      }));
       setPartidaParaControlar(partidaBanco);
       setIsControleCarregado(true);
     } catch (error) {
@@ -271,7 +310,10 @@ const formatarDataBrasil = (dataString) => {
     return (
       <ControlePartida
         partida={partidaParaControlar}
-        aoVoltar={voltarDaTelaControle}
+        aoVoltar={() => {
+          sessionStorage.removeItem(ACTIVE_MATCH_STORAGE_KEY);
+          setPartidaParaControlar(null);
+        }}
       />
     );
   }
