@@ -298,6 +298,7 @@ const formatarDataBrasil = (dataString) => {
   const fecharModal = () => setIsModalOpen(false);
 
   const voltarDaTelaControle = async () => {
+    sessionStorage.removeItem(ACTIVE_MATCH_STORAGE_KEY);
     await carregarTudo();
     setPartidaParaControlar(null);
   };
@@ -310,10 +311,7 @@ const formatarDataBrasil = (dataString) => {
     return (
       <ControlePartida
         partida={partidaParaControlar}
-        aoVoltar={() => {
-          sessionStorage.removeItem(ACTIVE_MATCH_STORAGE_KEY);
-          setPartidaParaControlar(null);
-        }}
+        aoVoltar={voltarDaTelaControle}
       />
     );
   }

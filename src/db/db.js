@@ -90,6 +90,29 @@ function ensureGinasioColumns() {
     }
 }
 
+function ensureTorneioTimesSchema() {
+    const table = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'TorneioTimes'").get();
+
+    if (!table?.sql || !table.sql.includes('REFERENCES Torneios (idTorneio)')) {
+        return;
+    }
+
+    db.exec(`
+        PRAGMA foreign_keys = OFF;
+        DROP TABLE TorneioTimes;
+        CREATE TABLE TorneioTimes (
+            Torneio_idTorneio INTEGER NOT NULL,
+            Times_id INTEGER NOT NULL,
+            pontuacao INTEGER,
+            fase INTEGER,
+            PRIMARY KEY (Torneio_idTorneio, Times_id),
+            FOREIGN KEY (Torneio_idTorneio) REFERENCES Torneios (id) ON DELETE CASCADE,
+            FOREIGN KEY (Times_id) REFERENCES Times (id)
+        );
+        PRAGMA foreign_keys = ON;
+    `);
+}
+
 function initDatabase() {
     try {
         db.exec(`
@@ -262,7 +285,7 @@ function initDatabase() {
                 pontuacao INTEGER,
                 fase INTEGER,
                 PRIMARY KEY (Torneio_idTorneio, Times_id),
-                FOREIGN KEY (Torneio_idTorneio) REFERENCES Torneios (idTorneio),
+                FOREIGN KEY (Torneio_idTorneio) REFERENCES Torneios (id) ON DELETE CASCADE,
                 FOREIGN KEY (Times_id) REFERENCES Times (id)
             );
 
@@ -296,6 +319,7 @@ function initDatabase() {
         ensureTournamentColumns();
         ensureGinasioColumns();
         ensurePartidaColumns();
+        ensureTorneioTimesSchema();
         seedTipoAcao();
         console.log('Banco de dados inicializado com sucesso (com dados mockados para testes).');
     } catch (e) {

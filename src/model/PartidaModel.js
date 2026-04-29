@@ -173,6 +173,17 @@ class PartidaModel {
         return { success: true, id, pontosTime1, pontosTime2 };
     }
 
+    updateStatus(id, status, db) {
+        const stmt = db.prepare(`
+            UPDATE Partidas
+            SET status = ?
+            WHERE id = ?
+        `);
+
+        const result = stmt.run(status, id);
+        return { success: result.changes > 0, id, status };
+    }
+
     isValidVideoLink(link) {
         const normalizedLink = typeof link === 'string' ? link.trim() : '';
 

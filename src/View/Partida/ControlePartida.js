@@ -97,7 +97,11 @@
     const [formation, setFormation] = useState('Padrão 6-6');
     const [isFormationOpen, setIsFormationOpen] = useState(false);
     const [liveStatus, setLiveStatus] = useState(
-      String(partida?.status || '').toUpperCase() === 'FINALIZADA' ? 'Finalizada' : 'Aguardando'
+      String(partida?.status || '').toUpperCase() === 'FINALIZADA'
+        ? 'Finalizada'
+        : String(partida?.status || '').toUpperCase() === 'EM_ANDAMENTO'
+          ? 'Em andamento'
+          : 'Aguardando'
     );
     const [activityText, setActivityText] = useState('');
     const [feed, setFeed] = useState([]);
@@ -201,9 +205,9 @@
       console.log("Scout registrado com sucesso:", codigoScout);
       // -> MANDAR O BUFFER PARA O BANCO AQUI <-
        try {
-        alert(`Registrando Ponto: Jogador ${buffer.numero}, Ação ${buffer.acao}, Qualidade ${tecla}`);
     const control = PontoControl.getInstance();
-    const jogador = players.find(p => String(p.numero) === String(buffer.numero));  
+    const normalizarCamisa = (value) => String(value || '').replace(/^0+/, '') || '0';
+    const jogador = players.find(p => normalizarCamisa(p.numero) === normalizarCamisa(buffer.numero));  
     const tipoAcaoMap = { S: 1, A: 2, B: 3, R: 4, D: 5 }; // IDs conforme sua tabela TipoAcao
     const tipoAcao = { idTipoAcao: tipoAcaoMap[buffer.acao] };
 
@@ -594,8 +598,14 @@ useEffect(() => { scoreRef.current = score; }, [score]);
       }
     };
 
-    const handleIniciarPartida = () => {
-      setLiveStatus('Em andamento');
+    const handleIniciarPartida = async () => {
+      try {
+        await window.api.partidas.iniciar(partida.id);
+        setLiveStatus('Em andamento');
+      } catch (error) {
+        console.error('Erro ao iniciar partida:', error);
+        alert('NÃ£o foi possÃ­vel iniciar a partida.');
+      }
     };
 
     const handleAbrirFinalizacao = () => {
@@ -873,21 +883,7 @@ useEffect(() => { scoreRef.current = score; }, [score]);
                 ))}
               </div>            )}
           </div>
-                      {/* Command Bar Form */}
-            <div className="p-6 border-t border-gray-100 bg-white">
-              <form onSubmit={handleSendAction} className="relative">
-                <input
-                  value={activityText}
-                  onChange={(e) => setActivityText(e.target.value)}
-                  placeholder="Ex: Ponto de bloqueio..."
-                  className="w-full bg-gray-50 border border-gray-200 text-sm font-medium text-gray-900 rounded-full px-5 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:bg-white transition-all"
-                />
-                <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 bg-gray-900 text-white rounded-full p-2 hover:bg-gray-800 transition-colors">
-                  <Play size={14} className="ml-0.5" />
-                </button>
-              </form>
-            </div>
-          </div>
+        </div>
         </div>
 
         {showEscalacao && (
