@@ -227,10 +227,10 @@ function initDatabase() {
 
            CREATE TABLE IF NOT EXISTS Acao (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Ponto_pontoTime1 INTEGER NOT NULL,
-            Ponto_pontoTime2 INTEGER NOT NULL,
-            Ponto_Partida_id INTEGER NOT NULL,
-            Ponto_NumSet INTEGER NOT NULL,
+            Ponto_pontoTime1 INTEGER , -- REMOVIDO NOT NULL PARA DADOS IMPORTADOS 28/04
+            Ponto_pontoTime2 INTEGER , -- REMOVIDO NOT NULL PARA DADOS IMPORTADOS 28/04
+            Ponto_Partida_id INTEGER , -- REMOVIDO NOT NULL PARA DADOS IMPORTADOS 28/04
+            Ponto_NumSet INTEGER ,     -- REMOVIDO NOT NULL PARA DADOS IMPORTADOS 28/04
             Jogador_id INTEGER NOT NULL,
             Qualidade TEXT CHECK(Qualidade IN ('A', 'B', 'C')),
             idTipoAcao INTEGER NOT NULL,
@@ -244,10 +244,11 @@ function initDatabase() {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 Ponto_pontoTime1 INTEGER NOT NULL,
                 Ponto_pontoTime2 INTEGER NOT NULL,
+                Ponto_NumSet INTEGER NOT NULL,
                 Ponto_Partida_id INTEGER NOT NULL,
                 JogadorEntra INTEGER NOT NULL,
                 JogadorSai INTEGER NOT NULL,
-                FOREIGN KEY (Ponto_pontoTime1, Ponto_pontoTime2) REFERENCES Ponto (pontoTime1, pontoTime2),
+                FOREIGN KEY (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id) REFERENCES Ponto (pontoTime1, pontoTime2, NumSet, Set_Partida_id),
                 FOREIGN KEY (JogadorEntra) REFERENCES Jogadores (id),
                 FOREIGN KEY (JogadorSai) REFERENCES Jogadores (id)
             );

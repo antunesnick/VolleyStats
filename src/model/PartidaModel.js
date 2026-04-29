@@ -149,9 +149,17 @@ class PartidaModel {
     }
     
     delete(id, db) {
-        const stmt = db.prepare('DELETE FROM Partidas WHERE id = ?');
-        stmt.run(id);
-        return { success: true };
+        const partidaId = Number(id);
+
+        db.prepare('DELETE FROM Substituicao WHERE Ponto_Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM Acao WHERE Ponto_Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM Ponto WHERE Set_Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM "Set" WHERE Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM TimesPartida WHERE Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM LinksPartida WHERE Partida_id = ?').run(partidaId);
+
+        const info = db.prepare('DELETE FROM Partidas WHERE id = ?').run(partidaId);
+        return { success: info.changes > 0, changes: info.changes };
     }
 
     finalize(id, pontosTime1, pontosTime2, db) {
