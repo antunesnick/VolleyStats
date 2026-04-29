@@ -193,6 +193,7 @@ class ExcelImportControl {
                 let acoesInseridas = 0;
 
                 for (const row of dados) {
+
                     const nome = row['Nome'];
                     const camisa = row['Camisa'] !== '-' ? row['Camisa'] : null;
                     const posicaoPlanilha = row['Posicao'];
