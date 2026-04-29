@@ -217,6 +217,21 @@ class PartidaControl {
             throw error;
         }
     }
+
+    async iniciarPartida(id) {
+        const partida = new PartidaModel();
+
+        const startTransaction = db.transaction((partidaId) => {
+            return partida.updateStatus(partidaId, 'EM_ANDAMENTO', db);
+        });
+
+        try {
+            return startTransaction(id);
+        } catch (error) {
+            console.error("Falha ao iniciar partida. Transacao revertida.", error);
+            throw error;
+        }
+    }
     
     async updateVideoLink(id, link) {
         const validationResult = await this.validateVideoLink(link);

@@ -3,6 +3,8 @@ import logoTime from '../assets/logoTransparent.png';
 import ControlePartida from './ControlePartida';
 import { Alertas } from '../../utils/Alertas';
 
+const ACTIVE_MATCH_STORAGE_KEY = 'volleystats.activeMatch';
+
 const CustomSelect = ({ label, icon, children, ...props }) => (
   <div className="flex-1 min-w-[260px]">
     <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -105,6 +107,39 @@ const GerenciarPartidas = ({tournamentId}) => {
       carregarTudo();
   }, [tournamentId]);
 
+  useEffect(() => {
+    const restoreActiveMatch = async () => {
+      if (!tournamentId || partidaParaControlar) {
+        return;
+      }
+
+      const rawActiveMatch = sessionStorage.getItem(ACTIVE_MATCH_STORAGE_KEY);
+      if (!rawActiveMatch) {
+        return;
+      }
+
+      try {
+        const activeMatch = JSON.parse(rawActiveMatch);
+        if (Number(activeMatch?.tournamentId) !== Number(tournamentId) || !activeMatch?.partidaId) {
+          return;
+        }
+
+        const partidaBanco = await window.api.partidas.findById(activeMatch.partidaId);
+        if (partidaBanco) {
+          setPartidaParaControlar(partidaBanco);
+          setIsControleCarregado(true);
+        } else {
+          sessionStorage.removeItem(ACTIVE_MATCH_STORAGE_KEY);
+        }
+      } catch (error) {
+        console.error('Erro ao restaurar controle da partida:', error);
+        sessionStorage.removeItem(ACTIVE_MATCH_STORAGE_KEY);
+      }
+    };
+
+    restoreActiveMatch();
+  }, [tournamentId, partidaParaControlar]);
+
 const formatarDataBrasil = (dataString) => {
   if (!dataString) return '';
   
@@ -190,18 +225,26 @@ const formatarDataBrasil = (dataString) => {
       await carregarTudo();
       fecharModal();
     } catch (error) {
-      alert("Falha crítica ao salvar partida na base de dados.");
+      Alertas.erro("Falha crítica ao salvar partida na base de dados.");
     }
   };
 
   const handleDeletar = async (id) => {
-    if (window.confirm("Esta ação é irreversível. Deseja realmente apagar esta partida?")) {
-      try {
-        await window.api.partidas.delete(id);
-        await carregarTudo();
-      } catch (error) {
-        alert("Erro ao comunicar com o banco de dados.");
-      }
+    const confirmado = await Alertas.confirmacao(
+      "Esta ação é irreversível. Deseja realmente apagar esta partida?"
+    );
+
+    if (!confirmado) {
+      return;
+    }
+
+    try {
+      await window.api.partidas.delete(id);
+      await carregarTudo();
+      Alertas.sucesso("Partida apagada com sucesso.");
+    } catch (error) {
+      console.error("Erro ao apagar partida:", error);
+      Alertas.erro(error?.message || "Erro ao comunicar com o banco de dados.");
     }
   };
 
@@ -212,7 +255,7 @@ const formatarDataBrasil = (dataString) => {
       await carregarTudo();
       setIsFinalizarModalOpen(false);
     } catch (error) {
-      alert("Erro ao registrar resultado.");
+      Alertas.erro("Erro ao registrar resultado.");
     }
   };
 
@@ -237,18 +280,28 @@ const formatarDataBrasil = (dataString) => {
     try {
       const partidaBanco = await window.api.partidas.findById(id);
       if (!partidaBanco) {
-        alert('Partida não encontrada no banco de dados.');
+        Alertas.erro('Partida não encontrada no banco de dados.');
         return;
       }
+      sessionStorage.setItem(ACTIVE_MATCH_STORAGE_KEY, JSON.stringify({
+        tournamentId,
+        partidaId: partidaBanco.id,
+      }));
       setPartidaParaControlar(partidaBanco);
       setIsControleCarregado(true);
     } catch (error) {
       console.error('Erro ao carregar partida para controle:', error);
-      alert('Não foi possível carregar o controle da partida. Veja o console.');
+      Alertas.erro('Não foi possível carregar o controle da partida. Veja o console.');
     }
   };
 
   const fecharModal = () => setIsModalOpen(false);
+
+  const voltarDaTelaControle = async () => {
+    sessionStorage.removeItem(ACTIVE_MATCH_STORAGE_KEY);
+    await carregarTudo();
+    setPartidaParaControlar(null);
+  };
 
   // ==========================================
   // FIX: RENDERIZAÇÃO CONDICIONAL DA PÁGINA
@@ -258,7 +311,7 @@ const formatarDataBrasil = (dataString) => {
     return (
       <ControlePartida
         partida={partidaParaControlar}
-        aoVoltar={() => setPartidaParaControlar(null)}
+        aoVoltar={voltarDaTelaControle}
       />
     );
   }
@@ -381,7 +434,7 @@ const formatarDataBrasil = (dataString) => {
 
               <div className="flex items-center text-gray-700 text-sm mb-7 gap-2.5 mt-auto border-t pt-5 border-gray-100">
                 <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                <span className="truncate font-medium">{getNomeGinasio(partida.ginasio_id)}</span>
+                <span className="truncate font-medium">{getNomeGinasio(partida.ginasioNome || `Ginásio ${partida.ginasio_id}`)}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mt-2 border-t pt-6 border-gray-100">

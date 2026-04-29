@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import EstatisticaControl from '../../Control/EstatisticaControl';
 
 const TAB_ITEMS = [
@@ -34,31 +34,32 @@ const EstatisticaView = ({
   const initialState = EstatisticaControl.criarEstadoInicial(score);
   const [activeTab, setActiveTab] = useState(initialState.activeTab);
   const [draftSets, setDraftSets] = useState(initialState.draftSets);
+  const [editOptions, setEditOptions] = useState(initialState.editOptions);
+  const [editingAction, setEditingAction] = useState(null);
+  const [draftAction, setDraftAction] = useState(null);
   const [statistics, setStatistics] = useState(initialState.statistics);
   const [statisticsError, setStatisticsError] = useState(initialState.statisticsError);
-  const [setsSavedMessage, setSetsSavedMessage] = useState('');
 
-  const resultadoSets = useMemo(
-    () => EstatisticaControl.calcularResultadoSets(draftSets),
-    [draftSets],
-  );
+  const resultadoPartida = EstatisticaControl.obterResultadoPartida(statistics, draftSets);
 
   useEffect(() => {
     if (open) {
       const resetState = EstatisticaControl.resetarAoAbrir(score);
       const resumoState = EstatisticaControl.carregarResumo(partidaId);
+      const actionOptions = EstatisticaControl.carregarOpcoesEdicaoAcao(partidaId);
 
       setActiveTab(resetState.activeTab);
       setDraftSets(resumoState.draftSets);
+      setEditOptions(actionOptions);
+      setEditingAction(null);
+      setDraftAction(null);
       setStatistics(resumoState.statistics);
       setStatisticsError(resumoState.statisticsError);
-      setSetsSavedMessage('');
     }
   }, [open, score, partidaId]);
 
   const handleDraftSetChange = (numSet, side, value) => {
     setDraftSets((current) => EstatisticaControl.alterarPlacarSet(current, numSet, side, value));
-    setSetsSavedMessage('');
   };
 
   const handleSaveSets = () => {
@@ -67,18 +68,60 @@ const EstatisticaView = ({
       setStatistics(nextState.statistics);
       setDraftSets(nextState.draftSets);
       setStatisticsError(nextState.statisticsError);
-      setSetsSavedMessage('Pontuacao dos sets salva.');
-      return nextState.draftSets;
+      return nextState;
     } catch (error) {
       console.error('Erro ao salvar sets:', error);
       setStatisticsError('Nao foi possivel salvar a pontuacao dos sets.');
-      return draftSets;
+      return { statistics, draftSets };
     }
   };
 
   const handleConfirm = () => {
-    const savedDraftSets = handleSaveSets();
-    EstatisticaControl.confirmar(onConfirm, savedDraftSets);
+    const savedState = handleSaveSets();
+    EstatisticaControl.confirmar(onConfirm, savedState.statistics, savedState.draftSets);
+  };
+
+  const handleOpenActionEdit = (acao) => {
+    setEditingAction(acao);
+    setDraftAction(EstatisticaControl.criarRascunhoAcao(acao));
+    setStatisticsError('');
+  };
+
+  const handleDraftActionChange = (field, value) => {
+    setDraftAction((current) => EstatisticaControl.alterarRascunhoAcao(current, field, value));
+  };
+
+  const handleSaveActionEdit = () => {
+    const nextState = EstatisticaControl.salvarEdicaoAcao(partidaId, draftAction);
+
+    if (nextState.statisticsError) {
+      setStatisticsError(nextState.statisticsError);
+      return;
+    }
+
+    setStatistics(nextState.statistics);
+    setDraftSets(nextState.draftSets);
+    setEditingAction(null);
+    setDraftAction(null);
+    setStatisticsError('');
+  };
+
+  const handleDeleteSet = (numSet) => {
+    const confirmed = window.confirm(`Deseja excluir o Set ${numSet}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    const nextState = EstatisticaControl.excluirSet(partidaId, numSet);
+
+    if (nextState.statisticsError) {
+      setStatisticsError(nextState.statisticsError);
+      return;
+    }
+
+    setStatistics(nextState.statistics);
+    setDraftSets(nextState.draftSets);
+    setStatisticsError('');
   };
 
   if (!open) {
@@ -109,12 +152,6 @@ const EstatisticaView = ({
           </div>
         )}
 
-        {setsSavedMessage && (
-          <div className="mb-5 rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-sm font-bold text-green-700">
-            {setsSavedMessage}
-          </div>
-        )}
-
         <div className="flex flex-wrap gap-3 mb-6 border-b border-gray-100 pb-4">
           {TAB_ITEMS.map((item) => (
             <button
@@ -135,7 +172,7 @@ const EstatisticaView = ({
         {activeTab === 'geral' && (
           <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-4">
-              <StatCard label="Resultado" value={`${resultadoSets.home} x ${resultadoSets.away}`} />
+              <StatCard label="Sets da partida" value={`${resultadoPartida.home} x ${resultadoPartida.away}`} />
               <StatCard label="Sets registrados" value={statistics.totals.sets} />
               <StatCard label="Pontos registrados" value={statistics.totals.pontos} />
               <StatCard label="Acoes registradas" value={statistics.totals.acoes} />
@@ -219,6 +256,31 @@ const EstatisticaView = ({
                       </span>
                     ))}
                   </div>
+
+                  <div className="mt-5 rounded-2xl bg-white border border-gray-100 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">Acoes registradas</p>
+                    <div className="space-y-2">
+                      {(jogador.acoesDetalhadas || []).map((acao) => (
+                        <div key={acao.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-gray-50 px-4 py-3">
+                          <div>
+                            <p className="text-sm font-black text-gray-900">
+                              Set {acao.numSet} - {acao.pontoTime1} x {acao.pontoTime2}
+                            </p>
+                            <p className="text-xs font-bold text-gray-500">
+                              {acao.tipoAcaoNome} - Qualidade {acao.qualidade}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenActionEdit(acao)}
+                            className="rounded-full bg-gray-900 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white hover:bg-gray-800 transition-colors"
+                          >
+                            Editar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ))
             )}
@@ -249,9 +311,16 @@ const EstatisticaView = ({
                           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Set {setScore.numSet}</p>
                           <h3 className="text-xl font-black text-gray-900">Vencedor: {winner}</h3>
                         </div>
-                        <div className="flex gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
                           <StatCard label="Pontos" value={setStats?.pontos || 0} />
                           <StatCard label="Acoes" value={setStats?.acoes || 0} />
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSet(setScore.numSet)}
+                            className="rounded-full bg-red-500 px-5 py-3 text-[11px] font-black uppercase tracking-widest text-white hover:bg-red-600 transition-colors"
+                          >
+                            Excluir set
+                          </button>
                         </div>
                       </div>
 
@@ -282,15 +351,6 @@ const EstatisticaView = ({
                   );
                 })}
 
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleSaveSets}
-                    className="rounded-full bg-gray-900 px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-gray-800 transition-colors"
-                  >
-                    Salvar sets
-                  </button>
-                </div>
               </>
             )}
           </div>
@@ -312,6 +372,107 @@ const EstatisticaView = ({
             Confirmar resultado
           </button>
         </div>
+
+        {editingAction && draftAction && (
+          <div className="fixed inset-0 z-[10001] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-xl rounded-[2rem] bg-white p-7 shadow-2xl border border-gray-100">
+              <div className="flex items-center justify-between gap-4 mb-6">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Editar scout</p>
+                  <h3 className="text-2xl font-black text-gray-900">Acao #{editingAction.id}</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingAction(null);
+                    setDraftAction(null);
+                  }}
+                  className="rounded-full bg-gray-100 px-4 py-3 text-sm font-black text-gray-600 hover:bg-gray-200 transition-colors"
+                >
+                  X
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
+                    Jogador
+                  </label>
+                  <select
+                    value={draftAction.jogadorId}
+                    onChange={(event) => handleDraftActionChange('jogadorId', event.target.value)}
+                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold text-gray-900 outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100"
+                  >
+                    {editOptions.jogadores.map((jogador) => (
+                      <option key={jogador.id} value={jogador.id}>
+                        #{jogador.numero || '--'} - {jogador.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
+                    Tipo de acao
+                  </label>
+                  <select
+                    value={draftAction.tipoAcaoId}
+                    onChange={(event) => handleDraftActionChange('tipoAcaoId', event.target.value)}
+                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold text-gray-900 outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100"
+                  >
+                    {editOptions.tiposAcao.map((tipo) => (
+                      <option key={tipo.idTipoAcao} value={tipo.idTipoAcao}>
+                        {tipo.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
+                    Qualidade
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {editOptions.qualidades.map((qualidade) => (
+                      <button
+                        key={qualidade}
+                        type="button"
+                        onClick={() => handleDraftActionChange('qualidade', qualidade)}
+                        className={`rounded-2xl px-4 py-3 text-sm font-black transition-colors ${
+                          draftAction.qualidade === qualidade
+                            ? 'bg-gray-900 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {qualidade}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-7 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingAction(null);
+                    setDraftAction(null);
+                  }}
+                  className="rounded-full bg-gray-100 px-6 py-3 text-sm font-black uppercase tracking-widest text-gray-700 hover:bg-gray-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveActionEdit}
+                  className="rounded-full bg-green-500 px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-green-600 transition-colors"
+                >
+                  Salvar alteracao
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

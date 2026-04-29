@@ -25,6 +25,7 @@ window.api = {
         findByDateAndTeam: (filters, tournamentId) => ipcRenderer.invoke('partidas:findByDateAndTeam', filters, tournamentId),
         findById: (id) => ipcRenderer.invoke('partidas:findById', id),
         findByTournament: (tournamentId) => ipcRenderer.invoke('partidas:findByTournament', tournamentId),
+        iniciar: (id) => ipcRenderer.invoke('partidas:iniciar', id),
         finalizar: (id, pts1, pts2) => ipcRenderer.invoke('partidas:finalizar', id, pts1, pts2)
     }
 };

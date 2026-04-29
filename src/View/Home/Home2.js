@@ -23,6 +23,9 @@ const DEFAULT_FORM = {
   endDate: '',
 };
 
+const ACTIVE_PAGE_STORAGE_KEY = 'volleystats.activePage';
+const SELECTED_TOURNAMENT_STORAGE_KEY = 'volleystats.selectedTournamentId';
+
 const showToastMessage = (setToasts, type, text, duration = 3200) => {
   const id = `${Date.now()}-${Math.random()}`;
   setToasts((prev) => [...prev, { id, type, text }]);
@@ -79,8 +82,11 @@ const decorateTournaments = (tournaments) => {
 
 const Home = () => {
   const navigate = useNavigate();
-  const [activePage, setActivePage] = useState('home');
-  const [selectedTournamentId, setSelectedTournamentId] = useState(null);
+  const [activePage, setActivePage] = useState(() => sessionStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) || 'home');
+  const [selectedTournamentId, setSelectedTournamentId] = useState(() => {
+    const storedId = Number(sessionStorage.getItem(SELECTED_TOURNAMENT_STORAGE_KEY));
+    return storedId || null;
+  });
   const [tournaments, setTournaments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -150,6 +156,18 @@ const handleConfirmarImportacao = async () => {
   useEffect(() => {
     loadTournaments();
   }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, activePage);
+  }, [activePage]);
+
+  useEffect(() => {
+    if (selectedTournamentId) {
+      sessionStorage.setItem(SELECTED_TOURNAMENT_STORAGE_KEY, String(selectedTournamentId));
+    } else {
+      sessionStorage.removeItem(SELECTED_TOURNAMENT_STORAGE_KEY);
+    }
+  }, [selectedTournamentId]);
 
   const decoratedTournaments = useMemo(() => {
     return decorateTournaments(tournaments);
@@ -259,15 +277,21 @@ const handleConfirmarImportacao = async () => {
     setActivePage('tournament-detail');
   };
 
+  const backToHome = () => {
+    setActivePage('home');
+    sessionStorage.removeItem('volleystats.activeMatch');
+  };
+
   if (activePage === 'tournament-detail') {
     return (
       <TournamentView
         tournamentId={selectedTournamentId}
-        onBack={() => setActivePage('home')}
+        onBack={backToHome}
         onTournamentChanged={loadTournaments}
         onTournamentDeleted={() => {
           setSelectedTournamentId(null);
           setActivePage('home');
+          sessionStorage.removeItem('volleystats.activeMatch');
           loadTournaments();
         }}
       />
