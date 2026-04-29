@@ -124,6 +124,9 @@ const handleConfirmarImportacao = async () => {
         showToast('success', 'Dados importados com sucesso!');
         setModalExcelOpen(false);
         setDadosExcel([]);
+        setTimeout(() => { // recarregar a pagina para reapparecer os jogadores
+          window.location.reload();
+        }, 1500);
       } else {
         showToast('error', result.error);
       }
