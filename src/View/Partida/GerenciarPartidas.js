@@ -190,18 +190,26 @@ const formatarDataBrasil = (dataString) => {
       await carregarTudo();
       fecharModal();
     } catch (error) {
-      alert("Falha crítica ao salvar partida na base de dados.");
+      Alertas.erro("Falha crítica ao salvar partida na base de dados.");
     }
   };
 
   const handleDeletar = async (id) => {
-    if (window.confirm("Esta ação é irreversível. Deseja realmente apagar esta partida?")) {
-      try {
-        await window.api.partidas.delete(id);
-        await carregarTudo();
-      } catch (error) {
-        alert("Erro ao comunicar com o banco de dados.");
-      }
+    const confirmado = await Alertas.confirmacao(
+      "Esta ação é irreversível. Deseja realmente apagar esta partida?"
+    );
+
+    if (!confirmado) {
+      return;
+    }
+
+    try {
+      await window.api.partidas.delete(id);
+      await carregarTudo();
+      Alertas.sucesso("Partida apagada com sucesso.");
+    } catch (error) {
+      console.error("Erro ao apagar partida:", error);
+      Alertas.erro(error?.message || "Erro ao comunicar com o banco de dados.");
     }
   };
 
@@ -212,7 +220,7 @@ const formatarDataBrasil = (dataString) => {
       await carregarTudo();
       setIsFinalizarModalOpen(false);
     } catch (error) {
-      alert("Erro ao registrar resultado.");
+      Alertas.erro("Erro ao registrar resultado.");
     }
   };
 
@@ -237,18 +245,23 @@ const formatarDataBrasil = (dataString) => {
     try {
       const partidaBanco = await window.api.partidas.findById(id);
       if (!partidaBanco) {
-        alert('Partida não encontrada no banco de dados.');
+        Alertas.erro('Partida não encontrada no banco de dados.');
         return;
       }
       setPartidaParaControlar(partidaBanco);
       setIsControleCarregado(true);
     } catch (error) {
       console.error('Erro ao carregar partida para controle:', error);
-      alert('Não foi possível carregar o controle da partida. Veja o console.');
+      Alertas.erro('Não foi possível carregar o controle da partida. Veja o console.');
     }
   };
 
   const fecharModal = () => setIsModalOpen(false);
+
+  const voltarDaTelaControle = async () => {
+    await carregarTudo();
+    setPartidaParaControlar(null);
+  };
 
   // ==========================================
   // FIX: RENDERIZAÇÃO CONDICIONAL DA PÁGINA
@@ -258,7 +271,7 @@ const formatarDataBrasil = (dataString) => {
     return (
       <ControlePartida
         partida={partidaParaControlar}
-        aoVoltar={() => setPartidaParaControlar(null)}
+        aoVoltar={voltarDaTelaControle}
       />
     );
   }

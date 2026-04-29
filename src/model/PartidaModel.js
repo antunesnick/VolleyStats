@@ -150,8 +150,19 @@ class PartidaModel {
     }
     
     delete(id, db) {
+        db.prepare('DELETE FROM Substituicao WHERE Ponto_Partida_id = ?').run(id);
+        db.prepare('DELETE FROM Acao WHERE Ponto_Partida_id = ?').run(id);
+        db.prepare('DELETE FROM Ponto WHERE Set_Partida_id = ?').run(id);
+        db.prepare('DELETE FROM "Set" WHERE Partida_id = ?').run(id);
+        db.prepare('DELETE FROM TimesPartida WHERE Partida_id = ?').run(id);
+
         const stmt = db.prepare('DELETE FROM Partidas WHERE id = ?');
-        stmt.run(id);
+        const result = stmt.run(id);
+
+        if (result.changes === 0) {
+            throw new Error('Partida nao encontrada para exclusao.');
+        }
+
         return { success: true };
     }
 
