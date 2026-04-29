@@ -7,12 +7,6 @@ const TOURNAMENT_TYPES = [
   { value: 3, label: 'Mata-Mata + Pontos Corridos' },
 ];
 
-const MOCK_PLAYERS = Array.from({ length: 18 }).map((_, index) => ({
-  id: index + 1,
-  number: String(index + 1).padStart(2, '0'),
-  name: `Atleta ${index + 1}`,
-}));
-
 const DEFAULT_MATCH_FORM = {
   id: null,
   isExternal: false,
@@ -87,9 +81,8 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
   const [isManaging, setIsManaging] = useState(false);
   const [viewMode, setViewMode] = useState('matches');
 
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState([]);
-
   const [matchesByTournament, setMatchesByTournament] = useState({});
+  const [dbMatches, setDbMatches] = useState([]);
   const [matchModalOpen, setMatchModalOpen] = useState(false);
   const [matchSubmitting, setMatchSubmitting] = useState(false);
   const [matchForm, setMatchForm] = useState(DEFAULT_MATCH_FORM);
@@ -102,6 +95,26 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     showToastMessage(setToasts, type, text);
   };
 
+  const loadTournamentMatches = async () => {
+    if (!tournamentId) {
+      return [];
+    }
+
+    try {
+      const matches = await window.api.partidas.findByTournament(tournamentId);
+      setDbMatches(matches || []);
+      return matches || [];
+    } catch (error) {
+      setDbMatches([]);
+      showToast('error', 'Não foi possível carregar partidas do torneio.');
+      return [];
+    }
+  };
+
+  const handleToggleManage = () => {
+    setIsManaging((prev) => !prev);
+  };
+
   const loadTournament = async () => {
     setIsLoading(true);
 
@@ -109,10 +122,6 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
       const rows = await window.tournamentAPI.list();
       const found = rows.find((item) => item.id === tournamentId) || rows[0] || null;
       setTournament(found);
-
-      if (found && selectedPlayerIds.length === 0) {
-        setSelectedPlayerIds(MOCK_PLAYERS.slice(0, 8).map((item) => item.id));
-      }
     } catch (error) {
       showToast('error', error.message || 'Erro ao carregar torneio.');
     } finally {
@@ -122,6 +131,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
 
   useEffect(() => {
     loadTournament();
+    loadTournamentMatches();
   }, [tournamentId]);
 
   const tournamentMatches = useMemo(() => {
@@ -131,11 +141,6 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
 
     return matchesByTournament[tournament.id] || [];
   }, [matchesByTournament, tournament]);
-
-  const selectedPlayers = useMemo(
-    () => MOCK_PLAYERS.filter((item) => selectedPlayerIds.includes(item.id)),
-    [selectedPlayerIds],
-  );
 
   const tournamentType = Number(tournament?.type);
   const canShowStandings = tournamentType === 1 || tournamentType === 3;
@@ -151,20 +156,6 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
       setViewMode('matches');
     }
   }, [canShowBracket, canShowStandings, viewMode]);
-
-  const togglePlayerSelection = (playerId) => {
-    setSelectedPlayerIds((prev) => {
-      const isSelected = prev.includes(playerId);
-      const next = isSelected ? prev.filter((id) => id !== playerId) : [...prev, playerId];
-
-      if (!isSelected && next.length > 20) {
-        showToast('error', 'Voce pode selecionar no maximo 20 jogadores.');
-        return prev;
-      }
-
-      return next;
-    });
-  };
 
   const openMatchCreate = () => {
     setMatchForm(DEFAULT_MATCH_FORM);
@@ -307,7 +298,6 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
 
     const report = {
       tournament,
-      selectedPlayers,
       matches: tournamentMatches,
       exportDate: new Date().toISOString(),
     };
@@ -370,7 +360,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
           </button>
 
           <button
-            onClick={() => setIsManaging((prev) => !prev)}
+            onClick={handleToggleManage}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-black text-[13px] uppercase tracking-widest transition-all ${
               isManaging
                 ? 'bg-[#000000] text-white shadow-lg shadow-gray-300'
@@ -405,57 +395,6 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
           <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center text-gray-500 font-semibold">Carregando torneio...</div>
         ) : (
           <>
-            <section className="space-y-8">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tighter italic">Escalacao</h2>
-                  <div className="h-px w-24 bg-[#000000] opacity-30 mt-2" />
-                  <span className="text-[12px] font-black text-gray-300 mt-2 uppercase tracking-[0.2em]">
-                    {selectedPlayerIds.length}/20 Athletes Selected
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                {(isManaging ? MOCK_PLAYERS : selectedPlayers).map((player) => {
-                  const isSelected = selectedPlayerIds.includes(player.id);
-
-                  return (
-                    <article
-                      key={player.id}
-                      onClick={() => isManaging && togglePlayerSelection(player.id)}
-                      className={`group relative flex flex-col items-center ${isManaging ? 'cursor-pointer' : ''}`}
-                    >
-                      <div
-                        className={`relative w-full aspect-4/5 bg-white border-2 rounded-2xl p-2 transition-all duration-300 shadow-sm ${
-                          isSelected ? 'border-[#000000] shadow-gray-100 shadow-xl -translate-y-1' : 'border-gray-100'
-                        }`}
-                      >
-                        <div className="w-full h-full rounded-xl bg-linear-to-br from-gray-200 to-gray-100 flex items-center justify-center text-gray-500 font-black text-xl">
-                          {player.number}
-                        </div>
-
-                        {isManaging && (
-                          <div
-                            className={`absolute top-4 right-4 size-8 rounded-full flex items-center justify-center border-2 shadow-lg transition-all ${
-                              isSelected ? 'bg-[#000000] border-white text-white' : 'bg-white border-gray-100 text-gray-300'
-                            }`}
-                          >
-                            {isSelected ? 'OK' : '+'}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="mt-4 text-center">
-                        <p className="text-[10px] font-black text-[#000000] uppercase tracking-widest mb-1">#{player.number}</p>
-                        <h4 className="font-black text-gray-900 uppercase tracking-tight line-clamp-1">{player.name}</h4>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-
             <section className="space-y-8">
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <GerenciarPartidas tournamentId={tournamentId} isEmbedded={true} />

@@ -1,10 +1,12 @@
- import React, { use, useEffect, useMemo, useState, useRef } from 'react';
+ import React, { useEffect, useMemo, useState, useRef } from 'react';
   import PontoControl from '../../Control/PontoControl' 
   import PlayerControl from '../../Control/PlayerControl';
-  import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, RefreshCw, MapPin } from 'lucide-react';
+  import SubstituicaoControl from '../../Control/SubstituicaoControl';
+  import TimesPartidaControl from '../../Control/TimesPartidaControl';
+  import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, RefreshCw, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
   import { useHotkeys } from 'react-hotkeys-hook';
   import EstatisticaView from './EstatisticaView';
-
+  import TimesPartida from '../../Model/TimesPartida';
   const VolleyballCourt = ({ players, formation, onPlayerClick }) => {
     const formationMap = {
       'Padrão 6-6': { front: 3, back: 3 },
@@ -101,6 +103,14 @@
     const [feed, setFeed] = useState([]);
     const [players, setPlayers] = useState([]);
     const [escalados, setEscalados] = useState({ home: [], away: [] });
+    const [benchPlayers, setBenchPlayers] = useState([]);
+    const [isEscalacaoLoaded, setIsEscalacaoLoaded] = useState(false);
+    const [showEscalacao, setShowEscalacao] = useState(false);
+    const [escalaMsg, setEscalaMsg] = useState(null);
+    const timesPartidaRef = useRef({
+      home: new TimesPartida(partida?.time1, partida?.id),
+      away: new TimesPartida(partida?.time2, partida?.id)
+    });
     const [currentSet, setCurrentSet] = useState(1);
     const [pontosDoSet, setPontosDoSet] = useState([]);
     const [showSubstituicao, setShowSubstituicao] = useState(false);
@@ -111,6 +121,7 @@
     const [selectedFieldTeam, setSelectedFieldTeam] = useState(null);
     const [selectedBenchPlayer, setSelectedBenchPlayer] = useState(null);
     const [selectedPlayerDetails, setSelectedPlayerDetails] = useState(null);
+    const [substituicaoMessage, setSubstituicaoMessage] = useState({ type: '', text: '', visible: false });
     const [showEstatistica, setShowEstatistica] = useState(false);
 
     const homeLabel = useMemo(() => partida?.time1Nome || partida?.time1 || 'Mandante', [partida]);
@@ -272,37 +283,176 @@
       };
     }, [partida]);
 
+    const persistCurrentEscalacao = async (timePartida = timesPartidaRef.current.home) => {
+      const partidaId = Number(partida?.id);
+      const timesId = Number(partida?.time1);
+
+      if (!partidaId || !timesId) {
+        throw new Error('Não foi possível identificar a partida e o time para salvar a escalação.');
+      }
+
+      const jogadores = [
+        ...timePartida.linha.map((player) => ({
+          jogadorId: Number(player.id),
+          linha: 1,
+        })),
+        ...timePartida.banco.map((player) => ({
+          jogadorId: Number(player.id),
+          linha: 0,
+        })),
+      ];
+
+      await TimesPartidaControl.getInstance().salvarEscalacao({
+        timesId,
+        partidaId,
+        jogadores,
+      });
+    };
+
     useEffect(() => {
       const loadPlayers = async () => {
         try {
+          if (!partida?.id) {
+            return;
+          }
+
           const control = PlayerControl.getInstance();
           const data = await control.findAllPlayers();
           const formatted = data.map((player) => ({
             id: player.id,
             nome: player.nome || 'Jogador',
-            numero: player.numCamisa || player.id,
+            numero: String(player.numCamisa || player.id).padStart(2, '0'),
             posicao: player.posicao_id ? `Posição ${player.posicao_id}` : 'Sem posição',
           }));
           setPlayers(formatted);
+
+          const timesPartidaControl = TimesPartidaControl.getInstance();
+          const savedEscalacao = await timesPartidaControl.findEscalacaoByPartidaId(
+            Number(partida.id),
+            Number(partida.time1)
+          );
+
+          if (savedEscalacao.length > 0) {
+            const playerById = new Map(formatted.map((player) => [Number(player.id), player]));
+            const hydratePlayer = (player) => ({
+              ...(playerById.get(Number(player.id)) || player),
+              linha: Number(player.linha),
+            });
+            const initialLine = savedEscalacao
+              .filter((player) => Number(player.linha) === 1)
+              .map(hydratePlayer);
+            const initialBench = savedEscalacao
+              .filter((player) => Number(player.linha) === 0)
+              .map(hydratePlayer);
+            const homeTime = new TimesPartida(partida?.time1, partida?.id);
+
+            initialLine.forEach((player) => homeTime.adicionarJogadorLinha(player));
+            initialBench.forEach((player) => homeTime.adicionarJogadorBanco(player));
+
+            timesPartidaRef.current.home = homeTime;
+            setEscalados({ home: initialLine, away: [] });
+            setBenchPlayers(initialBench);
+            setIsEscalacaoLoaded(true);
+          } else {
+            setEscalados({ home: [], away: [] });
+            setBenchPlayers([]);
+            setIsEscalacaoLoaded(false);
+          }
         } catch (error) {
           console.error('Erro ao carregar jogadores:', error);
         }
       };
       loadPlayers();
-    }, []);
+    }, [partida?.id, partida?.time1, partida?.time2]);
 
     useEffect(() => {
-      if (players.length && escalados.home.length === 0 && escalados.away.length === 0) {
-        setEscalados({ home: players.slice(0, 6), away: players.slice(6, 12) });
+      if (partida?.id) {
+        timesPartidaRef.current.home = new TimesPartida(partida?.time1, partida?.id);
+        timesPartidaRef.current.away = new TimesPartida(partida?.time2, partida?.id);
       }
-    }, [players, escalados.home.length, escalados.away.length]);
+    }, [partida?.id, partida?.time1, partida?.time2]);
 
- 
+    useEffect(() => {
+      if (!players.length || escalados.home.length > 0 || benchPlayers.length > 0 || isEscalacaoLoaded) return;
 
-    const benchPlayers = useMemo(() => {
-      const escaladosIds = new Set(escalados.home.map((player) => player?.id));
-      return players.filter((player) => !escaladosIds.has(player.id));
-    }, [players, escalados.home]);
+      const initialLine = players.slice(0, 6);
+      const initialBench = players.slice(6, 14);
+      const homeTime = new TimesPartida(partida?.time1, partida?.id);
+
+      initialLine.forEach((player) => homeTime.adicionarJogadorLinha(player));
+      initialBench.forEach((player) => homeTime.adicionarJogadorBanco(player));
+
+      timesPartidaRef.current.home = homeTime;
+      setEscalados({ home: initialLine, away: [] });
+      setBenchPlayers(initialBench);
+    }, [players, escalados.home.length, benchPlayers.length, partida?.id, partida?.time1, partida?.time2, isEscalacaoLoaded]);
+
+    const availableEscalacaoPlayers = useMemo(() => {
+      const selectedIds = new Set([
+        ...escalados.home.map((player) => player?.id),
+        ...benchPlayers.map((player) => player?.id),
+      ]);
+      return players.filter((player) => !selectedIds.has(player?.id));
+    }, [players, escalados.home, benchPlayers]);
+
+    const addPlayerToEscalacao = async (player, section) => {
+      const timePartida = timesPartidaRef.current.home;
+      if (!timePartida) return;
+
+      const alreadySelected = [...timePartida.linha, ...timePartida.banco].some((item) => item?.id === player?.id);
+      if (alreadySelected) return;
+
+      const previousLine = [...timePartida.linha];
+      const previousBench = [...timePartida.banco];
+      const added = section === 'linha'
+        ? timePartida.adicionarJogadorLinha(player)
+        : timePartida.adicionarJogadorBanco(player);
+
+      if (!added) {
+        setEscalaMsg('Máximo de 14 jogadores na escalação. Lembre-se: 6 em linha e 8 no banco.');
+        return;
+      }
+
+      try {
+        await persistCurrentEscalacao(timePartida);
+        setEscalados((current) => ({ ...current, home: [...timePartida.linha] }));
+        setBenchPlayers([...timePartida.banco]);
+        setEscalaMsg(null);
+      } catch (error) {
+        timePartida.linha = previousLine;
+        timePartida.banco = previousBench;
+        setEscalados((current) => ({ ...current, home: previousLine }));
+        setBenchPlayers(previousBench);
+        setEscalaMsg(error.message || 'Erro ao salvar escalação.');
+      }
+    };
+
+    const removePlayerFromEscalacao = async (player, section) => {
+      const timePartida = timesPartidaRef.current.home;
+      if (!timePartida) return;
+
+      const previousLine = [...timePartida.linha];
+      const previousBench = [...timePartida.banco];
+
+      if (section === 'linha') {
+        timePartida.removerJogadorLinha(player);
+      } else {
+        timePartida.removerJogadorBanco(player);
+      }
+
+      try {
+        await persistCurrentEscalacao(timePartida);
+        setEscalados((current) => ({ ...current, home: [...timePartida.linha] }));
+        setBenchPlayers([...timePartida.banco]);
+        setEscalaMsg(null);
+      } catch (error) {
+        timePartida.linha = previousLine;
+        timePartida.banco = previousBench;
+        setEscalados((current) => ({ ...current, home: previousLine }));
+        setBenchPlayers(previousBench);
+        setEscalaMsg(error.message || 'Erro ao salvar escalação.');
+      }
+    };
 
     const handleSendAction = (e) => {
       e.preventDefault();
@@ -331,18 +481,117 @@
   const scoreRef = useRef(score);
 useEffect(() => { scoreRef.current = score; }, [score]);
 
-    const handleSubstituir = () => {
-      if (!selectedFieldTeam || !selectedFieldPlayer || !selectedBenchPlayer) return;
-      setEscalados((current) => ({
-        ...current,
-        [selectedFieldTeam]: current[selectedFieldTeam].map((player) =>
-          player.id === selectedFieldPlayer.id ? selectedBenchPlayer : player
-        ),
-      }));
-      setSelectedFieldPlayer(null);
-      setSelectedFieldTeam(null);
-      setSelectedBenchPlayer(null);
-      setShowSubstituicao(false);
+    const handleSubstituir = async () => {
+      if (!selectedFieldTeam || !selectedFieldPlayer || !selectedBenchPlayer) {
+        setSubstituicaoMessage({
+          type: 'error',
+          text: 'Selecione um jogador em campo e um jogador do banco.',
+          visible: true
+        });
+        return;
+      }
+
+      try {
+        const substituicaoControl = SubstituicaoControl.getInstance();
+        const validacao = await substituicaoControl.validarSubstituicao({
+          pontoTime1: score.home,
+          pontoTime2: score.away,
+          partidaId: partida?.id,
+          numSet: currentSet,
+          jogadorEntra: selectedBenchPlayer.id,
+          jogadorSai: selectedFieldPlayer.id
+        });
+
+        if (!validacao.permissaoSubstituir) {
+          setSubstituicaoMessage({
+            type: 'error',
+            text: validacao.validacoes?.mensagens?.[0] || 'Não é possível realizar a substituição.',
+            visible: true
+          });
+          return;
+        }
+
+        const resultado = await substituicaoControl.registrarSubstituicao({
+          pontoTime1: score.home,
+          pontoTime2: score.away,
+          partidaId: partida?.id,
+          numSet: currentSet,
+          jogadorEntra: selectedBenchPlayer.id,
+          jogadorSai: selectedFieldPlayer.id
+        });
+
+        if (!resultado.success) {
+          setSubstituicaoMessage({
+            type: 'error',
+            text: resultado.message || 'Erro ao registrar substituição.',
+            visible: true
+          });
+          return;
+        }
+
+        const timePartida = timesPartidaRef.current.home;
+        const previousLine = [...timePartida.linha];
+        const previousBench = [...timePartida.banco];
+        const changed = timePartida.realizarSubstituicao(selectedFieldPlayer, selectedBenchPlayer);
+
+        if (!changed) {
+          setSubstituicaoMessage({
+            type: 'error',
+            text: 'Não foi possível atualizar a escalação da partida.',
+            visible: true
+          });
+          return;
+        }
+
+        try {
+          await persistCurrentEscalacao(timePartida);
+        } catch (error) {
+          timePartida.linha = previousLine;
+          timePartida.banco = previousBench;
+          setSubstituicaoMessage({
+            type: 'error',
+            text: error.message || 'Erro ao salvar escalação.',
+            visible: true
+          });
+          return;
+        }
+
+        setEscalados((current) => ({
+          ...current,
+          home: [...timePartida.linha]
+        }));
+        setBenchPlayers([...timePartida.banco]);
+
+        setSubstituicaoMessage({
+          type: 'success',
+          text: `${selectedFieldPlayer.nome} substituído por ${selectedBenchPlayer.nome}`,
+          visible: true
+        });
+
+        setFeed((current) => [
+          {
+            id: Date.now(),
+            text: `🔄 Substituição: ${selectedFieldPlayer.nome} por ${selectedBenchPlayer.nome}`
+          },
+          ...current
+        ]);
+
+        setSelectedFieldPlayer(null);
+        setSelectedFieldTeam(null);
+        setSelectedBenchPlayer(null);
+
+        setTimeout(() => {
+          setShowSubstituicao(false);
+          setSubstituicaoMessage({ type: '', text: '', visible: false });
+        }, 1400);
+      } catch (error) {
+        console.error('Erro ao substituir:', error);
+        setSubstituicaoMessage({
+          type: 'error',
+          text: 'Erro ao processar substituição.',
+          visible: true
+        });
+      }
     };
 
     const handleIniciarPartida = () => {
@@ -446,6 +695,14 @@ useEffect(() => { scoreRef.current = score; }, [score]);
 
             {/* Match Controls - Bottom Center */}
             <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[55] flex flex-wrap justify-center items-center gap-3 w-full px-4">
+              <button
+                onClick={() => setShowEscalacao(true)}
+                className="bg-white/90 backdrop-blur-sm border border-gray-200 px-5 py-3 rounded-full shadow-sm hover:bg-white transition-all text-[11px] font-black uppercase tracking-widest text-gray-700 flex items-center gap-2"
+              >
+                <LayoutGrid size={14} className="text-gray-900" />
+                Escalação
+              </button>
+
               <button
                 onClick={() => setShowSubstituicao(true)}
                 className="bg-white/90 backdrop-blur-sm border border-gray-200 px-5 py-3 rounded-full shadow-sm hover:bg-white transition-all text-[11px] font-black uppercase tracking-widest text-gray-700 flex items-center gap-2"
@@ -633,6 +890,122 @@ useEffect(() => { scoreRef.current = score; }, [score]);
           </div>
         </div>
 
+        {showEscalacao && (
+          <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm p-4 sm:p-6 overflow-auto flex items-center justify-center">
+            <div className="w-full max-w-6xl rounded-[2rem] bg-white p-8 shadow-2xl border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-gray-500">Escalação</p>
+                  <h2 className="mt-1 text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Montar Escalação do Time</h2>
+                  <p className="text-sm text-gray-500 mt-1">Máximo de 14 jogadores: 6 em quadra e 8 no banco.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEscalacao(false)}
+                  className="rounded-full bg-gray-100 p-3 text-gray-600 hover:bg-gray-200 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {escalaMsg && (
+                <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  {escalaMsg}
+                </div>
+              )}
+
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="rounded-3xl border border-gray-100 bg-gray-50 p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-gray-500">Em Quadra</h3>
+                    <span className="text-[11px] font-bold text-gray-600">{escalados.home.length}/6</span>
+                  </div>
+                  <div className="space-y-3">
+                    {escalados.home.length ? escalados.home.map((player) => (
+                      <div key={player.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white border border-gray-100 p-4">
+                        <div>
+                          <p className="font-black text-gray-900">{player.nome}</p>
+                          <p className="text-[11px] uppercase tracking-wider text-gray-500">#{player.numero} • {player.posicao}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removePlayerFromEscalacao(player, 'linha')}
+                          className="rounded-full bg-red-500 text-white px-3 py-2 text-[11px] font-black uppercase tracking-widest hover:bg-red-600"
+                        >Remover</button>
+                      </div>
+                    )) : (
+                      <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-400">Nenhum jogador em quadra.</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-gray-100 bg-gray-50 p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-gray-500">Banco de Reservas</h3>
+                    <span className="text-[11px] font-bold text-gray-600">{benchPlayers.length}/8</span>
+                  </div>
+                  <div className="space-y-3">
+                    {benchPlayers.length ? benchPlayers.map((player) => (
+                      <div key={player.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white border border-gray-100 p-4">
+                        <div>
+                          <p className="font-black text-gray-900">{player.nome}</p>
+                          <p className="text-[11px] uppercase tracking-wider text-gray-500">#{player.numero} • {player.posicao}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removePlayerFromEscalacao(player, 'banco')}
+                          className="rounded-full bg-red-500 text-white px-3 py-2 text-[11px] font-black uppercase tracking-widest hover:bg-red-600"
+                        >Remover</button>
+                      </div>
+                    )) : (
+                      <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-400">Nenhum jogador no banco.</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-gray-100 bg-gray-50 p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-gray-500">Disponíveis</h3>
+                    <span className="text-[11px] font-bold text-gray-600">{availableEscalacaoPlayers.length} jogadores</span>
+                  </div>
+                  <div className="space-y-3 max-h-[520px] overflow-auto pr-1">
+                    {availableEscalacaoPlayers.length ? availableEscalacaoPlayers.map((player) => (
+                      <div key={player.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white border border-gray-100 p-4">
+                        <div>
+                          <p className="font-black text-gray-900">{player.nome}</p>
+                          <p className="text-[11px] uppercase tracking-wider text-gray-500">#{player.numero} • {player.posicao}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => addPlayerToEscalacao(player, 'linha')}
+                            className="rounded-full bg-black text-white px-3 py-2 text-[11px] font-black uppercase tracking-widest hover:bg-gray-900"
+                          >Linha</button>
+                          <button
+                            type="button"
+                            onClick={() => addPlayerToEscalacao(player, 'banco')}
+                            className="rounded-full bg-red-600 text-white px-3 py-2 text-[11px] font-black uppercase tracking-widest hover:bg-red-700"
+                          >Banco</button>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-400">Sem jogadores disponíveis.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEscalacao(false)}
+                  className="rounded-2xl border border-gray-200 bg-white px-6 py-3 text-sm font-black uppercase tracking-widest text-gray-700 hover:bg-gray-100"
+                >Fechar</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Player Details Modal */}
         {selectedPlayerDetails && (
           <div className="fixed inset-0 z-[10001] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -762,6 +1135,21 @@ useEffect(() => { scoreRef.current = score; }, [score]);
                         <p className="font-black text-gray-900">{selectedBenchPlayer ? selectedBenchPlayer.nome : '---'}</p>
                       </div>
                     </div>
+
+                    {substituicaoMessage.visible && (
+                      <div className={`mb-4 rounded-2xl border px-4 py-3 flex items-center gap-3 ${
+                        substituicaoMessage.type === 'success'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                          : 'bg-red-50 border-red-200 text-red-800'
+                      }`}>
+                        {substituicaoMessage.type === 'success' ? (
+                          <CheckCircle size={18} className="text-emerald-600" />
+                        ) : (
+                          <AlertCircle size={18} className="text-red-600" />
+                        )}
+                        <span className="text-sm font-medium">{substituicaoMessage.text}</span>
+                      </div>
+                    )}
                     
                     <button
                       type="button"

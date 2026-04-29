@@ -150,20 +150,17 @@ class PartidaModel {
     }
     
     delete(id, db) {
-        db.prepare('DELETE FROM Substituicao WHERE Ponto_Partida_id = ?').run(id);
-        db.prepare('DELETE FROM Acao WHERE Ponto_Partida_id = ?').run(id);
-        db.prepare('DELETE FROM Ponto WHERE Set_Partida_id = ?').run(id);
-        db.prepare('DELETE FROM "Set" WHERE Partida_id = ?').run(id);
-        db.prepare('DELETE FROM TimesPartida WHERE Partida_id = ?').run(id);
+        const partidaId = Number(id);
 
-        const stmt = db.prepare('DELETE FROM Partidas WHERE id = ?');
-        const result = stmt.run(id);
+        db.prepare('DELETE FROM Substituicao WHERE Ponto_Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM Acao WHERE Ponto_Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM Ponto WHERE Set_Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM "Set" WHERE Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM TimesPartida WHERE Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM LinksPartida WHERE Partida_id = ?').run(partidaId);
 
-        if (result.changes === 0) {
-            throw new Error('Partida nao encontrada para exclusao.');
-        }
-
-        return { success: true };
+        const info = db.prepare('DELETE FROM Partidas WHERE id = ?').run(partidaId);
+        return { success: info.changes > 0, changes: info.changes };
     }
 
     finalize(id, pontosTime1, pontosTime2, db) {
