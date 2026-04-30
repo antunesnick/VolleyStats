@@ -175,6 +175,25 @@ class EstatisticaControl {
     }
   }
 
+  excluirAcao(partidaId, acaoId) {
+    try {
+      const statistics = this.estatisticaModel.excluirAcao(partidaId, acaoId);
+
+      return {
+        statistics,
+        draftSets: this.criarRascunhoSets(statistics),
+        statisticsError: "",
+      };
+    } catch (error) {
+      console.error("Erro ao excluir acao:", error);
+      return {
+        statistics: null,
+        draftSets: null,
+        statisticsError: error?.message || "Nao foi possivel excluir a acao.",
+      };
+    }
+  }
+
   excluirSet(partidaId, numSet) {
     try {
       const statistics = this.estatisticaModel.excluirSet(partidaId, numSet);

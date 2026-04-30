@@ -347,6 +347,81 @@ class EstatisticaModel {
     return this.buscarEstatisticasPartida(partidaId);
   }
 
+  excluirAcao(partidaId, acaoId) {
+    const partida = Number(partidaId);
+    const acao = Number(acaoId);
+
+    if (!partida || !acao) {
+      throw new Error('Acao invalida para exclusao.');
+    }
+
+    const deleteTransaction = db.transaction(() => {
+      const acaoRow = db.prepare(`
+        SELECT Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id
+        FROM Acao
+        WHERE id = ? AND Ponto_Partida_id = ?
+      `).get(acao, partida);
+
+      if (!acaoRow) {
+        throw new Error('Acao nao encontrada para esta partida.');
+      }
+
+      const result = db.prepare(`
+        DELETE FROM Acao
+        WHERE id = ? AND Ponto_Partida_id = ?
+      `).run(acao, partida);
+
+      if (result.changes === 0) {
+        throw new Error('Acao nao encontrada para esta partida.');
+      }
+
+      const acoesRestantes = db.prepare(`
+        SELECT COUNT(*) AS total
+        FROM Acao
+        WHERE Ponto_pontoTime1 = ?
+          AND Ponto_pontoTime2 = ?
+          AND Ponto_NumSet = ?
+          AND Ponto_Partida_id = ?
+      `).get(
+        acaoRow.Ponto_pontoTime1,
+        acaoRow.Ponto_pontoTime2,
+        acaoRow.Ponto_NumSet,
+        acaoRow.Ponto_Partida_id,
+      );
+
+      if (Number(acoesRestantes?.total || 0) === 0) {
+        db.prepare(`
+          DELETE FROM Substituicao
+          WHERE Ponto_pontoTime1 = ?
+            AND Ponto_pontoTime2 = ?
+            AND Ponto_NumSet = ?
+            AND Ponto_Partida_id = ?
+        `).run(
+          acaoRow.Ponto_pontoTime1,
+          acaoRow.Ponto_pontoTime2,
+          acaoRow.Ponto_NumSet,
+          acaoRow.Ponto_Partida_id,
+        );
+
+        db.prepare(`
+          DELETE FROM Ponto
+          WHERE pontoTime1 = ?
+            AND pontoTime2 = ?
+            AND NumSet = ?
+            AND Set_Partida_id = ?
+        `).run(
+          acaoRow.Ponto_pontoTime1,
+          acaoRow.Ponto_pontoTime2,
+          acaoRow.Ponto_NumSet,
+          acaoRow.Ponto_Partida_id,
+        );
+      }
+    });
+
+    deleteTransaction();
+    return this.buscarEstatisticasPartida(partidaId);
+  }
+
   excluirSet(partidaId, numSet) {
     const partida = Number(partidaId);
     const setNumber = Number(numSet);
