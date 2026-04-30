@@ -180,6 +180,14 @@ avancarSet(partida_id, numSet, pontosSetTime1, pontosSetTime2) {
       throw e;
     }
   }
+
+  removerAcao(acaoId) {
+  try {
+    Acao.deletarPorId(db, acaoId);
+  } catch (e) {
+    throw e;
+  }
+}
 }
 
 export default PontoControl;

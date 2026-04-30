@@ -37,6 +37,10 @@ class Acao extends Evento {
             throw e;
         }
     }
+    // Deleta uma ação específica pelo seu ID
+    static deletarPorId(db, id) {
+    db.prepare('DELETE FROM Acao WHERE id = ?').run(id);
+    }
 }
 
 export default Acao;
