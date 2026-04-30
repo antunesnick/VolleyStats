@@ -39,8 +39,22 @@ const EstatisticaView = ({
   const [draftAction, setDraftAction] = useState(null);
   const [statistics, setStatistics] = useState(initialState.statistics);
   const [statisticsError, setStatisticsError] = useState(initialState.statisticsError);
+  const [playerSearch, setPlayerSearch] = useState('');
+  const [playerSearchMode, setPlayerSearchMode] = useState('nome');
 
   const resultadoPartida = EstatisticaControl.obterResultadoPartida(statistics, draftSets);
+  const jogadoresFiltrados = statistics.jogadores.filter((jogador) => {
+    const termo = playerSearch.trim().toLowerCase();
+    if (!termo) {
+      return true;
+    }
+
+    if (playerSearchMode === 'numero') {
+      return String(jogador.numero || '').includes(termo);
+    }
+
+    return String(jogador.nome || '').toLowerCase().includes(termo);
+  });
 
   useEffect(() => {
     if (open) {
@@ -55,6 +69,8 @@ const EstatisticaView = ({
       setDraftAction(null);
       setStatistics(resumoState.statistics);
       setStatisticsError(resumoState.statisticsError);
+      setPlayerSearch('');
+      setPlayerSearchMode('nome');
     }
   }, [open, score, partidaId]);
 
@@ -220,14 +236,49 @@ const EstatisticaView = ({
         )}
 
         {activeTab === 'jogadores' && (
-          <div className="space-y-4 max-h-[52vh] overflow-auto pr-1">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="text"
+                value={playerSearch}
+                onChange={(event) => setPlayerSearch(event.target.value)}
+                placeholder={playerSearchMode === 'numero' ? 'Buscar numero' : 'Buscar nome'}
+                className="h-10 w-full sm:w-56 rounded-full border border-gray-200 bg-gray-50 px-4 text-sm font-bold text-gray-900 outline-none focus:border-gray-900 focus:bg-white"
+              />
+              <div className="flex rounded-full bg-gray-100 p-1">
+                {[
+                  { id: 'nome', label: 'Nome' },
+                  { id: 'numero', label: 'Numero' },
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setPlayerSearchMode(option.id)}
+                    className={`rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                      playerSearchMode === option.id
+                        ? 'bg-gray-900 text-white'
+                        : 'text-gray-500 hover:text-gray-900'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4 max-h-[46vh] overflow-auto pr-1">
             {statistics.jogadores.length === 0 ? (
               <EmptyState
                 title="Nenhuma acao registrada"
                 message="Os scouts digitados durante a partida aparecem aqui por jogador."
               />
+            ) : jogadoresFiltrados.length === 0 ? (
+              <EmptyState
+                title="Nenhum jogador encontrado"
+                message="Ajuste a busca por nome ou numero."
+              />
             ) : (
-              statistics.jogadores.map((jogador) => (
+              jogadoresFiltrados.map((jogador) => (
                 <div key={jogador.id} className="rounded-3xl border border-gray-100 bg-gray-50 p-5">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
@@ -284,6 +335,7 @@ const EstatisticaView = ({
                 </div>
               ))
             )}
+            </div>
           </div>
         )}
 
