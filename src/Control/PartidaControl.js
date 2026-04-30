@@ -2,7 +2,6 @@ const db = require('../db/db');
 const PartidaModel = require('../Model/PartidaModel');
 
 class PartidaControl {
-
     async createPartida(data) {
         const partida = new PartidaModel(null, data.nome, data.pontosTime1, data.pontosTime2, data.dataPartida, data.tipo, data.status, data.externa, data.ginasio_id, data.time1, data.time2, data.torneio_id, data.videoLink);
         
@@ -116,6 +115,21 @@ class PartidaControl {
         }
     }
 
+    async iniciarPartida(id) {
+        const partida = new PartidaModel();
+
+        const startTransaction = db.transaction((partidaId) => {
+            return partida.updateStatus(partidaId, 'EM_ANDAMENTO', db);
+        });
+
+        try {
+            return startTransaction(id);
+        } catch (error) {
+            console.error("Falha ao iniciar partida. Transacao revertida.", error);
+            throw error;
+        }
+    }
+    
     async updateVideoLink(id, link) {
         const partida = new PartidaModel();
         const validationResult = await partida.isValidVideoLink(link);

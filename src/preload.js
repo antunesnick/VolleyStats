@@ -25,6 +25,7 @@ window.api = {
         findByDateAndTeam: (filters, tournamentId) => ipcRenderer.invoke('partidas:findByDateAndTeam', filters, tournamentId),
         findById: (id) => ipcRenderer.invoke('partidas:findById', id),
         findByTournament: (tournamentId) => ipcRenderer.invoke('partidas:findByTournament', tournamentId),
+        iniciar: (id) => ipcRenderer.invoke('partidas:iniciar', id),
         finalizar: (id, pts1, pts2) => ipcRenderer.invoke('partidas:finalizar', id, pts1, pts2)
     }
 };
@@ -35,4 +36,9 @@ window.tournamentAPI = {
     update: (payload) => ipcRenderer.invoke('tournaments:update', payload),
     delete: (id) => ipcRenderer.invoke('tournaments:delete', id),
     getById: (id) => ipcRenderer.invoke('tournaments:getById', id),
+};
+
+window.excelAPI = {
+    importar: () => ipcRenderer.invoke('excel:importar'),
+    salvarDados: (dados) => ipcRenderer.invoke('excel:salvar', dados)
 };

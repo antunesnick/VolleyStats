@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TournamentView from '../Tournament/Tournament';
 import vsLogo from '../../assets/vslogo.jpeg';
+import TournamentControl from '../../Control/TournamentControl'; 
 
 // Importe o componente PlayerView (Ajuste o caminho da pasta conforme a estrutura do seu projeto)
 import { PlayerRegView } from '../PlayerRegister/PlayerRegView';
@@ -21,6 +22,9 @@ const DEFAULT_FORM = {
   startDate: '',
   endDate: '',
 };
+
+const ACTIVE_PAGE_STORAGE_KEY = 'volleystats.activePage';
+const SELECTED_TOURNAMENT_STORAGE_KEY = 'volleystats.selectedTournamentId';
 
 const showToastMessage = (setToasts, type, text, duration = 3200) => {
   const id = `${Date.now()}-${Math.random()}`;
@@ -78,8 +82,11 @@ const decorateTournaments = (tournaments) => {
 
 const Home = () => {
   const navigate = useNavigate();
-  const [activePage, setActivePage] = useState('home');
-  const [selectedTournamentId, setSelectedTournamentId] = useState(null);
+  const [activePage, setActivePage] = useState(() => sessionStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) || 'home');
+  const [selectedTournamentId, setSelectedTournamentId] = useState(() => {
+    const storedId = Number(sessionStorage.getItem(SELECTED_TOURNAMENT_STORAGE_KEY));
+    return storedId || null;
+  });
   const [tournaments, setTournaments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -90,15 +97,54 @@ const Home = () => {
   const [scheduleFilterName, setScheduleFilterName] = useState('');
   const [scheduleSortBy, setScheduleSortBy] = useState('date');
 
+  const [modalExcelOpen, setModalExcelOpen] = useState(false);
+  const [dadosExcel, setDadosExcel] = useState([]);
+  const [nomeArquivoExcel, setNomeArquivoExcel] = useState('');
+  
   const showToast = (type, text) => {
     showToastMessage(setToasts, type, text);
+  };
+
+  const handleImportarExcel = async () => {
+  try {
+    const result = await window.excelAPI.importar();
+    
+    if (result.success) {
+      setDadosExcel(result.data);
+      setNomeArquivoExcel(result.fileName);
+      setModalExcelOpen(true); 
+    } else if (result.error) {
+      // Passo 2.1 - Fluxo Alternativo: Estrutura Incorreta
+      showToast('error', result.error); 
+    }
+  } catch (error) {
+    showToast('error', 'Erro ao abrir o seletor de arquivos.');
+  }
+};
+
+const handleConfirmarImportacao = async () => {
+    setIsSubmitting(true);
+    try {
+      const result = await window.excelAPI.salvarDados(dadosExcel);
+      if (result.success) {
+        showToast('success', 'Dados importados com sucesso!');
+        setModalExcelOpen(false);
+        setDadosExcel([]);
+      } else {
+        showToast('error', result.error);
+      }
+    } catch (error) {
+      showToast('error', 'Falha ao salvar no banco de dados.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const loadTournaments = async () => {
     setIsLoading(true);
 
     try {
-      const rows = await window.tournamentAPI.list();
+      const rows = await TournamentControl.listTournaments();
       setTournaments(rows);
     } catch (error) {
       showToast('error', error.message || 'Erro ao carregar torneios.');
@@ -110,6 +156,18 @@ const Home = () => {
   useEffect(() => {
     loadTournaments();
   }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, activePage);
+  }, [activePage]);
+
+  useEffect(() => {
+    if (selectedTournamentId) {
+      sessionStorage.setItem(SELECTED_TOURNAMENT_STORAGE_KEY, String(selectedTournamentId));
+    } else {
+      sessionStorage.removeItem(SELECTED_TOURNAMENT_STORAGE_KEY);
+    }
+  }, [selectedTournamentId]);
 
   const decoratedTournaments = useMemo(() => {
     return decorateTournaments(tournaments);
@@ -183,10 +241,10 @@ const Home = () => {
 
     try {
       if (formData.id) {
-        await window.tournamentAPI.update(formData);
+        await TournamentControl.updateTournament(formData);
         showToast('success', 'Torneio atualizado com sucesso.');
       } else {
-        const created = await window.tournamentAPI.create(formData);
+        const created = await TournamentControl.createTournament(formData);
         setSelectedTournamentId(created.id);
         showToast('success', 'Torneio criado com sucesso.');
       }
@@ -205,7 +263,7 @@ const Home = () => {
     if (!shouldDelete) return;
 
     try {
-      await window.tournamentAPI.delete(id);
+      await TournamentControl.deleteTournamentById(id);
       if (selectedTournamentId === id) setSelectedTournamentId(null);
       showToast('success', 'Torneio excluido com sucesso.');
       await loadTournaments();
@@ -219,15 +277,21 @@ const Home = () => {
     setActivePage('tournament-detail');
   };
 
+  const backToHome = () => {
+    setActivePage('home');
+    sessionStorage.removeItem('volleystats.activeMatch');
+  };
+
   if (activePage === 'tournament-detail') {
     return (
       <TournamentView
         tournamentId={selectedTournamentId}
-        onBack={() => setActivePage('home')}
+        onBack={backToHome}
         onTournamentChanged={loadTournaments}
         onTournamentDeleted={() => {
           setSelectedTournamentId(null);
           setActivePage('home');
+          sessionStorage.removeItem('volleystats.activeMatch');
           loadTournaments();
         }}
       />
@@ -269,7 +333,8 @@ const Home = () => {
           >
             Ginasios
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
+          <button className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all"
+            onClick={handleImportarExcel}>
             Importar
           </button>
           <button className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
@@ -558,6 +623,41 @@ const Home = () => {
         </div>
       )}
 
+    {modalExcelOpen && (
+    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
+      <div className="w-full max-w-4xl bg-white rounded-2xl overflow-hidden shadow-2xl border border-zinc-200 flex flex-col max-h-[85vh]">
+        <div className="px-7 pt-6 pb-5 border-b border-zinc-100">
+          <h2 className="text-2xl text-zinc-900 font-black uppercase tracking-tighter">Confirmar Importação</h2>
+          <p className="text-sm font-semibold text-zinc-400 mt-2">Arquivo: {nomeArquivoExcel}</p>
+        </div>
+        <div className="p-7 overflow-auto flex-1">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr>
+                {dadosExcel.length > 0 && Object.keys(dadosExcel[0]).map((key) => (
+                  <th key={key} className="border-b-2 pb-3 text-[11px] font-black uppercase text-gray-500 px-4">{key}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {dadosExcel.slice(0, 10).map((row, index) => (
+                <tr key={index}>
+                  {Object.values(row).map((val, i) => (
+                    <td key={i} className="py-3 px-4 border-b text-sm text-gray-700">{val}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {dadosExcel.length > 10 && <p className="text-center text-xs mt-4">Mostrando os primeiros 10 registros de {dadosExcel.length}...</p>}
+        </div>
+        <div className="p-5 border-t flex justify-end gap-3">
+          <button onClick={() => setModalExcelOpen(false)} className="px-6 py-2 border rounded-lg">Cancelar</button>
+          <button onClick={handleConfirmarImportacao} className="px-6 py-2 bg-red-600 text-white rounded-lg">Confirmar e Salvar</button>
+        </div>
+      </div>
+  </div>
+)}
     </div>
   );
 };
