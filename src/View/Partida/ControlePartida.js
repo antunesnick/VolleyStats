@@ -3,10 +3,12 @@
   import PlayerControl from '../../Control/PlayerControl';
   import SubstituicaoControl from '../../Control/SubstituicaoControl';
   import TimesPartidaControl from '../../Control/TimesPartidaControl';
-  import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, RefreshCw, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
+   import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, RefreshCw, MapPin, AlertCircle, CheckCircle,HelpCircle,X} from 'lucide-react';
   import { useHotkeys } from 'react-hotkeys-hook';
   import EstatisticaView from './EstatisticaView';
   import TimesPartida from '../../Model/TimesPartida';
+  import HelpScoutModal from './HelpModal';
+ 
   const VolleyballCourt = ({ players, formation, onPlayerClick }) => {
     const formationMap = {
       'Padrão 6-6': { front: 3, back: 3 },
@@ -103,6 +105,7 @@
           ? 'Em andamento'
           : 'Aguardando'
     );
+    const [showHelpModal, setShowHelpModal] = useState(false);
     const [activityText, setActivityText] = useState('');
     const [feed, setFeed] = useState([]);
     const [players, setPlayers] = useState([]);
@@ -242,6 +245,10 @@
   }, { enableOnFormTags: false }, [buffer]);
 
     useHotkeys('esc', () => {
+      if (showHelpModal) {
+        setShowHelpModal(false);
+        return;
+      }
       setBuffer({ numero: '', acao: '', qualidade: '' });
     });
 
@@ -691,6 +698,25 @@ useEffect(() => { scoreRef.current = score; }, [score]);
               }`}>
                 {liveStatus === "Em andamento" ? "AO VIVO" : liveStatus}
               </div>
+              <button
+              type="button"
+              onClick={() => setShowHelpModal(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: '#1e293b',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '10px',
+                padding: '10px 14px',
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              <HelpCircle size={18} />
+              Help
+            </button>
             </div>
 
 
@@ -1172,7 +1198,12 @@ useEffect(() => { scoreRef.current = score; }, [score]);
           partidaId={partida?.id}
           onConfirm={handleConfirmarEstatistica}
         />
+        <HelpScoutModal
+        open={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
+      />
       </div>
+      
     );
   };
 

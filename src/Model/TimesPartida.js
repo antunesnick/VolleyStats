@@ -55,6 +55,29 @@ class TimesPartida {
 
         return false;
     }
+
+    jogadorNaLinha(jogador) {
+        return this.linha.some((item) => item?.id === jogador?.id);
+        }
+
+    carregarDoDb(db) {
+    const timeId    = this.time?.id    ?? this.time;
+    const partidaId = this.partida?.id ?? this.partida;
+
+    const rows = db.prepare(`
+        SELECT tp.Jogadores_id AS id, tp.linha, j.nome, j.numCamisa
+        FROM TimesPartida tp
+        JOIN Jogadores j ON j.id = tp.Jogadores_id
+        WHERE tp.Times_id = ? AND tp.Partida_id = ?
+    `).all(timeId, partidaId);
+
+    this.linha = [];
+    this.banco = [];
+    for (const row of rows) {
+        const jogador = { id: row.id, nome: row.nome, numCamisa: row.numCamisa };
+        row.linha === 1 ? this.linha.push(jogador) : this.banco.push(jogador);
+    }
+}
 }
 
 module.exports = TimesPartida;

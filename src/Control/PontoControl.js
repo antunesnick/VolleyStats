@@ -2,6 +2,9 @@ import db from '../db/db';
 import Ponto from '../Model/Ponto';
 import Acao from '../Model/Acao';
 import SetPartida from '../Model/SetPartida';
+import TimesPartida from '../Model/TimesPartida';
+
+
 
 class PontoControl {
     static getInstance() {
@@ -23,10 +26,24 @@ class PontoControl {
      */
     gravarPonto(partida, numSet, pontoTime1, pontoTime2, jogador, tipoAcao, qualidade) {
         const gravarTransaction = db.transaction(() => {
+            const timesPartida1 = new TimesPartida(partida.time1, partida);
+            timesPartida1.carregarDoDb(db);
+
+            const timesPartida2 = new TimesPartida(partida.time2, partida);
+            timesPartida2.carregarDoDb(db);
+
+            const estaEmCampo =
+            timesPartida1.jogadorNaLinha(jogador) ||
+            timesPartida2.jogadorNaLinha(jogador);
+
+            if (!estaEmCampo) {
+            throw new Error(`Jogador "${jogador.nome ?? jogador.id}" não está na linha desta partida.`);
+            }
+            
             const set = new SetPartida(numSet, partida);
 
             const ponto = new Ponto(pontoTime1, pontoTime2, set);
-            ponto.criarPonto(db); // já chama set.criarSet(db) internamente
+            ponto.criarPonto(db); 
 
             const acao = new Acao(ponto, jogador, tipoAcao, qualidade);
             ponto.addEvento(acao, db);
