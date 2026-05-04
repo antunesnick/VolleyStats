@@ -34,7 +34,7 @@ const showToastMessage = (setToasts, type, text, duration = 3200) => {
   }, duration);
 };
 
-const GerenciarPartidas = ({ tournamentId = null }) => {
+const GerenciarPartidas = ({ tournamentId = null, onMatchesUpdated }) => {
   const [partidas, setPartidas] = useState([]);
   const [toasts, setToasts] = useState([]);
 
@@ -164,6 +164,9 @@ const formatarDataBrasil = (dataString) => {
     try {
       const dadosPartidas = await window.api.partidas.findByTournament(tournamentId);
       setPartidas(dadosPartidas);
+      if (typeof onMatchesUpdated === 'function') {
+        onMatchesUpdated(dadosPartidas);
+      }
 
       const mockTimes = [
         { id: 1, nome: 'Vôlei Prudente', cidade: 'Presidente Prudente' },
