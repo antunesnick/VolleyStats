@@ -3,7 +3,7 @@
   import PlayerControl from '../../Control/PlayerControl';
   import SubstituicaoControl from '../../Control/SubstituicaoControl';
   import TimesPartidaControl from '../../Control/TimesPartidaControl';
-   import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, RefreshCw, MapPin, AlertCircle, CheckCircle,HelpCircle,X} from 'lucide-react';
+   import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, Trash2,RefreshCw, MapPin, AlertCircle, CheckCircle,HelpCircle,X} from 'lucide-react';
   import { useHotkeys } from 'react-hotkeys-hook';
   import EstatisticaView from './EstatisticaView';
   import TimesPartida from '../../Model/TimesPartida';
@@ -405,6 +405,16 @@
       ]);
       return players.filter((player) => !selectedIds.has(player?.id));
     }, [players, escalados.home, benchPlayers]);
+
+const handleExcluirAcao = (acao) => {
+  if (!window.confirm(`Excluir ação de ${acao.jogadorNome}? (${acao.tipoAcaoNome} - ${acao.qualidade})`)) return;
+  try {
+    PontoControl.getInstance().removerAcao(acao.id);
+    carregarDadosDoSet(currentSet);
+  } catch (error) {
+    alert('Erro ao excluir ação: ' + error.message);
+  }
+};
 
     const addPlayerToEscalacao = async (player, section) => {
       const timePartida = timesPartidaRef.current.home;
@@ -891,18 +901,27 @@ useEffect(() => { scoreRef.current = score; }, [score]);
                     {ponto.acoes && ponto.acoes.length > 0 && (
                       <div className="mt-1 pt-2 border-t border-gray-50 flex flex-col gap-1.5">
                         {ponto.acoes.map((acao, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-xs text-gray-600 bg-gray-50/50 p-1.5 rounded-lg">
-                            <span className="font-medium truncate pr-2">
-                              #{acao.jogadorNumero || '00'} - {acao.jogadorNome || 'Jogador'}
-                            </span>
-                            <div className="flex gap-2 items-center flex-shrink-0">
-                              <span className="font-bold text-gray-800">{acao.tipoAcaoNome}</span>
-                              <span className="font-bold bg-white border border-gray-200 px-2 py-0.5 rounded text-[10px] shadow-sm">
-                                {acao.qualidade}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
+                <div key={idx} className="flex justify-between items-center text-xs text-gray-600 bg-gray-50/50 p-1.5 rounded-lg">
+                  <span className="font-medium truncate pr-2">
+                    {acao.jogadorNumero ?? '00'} - {acao.jogadorNome ?? 'Jogador'}
+                  </span>
+                  <div className="flex gap-2 items-center flex-shrink-0">
+                    <span className="font-bold text-gray-800">{acao.tipoAcaoNome}</span>
+                    <span className="font-bold bg-white border border-gray-200 px-2 py-0.5 rounded text-10px shadow-sm">
+                      {acao.qualidade}
+                    </span>
+                    {/* ✅ Botão de excluir a ação */}
+                    <button
+                      type="button"
+                      onClick={() => handleExcluirAcao(acao)}
+                      className="w-5 h-5 rounded-md bg-red-50 hover:bg-red-500 text-red-400 hover:text-white flex items-center justify-center transition-all active:scale-90"
+                      title={`Excluir ação de ${acao.jogadorNome}`}
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  </div>
+                </div>
+              ))}
                       </div>
                     )}
                   </div>
