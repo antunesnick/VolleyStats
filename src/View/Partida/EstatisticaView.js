@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import EstatisticaControl from '../../Control/EstatisticaControl';
+import { Alertas } from '../../utils/Alertas';
 
 const TAB_ITEMS = [
   { id: 'geral', label: 'Geral' },
@@ -30,6 +31,7 @@ const EstatisticaView = ({
   score,
   partidaId,
   onConfirm,
+  onStatisticsChange,
 }) => {
   const initialState = EstatisticaControl.criarEstadoInicial(score);
   const [activeTab, setActiveTab] = useState(initialState.activeTab);
@@ -122,8 +124,30 @@ const EstatisticaView = ({
     setStatisticsError('');
   };
 
-  const handleDeleteSet = (numSet) => {
-    const confirmed = window.confirm(`Deseja excluir o Set ${numSet}?`);
+  const handleDeleteAction = async (acao) => {
+    const confirmed = await Alertas.confirmacao(
+      `Deseja excluir esta acao do Set ${acao.numSet}?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const nextState = EstatisticaControl.excluirAcao(partidaId, acao.id);
+
+    if (nextState.statisticsError) {
+      setStatisticsError(nextState.statisticsError);
+      return;
+    }
+
+    setStatistics(nextState.statistics);
+    setDraftSets(nextState.draftSets);
+    setStatisticsError('');
+    onStatisticsChange?.();
+  };
+
+  const handleDeleteSet = async (numSet) => {
+    const confirmed = await Alertas.confirmacao(`Deseja excluir o Set ${numSet}?`);
     if (!confirmed) {
       return;
     }
@@ -138,6 +162,7 @@ const EstatisticaView = ({
     setStatistics(nextState.statistics);
     setDraftSets(nextState.draftSets);
     setStatisticsError('');
+    onStatisticsChange?.();
   };
 
   if (!open) {
@@ -321,13 +346,22 @@ const EstatisticaView = ({
                               {acao.tipoAcaoNome} - Qualidade {acao.qualidade}
                             </p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenActionEdit(acao)}
-                            className="rounded-full bg-gray-900 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white hover:bg-gray-800 transition-colors"
-                          >
-                            Editar
-                          </button>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenActionEdit(acao)}
+                              className="rounded-full bg-gray-900 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white hover:bg-gray-800 transition-colors"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAction(acao)}
+                              className="rounded-full bg-red-500 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white hover:bg-red-600 transition-colors"
+                            >
+                              Excluir
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>

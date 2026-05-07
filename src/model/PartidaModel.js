@@ -184,19 +184,112 @@ class PartidaModel {
         return { success: result.changes > 0, id, status };
     }
 
-    isValidVideoLink(link) {
-        const normalizedLink = typeof link === 'string' ? link.trim() : '';
+    isKnownVideoProvider(parsedUrl) {
+        const host = parsedUrl.hostname.replace(/^www\./i, '').toLowerCase();
+        const path = parsedUrl.pathname || '';
 
-        if (normalizedLink === '') {
+        if ((host === 'youtube.com' || host === 'm.youtube.com') && path === '/watch' && parsedUrl.searchParams.get('v')) {
             return true;
         }
 
-        try {
-            const parsedUrl = new URL(normalizedLink);
-            return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
-        } catch (_error) {
+        if ((host === 'youtube.com' || host === 'm.youtube.com') && (path.startsWith('/shorts/') || path.startsWith('/live/'))) {
+            return true;
+        }
+
+        if (host === 'youtu.be' && path.length > 1) {
+            return true;
+        }
+
+        if (host === 'vimeo.com' && /^\/\d+/.test(path)) {
+            return true;
+        }
+
+        if (host === 'player.vimeo.com' && path.startsWith('/video/')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    async hasVideoContentType(link) {
+        if (typeof fetch !== 'function') {
             return false;
         }
+
+        const requestWithTimeout = async (method, extraHeaders = {}) => {
+            const abortController = new AbortController();
+            const timeoutId = setTimeout(() => abortController.abort(), 6000);
+
+            try {
+                const response = await fetch(link, {
+                    method,
+                    redirect: 'follow',
+                    headers: {
+                        ...extraHeaders,
+                        'User-Agent': 'VolleyStats/1.0'
+                    },
+                    signal: abortController.signal
+                });
+
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                return contentType.startsWith('video/');
+            } catch (_error) {
+                return false;
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        };
+
+        const headCheck = await requestWithTimeout('HEAD');
+        if (headCheck) {
+            return true;
+        }
+
+        return requestWithTimeout('GET', { Range: 'bytes=0-1024' });
+    }
+
+    async isValidVideoLink(link) {
+        const normalizedLink = typeof link === 'string' ? link.trim() : '';
+
+        if (normalizedLink === '') {
+            return { isValid: true, normalizedLink: '' };
+        }
+
+        let parsedUrl;
+        try {
+            parsedUrl = new URL(normalizedLink);
+        } catch (_error) {
+            return {
+                isValid: false,
+                message: 'Link de video invalido. Informe uma URL completa com http:// ou https://.'
+            };
+        }
+
+        if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+            return {
+                isValid: false,
+                message: 'Link de video invalido. Informe uma URL completa com http:// ou https://.'
+            };
+        }
+
+        if (this.isKnownVideoProvider(parsedUrl)) {
+            return { isValid: true, normalizedLink };
+        }
+
+        const looksLikeVideoFile = /\.(mp4|webm|mov|m3u8|mkv|avi)(\?|#|$)/i.test(parsedUrl.pathname);
+        if (looksLikeVideoFile) {
+            return { isValid: true, normalizedLink };
+        }
+
+        const hasVideoContent = await this.hasVideoContentType(normalizedLink);
+        if (hasVideoContent) {
+            return { isValid: true, normalizedLink };
+        }
+
+        return {
+            isValid: false,
+            message: 'Nao foi possivel confirmar conteudo de video nesse link. Use URL direta de video (.mp4/.webm) ou link de plataforma (YouTube/Vimeo).'
+        };
     }
 
     updateVideoLink(id, link, db) {

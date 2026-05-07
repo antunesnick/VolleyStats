@@ -77,6 +77,10 @@ function ensurePartidaColumns() {
         db.exec('ALTER TABLE Partidas ADD COLUMN torneio_id INTEGER REFERENCES Torneios(id)');
     }
 
+    if (!columns.includes('fase')) {
+        db.exec('ALTER TABLE Partidas ADD COLUMN fase VARCHAR(45)');
+    }
+
     if (!columns.includes('videoLink')) {
       db.exec('ALTER TABLE Partidas ADD COLUMN videoLink VARCHAR(2048)');
     }

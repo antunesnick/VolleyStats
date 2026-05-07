@@ -57,7 +57,7 @@ class TimesPartida {
     }
 
     jogadorNaLinha(jogador) {
-        return this.linha.some((item) => item?.id === jogador?.id);
+        return this.linha.some((item) => Number(item?.id) === Number(jogador?.id));
         }
 
     carregarDoDb(db) {
