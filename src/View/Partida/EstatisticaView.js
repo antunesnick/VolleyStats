@@ -7,6 +7,20 @@ const TAB_ITEMS = [
   { id: 'sets', label: 'Sets' },
 ];
 
+const StatCard = ({ label, value }) => (
+  <div className="rounded-2xl border border-gray-100 bg-white px-5 py-4 shadow-sm">
+    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</p>
+    <p className="mt-1 text-3xl font-black text-gray-900">{value}</p>
+  </div>
+);
+
+const EmptyState = ({ title, message }) => (
+  <div className="rounded-3xl border-2 border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+    <p className="text-xl font-black text-gray-900 mb-2">{title}</p>
+    <p className="text-sm font-medium text-gray-600">{message}</p>
+  </div>
+);
+
 const EstatisticaView = ({
   open,
   onClose,
@@ -14,34 +28,100 @@ const EstatisticaView = ({
   awayLabel,
   matchInfo,
   score,
+  partidaId,
   onConfirm,
 }) => {
   const initialState = EstatisticaControl.criarEstadoInicial(score);
   const [activeTab, setActiveTab] = useState(initialState.activeTab);
-  const [editMode, setEditMode] = useState(initialState.editMode);
-  const [draftScore, setDraftScore] = useState(initialState.draftScore);
+  const [draftSets, setDraftSets] = useState(initialState.draftSets);
+  const [editOptions, setEditOptions] = useState(initialState.editOptions);
+  const [editingAction, setEditingAction] = useState(null);
+  const [draftAction, setDraftAction] = useState(null);
+  const [statistics, setStatistics] = useState(initialState.statistics);
+  const [statisticsError, setStatisticsError] = useState(initialState.statisticsError);
+
+  const resultadoPartida = EstatisticaControl.obterResultadoPartida(statistics, draftSets);
 
   useEffect(() => {
     if (open) {
       const resetState = EstatisticaControl.resetarAoAbrir(score);
-      setActiveTab(resetState.activeTab);
-      setEditMode(resetState.editMode);
-      setDraftScore(resetState.draftScore);
-    }
-  }, [open, score]);
+      const resumoState = EstatisticaControl.carregarResumo(partidaId);
+      const actionOptions = EstatisticaControl.carregarOpcoesEdicaoAcao(partidaId);
 
-  const handleDraftScoreChange = (side, value) => {
-    setDraftScore((current) => EstatisticaControl.alterarPlacarRascunho(current, side, value));
+      setActiveTab(resetState.activeTab);
+      setDraftSets(resumoState.draftSets);
+      setEditOptions(actionOptions);
+      setEditingAction(null);
+      setDraftAction(null);
+      setStatistics(resumoState.statistics);
+      setStatisticsError(resumoState.statisticsError);
+    }
+  }, [open, score, partidaId]);
+
+  const handleDraftSetChange = (numSet, side, value) => {
+    setDraftSets((current) => EstatisticaControl.alterarPlacarSet(current, numSet, side, value));
   };
 
-  const handleToggleEdit = () => {
-    const nextState = EstatisticaControl.alternarModoEdicao(editMode, score, draftScore);
-    setEditMode(nextState.editMode);
-    setDraftScore(nextState.draftScore);
+  const handleSaveSets = () => {
+    try {
+      const nextState = EstatisticaControl.salvarSets(partidaId, draftSets);
+      setStatistics(nextState.statistics);
+      setDraftSets(nextState.draftSets);
+      setStatisticsError(nextState.statisticsError);
+      return nextState;
+    } catch (error) {
+      console.error('Erro ao salvar sets:', error);
+      setStatisticsError('Nao foi possivel salvar a pontuacao dos sets.');
+      return { statistics, draftSets };
+    }
   };
 
   const handleConfirm = () => {
-    EstatisticaControl.confirmar(onConfirm, draftScore);
+    const savedState = handleSaveSets();
+    EstatisticaControl.confirmar(onConfirm, savedState.statistics, savedState.draftSets);
+  };
+
+  const handleOpenActionEdit = (acao) => {
+    setEditingAction(acao);
+    setDraftAction(EstatisticaControl.criarRascunhoAcao(acao));
+    setStatisticsError('');
+  };
+
+  const handleDraftActionChange = (field, value) => {
+    setDraftAction((current) => EstatisticaControl.alterarRascunhoAcao(current, field, value));
+  };
+
+  const handleSaveActionEdit = () => {
+    const nextState = EstatisticaControl.salvarEdicaoAcao(partidaId, draftAction);
+
+    if (nextState.statisticsError) {
+      setStatisticsError(nextState.statisticsError);
+      return;
+    }
+
+    setStatistics(nextState.statistics);
+    setDraftSets(nextState.draftSets);
+    setEditingAction(null);
+    setDraftAction(null);
+    setStatisticsError('');
+  };
+
+  const handleDeleteSet = (numSet) => {
+    const confirmed = window.confirm(`Deseja excluir o Set ${numSet}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    const nextState = EstatisticaControl.excluirSet(partidaId, numSet);
+
+    if (nextState.statisticsError) {
+      setStatisticsError(nextState.statisticsError);
+      return;
+    }
+
+    setStatistics(nextState.statistics);
+    setDraftSets(nextState.draftSets);
+    setStatisticsError('');
   };
 
   if (!open) {
@@ -50,7 +130,7 @@ const EstatisticaView = ({
 
   return (
     <div className="fixed inset-0 z-[10000] bg-black/45 backdrop-blur-sm p-4 sm:p-6 overflow-auto flex items-center justify-center">
-      <div className="w-full max-w-5xl rounded-[2rem] bg-white p-8 shadow-2xl border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div className="w-full max-w-6xl rounded-[2rem] bg-white p-8 shadow-2xl border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div className="flex items-center justify-between mb-6">
           <div>
             <p className="text-[11px] font-black uppercase tracking-widest text-gray-500">Encerramento da partida</p>
@@ -59,11 +139,18 @@ const EstatisticaView = ({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full bg-gray-100 p-3 text-gray-600 hover:bg-gray-200 transition-colors"
+            className="rounded-full bg-gray-100 px-4 py-3 text-sm font-black text-gray-600 hover:bg-gray-200 transition-colors"
+            aria-label="Fechar"
           >
-            ✕
+            X
           </button>
         </div>
+
+        {statisticsError && (
+          <div className="mb-5 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-sm font-bold text-red-700">
+            {statisticsError}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-3 mb-6 border-b border-gray-100 pb-4">
           {TAB_ITEMS.map((item) => (
@@ -84,102 +171,188 @@ const EstatisticaView = ({
 
         {activeTab === 'geral' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4 rounded-2xl border border-gray-100 bg-gray-50 px-5 py-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Modo de edição</p>
-                <p className="text-sm font-medium text-gray-600">
-                  {editMode ? 'Você pode alterar o placar geral antes de confirmar.' : 'Clique em Alterar para editar o placar geral.'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleToggleEdit}
-                className={`rounded-full px-5 py-3 text-[11px] font-black uppercase tracking-widest transition-colors ${
-                  editMode
-                    ? 'bg-gray-900 text-white hover:bg-gray-800'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                {editMode ? 'Concluir Alteração' : 'Alterar'}
-              </button>
+            <div className="grid gap-4 sm:grid-cols-4">
+              <StatCard label="Sets da partida" value={`${resultadoPartida.home} x ${resultadoPartida.away}`} />
+              <StatCard label="Sets registrados" value={statistics.totals.sets} />
+              <StatCard label="Pontos registrados" value={statistics.totals.pontos} />
+              <StatCard label="Acoes registradas" value={statistics.totals.acoes} />
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="rounded-3xl border border-gray-100 bg-gray-50 p-6">
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Dados da partida</p>
                 <div className="space-y-3 text-sm font-medium text-gray-700">
                   <p><span className="font-black text-gray-900">Nome:</span> {matchInfo.name}</p>
                   <p><span className="font-black text-gray-900">Data:</span> {matchInfo.date}</p>
-                  <p><span className="font-black text-gray-900">Ginásio:</span> {matchInfo.gymnasium}</p>
+                  <p><span className="font-black text-gray-900">Ginasio:</span> {matchInfo.gymnasium}</p>
                   <p><span className="font-black text-gray-900">Mandante:</span> {homeLabel}</p>
                   <p><span className="font-black text-gray-900">Visitante:</span> {awayLabel}</p>
                 </div>
               </div>
 
               <div className="rounded-3xl border border-gray-100 bg-gray-50 p-6">
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Placar atual</p>
-                {editMode ? (
-                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-                    <div className="text-center">
-                      <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">{homeLabel}</p>
-                      <input
-                        type="number"
-                        min="0"
-                        value={draftScore.home}
-                        onChange={(e) => handleDraftScoreChange('home', e.target.value)}
-                        className="w-full text-center text-5xl font-black text-gray-900 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100"
-                      />
-                    </div>
-                    <div className="text-3xl font-black text-gray-300 pt-6">x</div>
-                    <div className="text-center">
-                      <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">{awayLabel}</p>
-                      <input
-                        type="number"
-                        min="0"
-                        value={draftScore.away}
-                        onChange={(e) => handleDraftScoreChange('away', e.target.value)}
-                        className="w-full text-center text-5xl font-black text-gray-900 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100"
-                      />
-                    </div>
-                  </div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">Vencedor de cada set</p>
+                {draftSets.length === 0 ? (
+                  <p className="text-sm font-medium text-gray-600">Nenhum set registrado.</p>
                 ) : (
-                  <div className="flex items-center justify-center gap-5">
-                    <div className="text-center">
-                      <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">{homeLabel}</p>
-                      <div className="text-5xl font-black text-gray-900 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm">{score.home}</div>
-                    </div>
-                    <div className="text-3xl font-black text-gray-300 pt-6">x</div>
-                    <div className="text-center">
-                      <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">{awayLabel}</p>
-                      <div className="text-5xl font-black text-gray-900 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm">{score.away}</div>
-                    </div>
+                  <div className="space-y-2">
+                    {draftSets.map((setScore) => {
+                      const winner = setScore.home > setScore.away
+                        ? homeLabel
+                        : setScore.away > setScore.home
+                          ? awayLabel
+                          : 'Empate';
+
+                      return (
+                        <div key={setScore.numSet} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 border border-gray-100">
+                          <span className="text-xs font-black uppercase tracking-widest text-gray-500">Set {setScore.numSet}</span>
+                          <span className="text-sm font-black text-gray-900">
+                            {setScore.home} x {setScore.away} - {winner}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
-            </div>
-
-            <div className="rounded-3xl border-2 border-dashed border-gray-200 bg-white p-6">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Próximo passo</p>
-              <p className="text-sm font-medium text-gray-700">
-                Esta aba fica reservada para o encerramento geral. As estatísticas individuais, sets e demais detalhes podem entrar nas próximas abas.
-              </p>
             </div>
           </div>
         )}
 
         {activeTab === 'jogadores' && (
-          <div className="rounded-3xl border-2 border-dashed border-gray-200 bg-gray-50 p-8 text-center">
-            <p className="text-[11px] font-black uppercase tracking-widest text-gray-400 mb-2">Jogadores</p>
-            <h3 className="text-xl font-black text-gray-900 mb-2">Área reservada para pontuação individual</h3>
-            <p className="text-sm font-medium text-gray-600">Você vai poder adicionar, editar e remover ações por jogador aqui.</p>
+          <div className="space-y-4 max-h-[52vh] overflow-auto pr-1">
+            {statistics.jogadores.length === 0 ? (
+              <EmptyState
+                title="Nenhuma acao registrada"
+                message="Os scouts digitados durante a partida aparecem aqui por jogador."
+              />
+            ) : (
+              statistics.jogadores.map((jogador) => (
+                <div key={jogador.id} className="rounded-3xl border border-gray-100 bg-gray-50 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Camisa #{jogador.numero}</p>
+                      <h3 className="text-xl font-black text-gray-900">{jogador.nome}</h3>
+                    </div>
+                    <div className="rounded-2xl bg-gray-900 px-5 py-3 text-center text-white">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total</p>
+                      <p className="text-2xl font-black">{jogador.totalAcoes}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-5">
+                    {Object.entries(jogador.acoes).map(([nome, total]) => (
+                      <div key={nome} className="rounded-2xl bg-white p-3 text-center border border-gray-100">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{nome}</p>
+                        <p className="text-xl font-black text-gray-900">{total}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {Object.entries(jogador.qualidade).map(([qualidade, total]) => (
+                      <span key={qualidade} className="rounded-full bg-white border border-gray-100 px-4 py-2 text-xs font-black text-gray-700">
+                        Qualidade {qualidade}: {total}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="mt-5 rounded-2xl bg-white border border-gray-100 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">Acoes registradas</p>
+                    <div className="space-y-2">
+                      {(jogador.acoesDetalhadas || []).map((acao) => (
+                        <div key={acao.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-gray-50 px-4 py-3">
+                          <div>
+                            <p className="text-sm font-black text-gray-900">
+                              Set {acao.numSet} - {acao.pontoTime1} x {acao.pontoTime2}
+                            </p>
+                            <p className="text-xs font-bold text-gray-500">
+                              {acao.tipoAcaoNome} - Qualidade {acao.qualidade}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenActionEdit(acao)}
+                            className="rounded-full bg-gray-900 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white hover:bg-gray-800 transition-colors"
+                          >
+                            Editar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
 
         {activeTab === 'sets' && (
-          <div className="rounded-3xl border-2 border-dashed border-gray-200 bg-gray-50 p-8 text-center">
-            <p className="text-[11px] font-black uppercase tracking-widest text-gray-400 mb-2">Sets</p>
-            <h3 className="text-xl font-black text-gray-900 mb-2">Área reservada para dividir primeiro, segundo e terceiro set</h3>
-            <p className="text-sm font-medium text-gray-600">Essa estrutura fica pronta para você ligar a lógica depois, sem misturar com o placar geral.</p>
+          <div className="space-y-4 max-h-[52vh] overflow-auto pr-1">
+            {draftSets.length === 0 ? (
+              <EmptyState
+                title="Nenhum set registrado"
+                message="Quando um scout e gravado, o set atual passa a aparecer neste resumo."
+              />
+            ) : (
+              <>
+                {draftSets.map((setScore) => {
+                  const setStats = statistics.sets.find((item) => Number(item.numSet) === Number(setScore.numSet));
+                  const winner = setScore.home > setScore.away
+                    ? homeLabel
+                    : setScore.away > setScore.home
+                      ? awayLabel
+                      : 'Empate';
+
+                  return (
+                    <div key={setScore.numSet} className="rounded-3xl border border-gray-100 bg-gray-50 p-5">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Set {setScore.numSet}</p>
+                          <h3 className="text-xl font-black text-gray-900">Vencedor: {winner}</h3>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <StatCard label="Pontos" value={setStats?.pontos || 0} />
+                          <StatCard label="Acoes" value={setStats?.acoes || 0} />
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSet(setScore.numSet)}
+                            className="rounded-full bg-red-500 px-5 py-3 text-[11px] font-black uppercase tracking-widest text-white hover:bg-red-600 transition-colors"
+                          >
+                            Excluir set
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+                        <div className="text-center">
+                          <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">{homeLabel}</p>
+                          <input
+                            type="number"
+                            min="0"
+                            value={setScore.home}
+                            onChange={(event) => handleDraftSetChange(setScore.numSet, 'home', event.target.value)}
+                            className="w-full text-center text-4xl font-black text-gray-900 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100"
+                          />
+                        </div>
+                        <div className="text-3xl font-black text-gray-300 pt-6">x</div>
+                        <div className="text-center">
+                          <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">{awayLabel}</p>
+                          <input
+                            type="number"
+                            min="0"
+                            value={setScore.away}
+                            onChange={(event) => handleDraftSetChange(setScore.numSet, 'away', event.target.value)}
+                            className="w-full text-center text-4xl font-black text-gray-900 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+              </>
+            )}
           </div>
         )}
 
@@ -196,9 +369,110 @@ const EstatisticaView = ({
             onClick={handleConfirm}
             className="rounded-full bg-green-500 px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-green-600 transition-colors"
           >
-            Confirmar e abrir minha parte
+            Confirmar resultado
           </button>
         </div>
+
+        {editingAction && draftAction && (
+          <div className="fixed inset-0 z-[10001] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-xl rounded-[2rem] bg-white p-7 shadow-2xl border border-gray-100">
+              <div className="flex items-center justify-between gap-4 mb-6">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Editar scout</p>
+                  <h3 className="text-2xl font-black text-gray-900">Acao #{editingAction.id}</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingAction(null);
+                    setDraftAction(null);
+                  }}
+                  className="rounded-full bg-gray-100 px-4 py-3 text-sm font-black text-gray-600 hover:bg-gray-200 transition-colors"
+                >
+                  X
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
+                    Jogador
+                  </label>
+                  <select
+                    value={draftAction.jogadorId}
+                    onChange={(event) => handleDraftActionChange('jogadorId', event.target.value)}
+                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold text-gray-900 outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100"
+                  >
+                    {editOptions.jogadores.map((jogador) => (
+                      <option key={jogador.id} value={jogador.id}>
+                        #{jogador.numero || '--'} - {jogador.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
+                    Tipo de acao
+                  </label>
+                  <select
+                    value={draftAction.tipoAcaoId}
+                    onChange={(event) => handleDraftActionChange('tipoAcaoId', event.target.value)}
+                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold text-gray-900 outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100"
+                  >
+                    {editOptions.tiposAcao.map((tipo) => (
+                      <option key={tipo.idTipoAcao} value={tipo.idTipoAcao}>
+                        {tipo.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
+                    Qualidade
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {editOptions.qualidades.map((qualidade) => (
+                      <button
+                        key={qualidade}
+                        type="button"
+                        onClick={() => handleDraftActionChange('qualidade', qualidade)}
+                        className={`rounded-2xl px-4 py-3 text-sm font-black transition-colors ${
+                          draftAction.qualidade === qualidade
+                            ? 'bg-gray-900 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {qualidade}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-7 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingAction(null);
+                    setDraftAction(null);
+                  }}
+                  className="rounded-full bg-gray-100 px-6 py-3 text-sm font-black uppercase tracking-widest text-gray-700 hover:bg-gray-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveActionEdit}
+                  className="rounded-full bg-green-500 px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-green-600 transition-colors"
+                >
+                  Salvar alteracao
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

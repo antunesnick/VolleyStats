@@ -23,6 +23,9 @@ const DEFAULT_FORM = {
   endDate: '',
 };
 
+const ACTIVE_PAGE_STORAGE_KEY = 'volleystats.activePage';
+const SELECTED_TOURNAMENT_STORAGE_KEY = 'volleystats.selectedTournamentId';
+
 const showToastMessage = (setToasts, type, text, duration = 3200) => {
   const id = `${Date.now()}-${Math.random()}`;
   setToasts((prev) => [...prev, { id, type, text }]);
@@ -79,8 +82,11 @@ const decorateTournaments = (tournaments) => {
 
 const Home = () => {
   const navigate = useNavigate();
-  const [activePage, setActivePage] = useState('home');
-  const [selectedTournamentId, setSelectedTournamentId] = useState(null);
+  const [activePage, setActivePage] = useState(() => sessionStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) || 'home');
+  const [selectedTournamentId, setSelectedTournamentId] = useState(() => {
+    const storedId = Number(sessionStorage.getItem(SELECTED_TOURNAMENT_STORAGE_KEY));
+    return storedId || null;
+  });
   const [tournaments, setTournaments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -94,25 +100,30 @@ const Home = () => {
   const [modalExcelOpen, setModalExcelOpen] = useState(false);
   const [dadosExcel, setDadosExcel] = useState([]);
   const [nomeArquivoExcel, setNomeArquivoExcel] = useState('');
+  const [isReadingExcel, setIsReadingExcel] = useState(false);
   
   const showToast = (type, text) => {
     showToastMessage(setToasts, type, text);
   };
 
   const handleImportarExcel = async () => {
-  try {
-    const result = await window.excelAPI.importar();
+    setIsReadingExcel(true)
     
-    if (result.success) {
-      setDadosExcel(result.data);
-      setNomeArquivoExcel(result.fileName);
-      setModalExcelOpen(true); 
-    } else if (result.error) {
-      // Passo 2.1 - Fluxo Alternativo: Estrutura Incorreta
-      showToast('error', result.error); 
-    }
-  } catch (error) {
+    try {
+      const result = await window.excelAPI.importar();
+      
+      if (result.success) {
+        setDadosExcel(result.data);
+        setNomeArquivoExcel(result.fileName);
+        setModalExcelOpen(true); 
+      } else if (result.error) {
+        // Passo 2.1 - Fluxo Alternativo: Estrutura Incorreta
+        showToast('error', result.error); 
+      }
+  }catch (error) {
     showToast('error', 'Erro ao abrir o seletor de arquivos.');
+  }finally {
+    setIsReadingExcel(false);
   }
 };
 
@@ -124,6 +135,9 @@ const handleConfirmarImportacao = async () => {
         showToast('success', 'Dados importados com sucesso!');
         setModalExcelOpen(false);
         setDadosExcel([]);
+        setTimeout(() => { // recarregar a pagina para reapparecer os jogadores
+          window.location.reload();
+        }, 1500);
       } else {
         showToast('error', result.error);
       }
@@ -150,6 +164,18 @@ const handleConfirmarImportacao = async () => {
   useEffect(() => {
     loadTournaments();
   }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, activePage);
+  }, [activePage]);
+
+  useEffect(() => {
+    if (selectedTournamentId) {
+      sessionStorage.setItem(SELECTED_TOURNAMENT_STORAGE_KEY, String(selectedTournamentId));
+    } else {
+      sessionStorage.removeItem(SELECTED_TOURNAMENT_STORAGE_KEY);
+    }
+  }, [selectedTournamentId]);
 
   const decoratedTournaments = useMemo(() => {
     return decorateTournaments(tournaments);
@@ -259,15 +285,21 @@ const handleConfirmarImportacao = async () => {
     setActivePage('tournament-detail');
   };
 
+  const backToHome = () => {
+    setActivePage('home');
+    sessionStorage.removeItem('volleystats.activeMatch');
+  };
+
   if (activePage === 'tournament-detail') {
     return (
       <TournamentView
         tournamentId={selectedTournamentId}
-        onBack={() => setActivePage('home')}
+        onBack={backToHome}
         onTournamentChanged={loadTournaments}
         onTournamentDeleted={() => {
           setSelectedTournamentId(null);
           setActivePage('home');
+          sessionStorage.removeItem('volleystats.activeMatch');
           loadTournaments();
         }}
       />
@@ -309,9 +341,26 @@ const handleConfirmarImportacao = async () => {
           >
             Ginasios
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all"
-            onClick={handleImportarExcel}>
-            Importar
+          <button 
+            onClick={handleImportarExcel}
+            disabled={isReadingExcel}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest border transition-all ${
+              isReadingExcel 
+                ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-wait' 
+                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {isReadingExcel ? (
+              <>
+                <svg className="animate-spin h-3.5 w-3.5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Lendo...
+              </>
+            ) : (
+              'Importar'
+            )}
           </button>
           <button className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
             Exportar

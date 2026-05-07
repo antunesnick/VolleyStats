@@ -34,13 +34,11 @@ class PartidaModel {
             params.push(tournamentId);
         }
 
-        // Filtro por data
         if (filters.dataPartida && filters.dataPartida.trim() !== '') {
             query += ' AND dataPartida = ?';
             params.push(filters.dataPartida);
         }
 
-        // Filtro por time (pode ser time1 ou time2)
         if (filters.timeId && filters.timeId !== '') {
             query += ' AND (time1 = ? OR time2 = ?)';
             params.push(parseInt(filters.timeId), parseInt(filters.timeId));
@@ -102,8 +100,8 @@ class PartidaModel {
         return stmt.all(torneioId);
     }
 
-
     insert(partida, db) {
+        // Incluído videoLink e fase na inserção
         const stmt = db.prepare(`
             INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2, torneio_id, videoLink)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -128,9 +126,10 @@ class PartidaModel {
     }
 
     update(partida, db) {
+        // Incluído videoLink e fase na atualização
         const stmt = db.prepare(`
             UPDATE Partidas 
-            SET nome = ?, dataPartida = ?, tipo = ?, externa = ?, ginasio_id = ?, time1 = ?, time2 = ?, torneio_id = ?
+            SET nome = ?, dataPartida = ?, tipo = ?, externa = ?, ginasio_id = ?, time1 = ?, time2 = ?, torneio_id = ?, videoLink = ?, fase = ?
             WHERE id = ?
         `);
         
@@ -142,16 +141,26 @@ class PartidaModel {
             partida.ginasio_id, 
             partida.time1, 
             partida.time2, 
-            partida.torneio_id, // <- Atualizando na query
+            partida.torneio_id, 
+            partida.videoLink,
+            partida.fase,
             partida.id
         );   
         return partida;
     }
     
     delete(id, db) {
-        const stmt = db.prepare('DELETE FROM Partidas WHERE id = ?');
-        stmt.run(id);
-        return { success: true };
+        const partidaId = Number(id);
+
+        db.prepare('DELETE FROM Substituicao WHERE Ponto_Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM Acao WHERE Ponto_Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM Ponto WHERE Set_Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM "Set" WHERE Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM TimesPartida WHERE Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM LinksPartida WHERE Partida_id = ?').run(partidaId);
+
+        const info = db.prepare('DELETE FROM Partidas WHERE id = ?').run(partidaId);
+        return { success: info.changes > 0, changes: info.changes };
     }
 
     finalize(id, pontosTime1, pontosTime2, db) {
@@ -162,6 +171,17 @@ class PartidaModel {
         `);
         stmt.run(pontosTime1, pontosTime2, id);
         return { success: true, id, pontosTime1, pontosTime2 };
+    }
+
+    updateStatus(id, status, db) {
+        const stmt = db.prepare(`
+            UPDATE Partidas
+            SET status = ?
+            WHERE id = ?
+        `);
+
+        const result = stmt.run(status, id);
+        return { success: result.changes > 0, id, status };
     }
 
     isValidVideoLink(link) {

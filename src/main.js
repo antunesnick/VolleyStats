@@ -80,6 +80,9 @@ ipcMain.handle('partidas:findByTournament', async (event, tournamentId) => {
 ipcMain.handle('partidas:finalizar', async (event, id, pontosTime1, pontosTime2) => {
     return await PartidaControl.getInstance().finalizarPartida(id, pontosTime1, pontosTime2);
 });
+ipcMain.handle('partidas:iniciar', async (event, id) => {
+    return await PartidaControl.getInstance().iniciarPartida(id);
+});
 
 
 // 2. INICIALIZAÇÃO DO APP
