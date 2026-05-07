@@ -74,6 +74,272 @@ const upsertMatchInTournament = (matchesByTournament, tournamentId, matchForm) =
   };
 };
 
+const normalizeMatchStatus = (status) => {
+  const value = String(status || '').toUpperCase();
+
+  if (value === 'FINALIZADA' || value === 'FINALIZADO' || value === 'FINISHED') {
+    return 'finished';
+  }
+
+  if (value === 'EM_ANDAMENTO' || value === 'AO_VIVO' || value === 'LIVE') {
+    return 'live';
+  }
+
+  return 'scheduled';
+};
+
+const normalizeScoreValue = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const buildTeamId = (rawId, name) => {
+  if (rawId !== null && rawId !== undefined && rawId !== '') {
+    return String(rawId);
+  }
+
+  if (name) {
+    return `name:${name}`;
+  }
+
+  return null;
+};
+
+const normalizeMatches = (matches = []) => {
+  return matches.map((match) => {
+    const team1Name = match.time1Nome || (match.time1 ? `Time ${match.time1}` : 'Time 1');
+    const team2Name = match.time2Nome || (match.time2 ? `Time ${match.time2}` : 'Time 2');
+
+    return {
+      id: String(match.id),
+      team1Id: buildTeamId(match.time1, team1Name),
+      team2Id: buildTeamId(match.time2, team2Name),
+      team1Name,
+      team2Name,
+      score1: normalizeScoreValue(match.pontosTime1),
+      score2: normalizeScoreValue(match.pontosTime2),
+      status: normalizeMatchStatus(match.status),
+      phase: match.fase || match.tipo || '',
+      isExternal: Boolean(match.externa),
+    };
+  });
+};
+
+const buildTeamsFromMatches = (matches = []) => {
+  const map = new Map();
+
+  matches.forEach((match) => {
+    if (match.team1Id && !map.has(match.team1Id)) {
+      map.set(match.team1Id, { id: match.team1Id, name: match.team1Name });
+    }
+
+    if (match.team2Id && !map.has(match.team2Id)) {
+      map.set(match.team2Id, { id: match.team2Id, name: match.team2Name });
+    }
+  });
+
+  return Array.from(map.values());
+};
+
+const buildStandings = (teams = [], matches = []) => {
+  const statsMap = new Map();
+
+  teams.forEach((team) => {
+    statsMap.set(team.id, {
+      teamId: team.id,
+      teamName: team.name,
+      played: 0,
+      won: 0,
+      lost: 0,
+      draws: 0,
+      setsWon: 0,
+      setsLost: 0,
+      points: 0,
+      setRatio: 0,
+    });
+  });
+
+  matches.forEach((match) => {
+    if (match.status !== 'finished' || !match.team1Id || !match.team2Id) {
+      return;
+    }
+
+    if (!statsMap.has(match.team1Id)) {
+      statsMap.set(match.team1Id, {
+        teamId: match.team1Id,
+        teamName: match.team1Name,
+        played: 0,
+        won: 0,
+        lost: 0,
+        draws: 0,
+        setsWon: 0,
+        setsLost: 0,
+        points: 0,
+        setRatio: 0,
+      });
+    }
+
+    if (!statsMap.has(match.team2Id)) {
+      statsMap.set(match.team2Id, {
+        teamId: match.team2Id,
+        teamName: match.team2Name,
+        played: 0,
+        won: 0,
+        lost: 0,
+        draws: 0,
+        setsWon: 0,
+        setsLost: 0,
+        points: 0,
+        setRatio: 0,
+      });
+    }
+
+    const team1 = statsMap.get(match.team1Id);
+    const team2 = statsMap.get(match.team2Id);
+
+    team1.played += 1;
+    team2.played += 1;
+
+    team1.setsWon += match.score1;
+    team1.setsLost += match.score2;
+    team2.setsWon += match.score2;
+    team2.setsLost += match.score1;
+
+    if (match.score1 > match.score2) {
+      team1.won += 1;
+      team2.lost += 1;
+    } else if (match.score2 > match.score1) {
+      team2.won += 1;
+      team1.lost += 1;
+    } else {
+      team1.draws += 1;
+      team2.draws += 1;
+    }
+  });
+
+  const standings = Array.from(statsMap.values()).map((team) => {
+    const points = team.won * 3 + team.draws;
+    const setRatio = team.setsLost === 0 ? team.setsWon : team.setsWon / team.setsLost;
+
+    return {
+      ...team,
+      points,
+      setRatio,
+    };
+  });
+
+  return standings.sort((a, b) => {
+    if (b.points !== a.points) {
+      return b.points - a.points;
+    }
+
+    if (b.setRatio !== a.setRatio) {
+      return b.setRatio - a.setRatio;
+    }
+
+    return a.teamName.localeCompare(b.teamName);
+  });
+};
+
+const getPhaseKey = (phase) => {
+  const value = String(phase || '').toLowerCase();
+
+  if (value.includes('oitavas')) {
+    return 'Oitavas';
+  }
+
+  if (value.includes('quartas')) {
+    return 'Quartas';
+  }
+
+  if (value.includes('semi')) {
+    return 'Semifinal';
+  }
+
+  if (value.includes('final')) {
+    return 'Final';
+  }
+
+  return null;
+};
+
+const getRoundIndexFromPhase = (phaseKey, totalRounds) => {
+  const phaseOffsets = {
+    Final: 1,
+    Semifinal: 2,
+    Quartas: 3,
+    Oitavas: 4,
+  };
+
+  const offset = phaseOffsets[phaseKey];
+  if (!offset) {
+    return 0;
+  }
+
+  const roundIndex = totalRounds - offset;
+  return roundIndex < 0 ? 0 : roundIndex;
+};
+
+const buildBracketRounds = (teams = [], matches = []) => {
+  if (teams.length === 0) {
+    return [];
+  }
+
+  const totalRounds = Math.max(1, Math.ceil(Math.log2(teams.length)));
+  const rounds = Array.from({ length: totalRounds }, () => []);
+
+  matches.forEach((match) => {
+    const phaseKey = getPhaseKey(match.phase);
+    if (!phaseKey) {
+      return;
+    }
+
+    const roundIndex = getRoundIndexFromPhase(phaseKey, totalRounds);
+    if (roundIndex < 0 || roundIndex >= totalRounds) {
+      return;
+    }
+
+    const winner = match.status === 'finished'
+      ? match.score1 > match.score2
+        ? match.team1Name
+        : match.team2Name
+      : undefined;
+
+    rounds[roundIndex].push({
+      team1: match.team1Name,
+      team2: match.team2Name,
+      score: `${match.score1}-${match.score2}`,
+      winner,
+      status: match.status,
+    });
+  });
+
+  const firstRoundMatches = Math.pow(2, totalRounds - 1);
+  while (rounds[0].length < firstRoundMatches) {
+    const index = rounds[0].length;
+    rounds[0].push({
+      team1: teams[index * 2]?.name || 'TBD',
+      team2: teams[index * 2 + 1]?.name || 'TBD',
+      score: '0-0',
+      status: 'scheduled',
+    });
+  }
+
+  for (let roundIndex = 1; roundIndex < totalRounds; roundIndex += 1) {
+    const expectedMatches = Math.pow(2, totalRounds - roundIndex - 1);
+    while (rounds[roundIndex].length < expectedMatches) {
+      rounds[roundIndex].push({
+        team1: 'TBD',
+        team2: 'TBD',
+        score: '0-0',
+        status: 'scheduled',
+      });
+    }
+  }
+
+  return rounds;
+};
+
 const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamentDeleted }) => {
   const [tournament, setTournament] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -139,13 +405,23 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
       return [];
     }
 
-    return matchesByTournament[tournament.id] || [];
-  }, [matchesByTournament, tournament]);
+    return dbMatches || [];
+  }, [dbMatches, tournament]);
+
+  const normalizedMatches = useMemo(() => normalizeMatches(dbMatches), [dbMatches]);
+  const tournamentTeams = useMemo(() => buildTeamsFromMatches(normalizedMatches), [normalizedMatches]);
+  const standings = useMemo(() => buildStandings(tournamentTeams, normalizedMatches), [tournamentTeams, normalizedMatches]);
+  const bracketRounds = useMemo(() => buildBracketRounds(tournamentTeams, normalizedMatches), [tournamentTeams, normalizedMatches]);
 
   const tournamentType = Number(tournament?.type);
   const canShowStandings = tournamentType === 1 || tournamentType === 3;
   const canShowBracket = tournamentType === 2 || tournamentType === 3;
   const getTournamentTypeText = (type) => getTournamentTypeLabel(TOURNAMENT_TYPES, type);
+  const viewModeLabel = viewMode === 'standings' ? 'CLASSIFICAÇÃO' : viewMode === 'bracket' ? 'CHAVEAMENTO' : 'PARTIDAS';
+
+  const handleToggleViewMode = (mode) => {
+    setViewMode((prev) => (prev === mode ? 'matches' : mode));
+  };
 
   useEffect(() => {
     if (viewMode === 'standings' && !canShowStandings) {
@@ -345,7 +621,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
               {tournament ? tournament.name : 'Torneio'}
             </h1>
             <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] mt-1">
-              {tournament ? `${getTournamentTypeText(tournament.type)} • MATCHES` : 'Carregando...'}
+              {tournament ? `${getTournamentTypeText(tournament.type)} • ${viewModeLabel}` : 'Carregando...'}
 
             </p>
           </div>
@@ -396,9 +672,70 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
         ) : (
           <>
             <section className="space-y-8">
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <GerenciarPartidas tournamentId={tournamentId} isEmbedded={true} />
+              <div className="flex items-center justify-between border-b border-gray-100 pb-6">
+                <div className="flex items-center gap-4">
+                  <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tighter italic">
+                    {viewMode === 'standings' ? 'Classificação' : viewMode === 'bracket' ? 'Chaveamento' : 'Jogos'}
+                  </h2>
+                  <div className="h-px w-24 bg-[#DC2626] opacity-30 mt-2" />
+                  <span className="text-[12px] font-black text-gray-300 mt-2 uppercase tracking-[0.2em]">
+                    {viewMode === 'standings'
+                      ? 'Tabela de Classificação'
+                      : viewMode === 'bracket'
+                        ? 'Bracket de Mata-Mata'
+                        : 'Tournament Schedule'}
+                  </span>
+                </div>
+                <div className="flex gap-3">
+                  {canShowStandings && (
+                    <button
+                      onClick={() => handleToggleViewMode('standings')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all ${
+                        viewMode === 'standings'
+                          ? 'bg-[#000000] text-white'
+                          : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z" />
+                      </svg>
+                      Classificação
+                    </button>
+                  )}
+
+                  {canShowBracket && (
+                    <button
+                      onClick={() => handleToggleViewMode('bracket')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all ${
+                        viewMode === 'bracket'
+                          ? 'bg-[#DC2626] text-white'
+                          : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 6h8M6 10h12M10 14h4M12 18h0" />
+                      </svg>
+                      Chaveamento
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {viewMode === 'matches' && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <GerenciarPartidas
+                    tournamentId={tournamentId}
+                    isEmbedded={true}
+                    onMatchesUpdated={setDbMatches}
+                  />
+                </div>
+              )}
+
+              {viewMode === 'standings' && <StandingsTable standings={standings} />}
+
+              {viewMode === 'bracket' && (
+                <BracketView rounds={bracketRounds} teams={tournamentTeams} />
+              )}
             </section>
             <section className="space-y-8">
               <div className="flex items-center justify-between border-b border-gray-100 pb-6">
@@ -661,6 +998,287 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TrophyIcon = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M8 21h8m-4-4v4m-6-4h12a4 4 0 004-4V5H2v8a4 4 0 004 4zm0-12V3h12v2"
+    />
+  </svg>
+);
+
+const StandingsTable = ({ standings = [] }) => {
+  if (!standings.length) {
+    return (
+      <div className="text-center py-12 text-gray-400">
+        <p className="font-black uppercase tracking-widest text-sm">
+          Adicione partidas finalizadas para visualizar a classificação
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border-2 border-gray-100 rounded-2xl overflow-hidden">
+      <div className="bg-linear-to-r from-[#DC2626] to-[#B91C1C] px-6 py-4">
+        <h3 className="text-xl font-black text-white uppercase tracking-tighter">Classificação Geral</h3>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-50 border-b-2 border-gray-100">
+              <th className="px-6 py-4 text-left">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">#</span>
+              </th>
+              <th className="px-6 py-4 text-left">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Time</span>
+              </th>
+              <th className="px-4 py-4 text-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">J</span>
+              </th>
+              <th className="px-4 py-4 text-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">V</span>
+              </th>
+              <th className="px-4 py-4 text-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">D</span>
+              </th>
+              <th className="px-4 py-4 text-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">SG</span>
+              </th>
+              <th className="px-4 py-4 text-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">SP</span>
+              </th>
+              <th className="px-6 py-4 text-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Pts</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {standings.map((stat, index) => {
+              const isLeader = index === 0;
+
+              return (
+                <tr
+                  key={stat.teamId}
+                  className="border-b border-gray-50 transition-all hover:bg-gray-50"
+                >
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-black ${isLeader ? 'text-[#DC2626]' : 'text-gray-400'}`}>
+                        {index + 1}
+                      </span>
+                      {isLeader && <TrophyIcon className="size-4 text-[#DC2626]" />}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="size-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <span className="text-[10px] font-black text-gray-400">
+                          {String(stat.teamName || '').substring(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                      <span className="font-black text-sm text-gray-900">{stat.teamName}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <span className="text-sm font-bold text-gray-600">{stat.played}</span>
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <span className="text-sm font-bold text-green-600">{stat.won}</span>
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <span className="text-sm font-bold text-red-500">{stat.lost}</span>
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <span className="text-sm font-bold text-gray-900">{stat.setsWon}</span>
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <span className="text-sm font-bold text-gray-400">{stat.setsLost}</span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className="text-lg font-black text-gray-900">{stat.points}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+        <div className="flex flex-wrap gap-4 text-[10px] font-bold text-gray-500">
+          <span>J - Jogos</span>
+          <span>V - Vitórias</span>
+          <span>D - Derrotas</span>
+          <span>SG - Sets Ganhos</span>
+          <span>SP - Sets Perdidos</span>
+          <span>Pts - Pontos</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BracketView = ({ rounds = [], teams = [] }) => {
+  const getRoundName = (roundIndex, totalRounds) => {
+    const fromEnd = totalRounds - roundIndex;
+    if (fromEnd === 1) return 'Final';
+    if (fromEnd === 2) return 'Semifinal';
+    if (fromEnd === 3) return 'Quartas';
+    if (fromEnd === 4) return 'Oitavas';
+    return `Rodada ${roundIndex + 1}`;
+  };
+
+  if (!teams.length) {
+    return (
+      <div className="text-center py-12 text-gray-400">
+        <TrophyIcon className="size-12 mx-auto mb-4 opacity-20" />
+        <p className="font-black uppercase tracking-widest text-sm">
+          Adicione times ao torneio para visualizar o chaveamento
+        </p>
+      </div>
+    );
+  }
+
+  if (!rounds.length) {
+    return (
+      <div className="text-center py-12 text-gray-400">
+        <p className="font-black uppercase tracking-widest text-sm">
+          Nenhuma partida de mata-mata registrada
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto pb-8">
+      <div className="inline-flex gap-8 min-w-full justify-center">
+        {rounds.map((round, roundIndex) => (
+          <div key={roundIndex} className="flex flex-col gap-4 min-w-[280px]">
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-black uppercase tracking-tighter text-gray-900">
+                {getRoundName(roundIndex, rounds.length)}
+              </h3>
+              <div className="h-1 w-16 bg-[#DC2626] mx-auto mt-2 rounded-full" />
+            </div>
+
+            <div className="flex flex-col justify-around flex-1 gap-4">
+              {round.map((match, matchIndex) => {
+                const [score1, score2] = String(match.score || '0-0')
+                  .split('-')
+                  .map((value) => parseInt(value, 10) || 0);
+                const statusLabel = match.status === 'live' ? 'AO VIVO' : match.status === 'finished' ? 'FINAL' : 'AGENDADO';
+
+                return (
+                  <div
+                    key={matchIndex}
+                    className="relative bg-white border-2 rounded-xl overflow-hidden transition-all hover:shadow-lg border-gray-100"
+                    style={{
+                      marginTop: roundIndex > 0 ? `${Math.pow(2, roundIndex) * 20}px` : '0',
+                    }}
+                  >
+                    <div
+                      className={`absolute top-2 right-2 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                        match.status === 'live'
+                          ? 'bg-red-500 text-white animate-pulse'
+                          : match.status === 'finished'
+                            ? 'bg-gray-100 text-gray-500'
+                            : 'bg-yellow-50 text-yellow-600'
+                      }`}
+                    >
+                      {statusLabel}
+                    </div>
+
+                    <div
+                      className={`px-4 py-3 flex items-center justify-between transition-all ${
+                        match.winner === match.team1
+                          ? 'bg-[#000000] bg-opacity-10 border-b-2 border-[#000000]'
+                          : 'border-b border-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <div className="size-6 bg-gray-100 rounded flex items-center justify-center">
+                          <span className="text-[8px] font-black text-gray-400">
+                            {String(match.team1 || '').substring(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                        <span
+                          className={`text-sm font-black truncate ${
+                            match.winner === match.team1 ? 'text-[#000000]' : 'text-gray-900'
+                          }`}
+                        >
+                          {match.team1}
+                        </span>
+                        {match.winner === match.team1 && <TrophyIcon className="size-3 text-[#DC2626]" />}
+                      </div>
+                      <span
+                        className={`text-lg font-black tabular-nums ml-2 ${
+                          match.winner === match.team1 ? 'text-[#000000]' : 'text-gray-400'
+                        }`}
+                      >
+                        {score1}
+                      </span>
+                    </div>
+
+                    <div
+                      className={`px-4 py-3 flex items-center justify-between transition-all ${
+                        match.winner === match.team2 ? 'bg-[#000000] bg-opacity-10' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <div className="size-6 bg-gray-100 rounded flex items-center justify-center">
+                          <span className="text-[8px] font-black text-gray-400">
+                            {String(match.team2 || '').substring(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                        <span
+                          className={`text-sm font-black truncate ${
+                            match.winner === match.team2 ? 'text-[#000000]' : 'text-gray-900'
+                          }`}
+                        >
+                          {match.team2}
+                        </span>
+                        {match.winner === match.team2 && <TrophyIcon className="size-3 text-[#DC2626]" />}
+                      </div>
+                      <span
+                        className={`text-lg font-black tabular-nums ml-2 ${
+                          match.winner === match.team2 ? 'text-[#000000]' : 'text-gray-400'
+                        }`}
+                      >
+                        {score2}
+                      </span>
+                    </div>
+
+                    {roundIndex < rounds.length - 1 && (
+                      <div className="absolute -right-8 top-1/2 -translate-y-1/2 w-8 h-0.5 bg-gray-200" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {rounds.length > 0 && rounds[rounds.length - 1][0]?.winner && (
+        <div className="mt-12 text-center">
+          <div className="inline-flex flex-col items-center gap-4 px-12 py-8 bg-linear-to-br from-[#DC2626] to-[#B91C1C] rounded-2xl shadow-2xl">
+            <TrophyIcon className="size-12 text-white" />
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-900 mb-2">Campeão</p>
+              <h2 className="text-3xl font-black uppercase tracking-tighter text-white">
+                {rounds[rounds.length - 1][0].winner}
+              </h2>
+            </div>
           </div>
         </div>
       )}

@@ -92,7 +92,7 @@ export function PlayerView() {
       <Style.Section>
         <Style.SectionHeader>
           <Style.TitleGroup>
-            <Style.Title>Roster</Style.Title>
+            <Style.Title>Elenco</Style.Title>
             <Style.TitleDivider />
             <Style.AthleteCount>{players.length} Atletas</Style.AthleteCount>
           </Style.TitleGroup>

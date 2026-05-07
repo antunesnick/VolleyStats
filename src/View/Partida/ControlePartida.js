@@ -396,6 +396,11 @@
       timesPartidaRef.current.home = homeTime;
       setEscalados({ home: initialLine, away: [] });
       setBenchPlayers(initialBench);
+
+      persistCurrentEscalacao(homeTime).catch((error) => {
+        console.error('Erro ao salvar escalação inicial:', error);
+        setEscalaMsg(error.message || 'Erro ao salvar escalação inicial.');
+      });
     }, [players, escalados.home.length, benchPlayers.length, partida?.id, partida?.time1, partida?.time2, isEscalacaoLoaded]);
 
     const availableEscalacaoPlayers = useMemo(() => {
@@ -1216,6 +1221,7 @@ useEffect(() => { scoreRef.current = score; }, [score]);
           score={score}
           partidaId={partida?.id}
           onConfirm={handleConfirmarEstatistica}
+          onStatisticsChange={() => carregarDadosDoSet(currentSet)}
         />
         <HelpScoutModal
         open={showHelpModal}
