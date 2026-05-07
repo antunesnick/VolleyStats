@@ -1,5 +1,6 @@
 // Substituído require() por import para harmonizar com o export default no final
 import { cpf } from 'cpf-cnpj-validator';
+import db from '../db/db';
 
 class Player {
   // Adicionado categoriaId
@@ -19,6 +20,23 @@ class Player {
   #validarCPF(cpfString) {
     if (!cpfString) return false;
     return cpf.isValid(cpfString); 
+  }
+
+  static buscarJogador(jogadorId) {
+    if (!jogadorId) {
+      return null;
+    }
+
+    return db.prepare(`
+      SELECT
+        j.id,
+        j.nome,
+        j.posicao_id,
+        p.nome AS posicaoNome
+      FROM Jogadores j
+      LEFT JOIN Posicoes p ON p.id = j.posicao_id
+      WHERE j.id = ?
+    `).get(Number(jogadorId));
   }
 
   insertPlayer(db) {

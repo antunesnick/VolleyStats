@@ -465,10 +465,6 @@ const handleConfirmarImportacao = async () => {
           <PlayerView />
         </section>
 
-        {/* --- SESSÃO: GINÁSIOS (COMPONENTIZADA) --- */}
-        <section className="space-y-8">
-          <Ginasio />
-        </section>
 
         {/* --- SESSÃO: AGENDA --- */}
         <section className="space-y-8">
