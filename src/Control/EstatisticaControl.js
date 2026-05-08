@@ -1,3 +1,4 @@
+import db from "../db/db";
 import EstatisticaModel from "../Model/EstatisticaModel";
 
 class EstatisticaControl {
@@ -114,7 +115,10 @@ class EstatisticaControl {
   }
 
   salvarSets(partidaId, draftSets) {
-    const statistics = this.estatisticaModel.salvarPontuacaoSets(partidaId, draftSets);
+    const transaction = db.transaction((idPartida, sets) => {
+      return this.estatisticaModel.salvarPontuacaoSets(idPartida, sets);
+    });
+    const statistics = transaction(partidaId, draftSets);
 
     return {
       statistics,
@@ -158,7 +162,10 @@ class EstatisticaControl {
 
   salvarEdicaoAcao(partidaId, draftAcao) {
     try {
-      const statistics = this.estatisticaModel.editarAcao(partidaId, draftAcao);
+      const transaction = db.transaction((idPartida, acao) => {
+        return this.estatisticaModel.editarAcao(idPartida, acao);
+      });
+      const statistics = transaction(partidaId, draftAcao);
 
       return {
         statistics,
@@ -177,7 +184,10 @@ class EstatisticaControl {
 
   excluirAcao(partidaId, acaoId) {
     try {
-      const statistics = this.estatisticaModel.excluirAcao(partidaId, acaoId);
+      const transaction = db.transaction((idPartida, idAcao) => {
+        return this.estatisticaModel.excluirAcao(idPartida, idAcao);
+      });
+      const statistics = transaction(partidaId, acaoId);
 
       return {
         statistics,
@@ -196,7 +206,10 @@ class EstatisticaControl {
 
   excluirSet(partidaId, numSet) {
     try {
-      const statistics = this.estatisticaModel.excluirSet(partidaId, numSet);
+      const transaction = db.transaction((idPartida, setNumber) => {
+        return this.estatisticaModel.excluirSet(idPartida, setNumber);
+      });
+      const statistics = transaction(partidaId, numSet);
 
       return {
         statistics,

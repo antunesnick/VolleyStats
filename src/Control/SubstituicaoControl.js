@@ -1,3 +1,4 @@
+import db from '../db/db';
 import Substituicao from '../Model/Substituicao';
 import Player from '../Model/Player';
 
@@ -37,8 +38,12 @@ class SubstituicaoControl {
   }
 
   registrarSubstituicao({ pontoTime1 = 0, pontoTime2 = 0, partidaId, jogadorEntra, jogadorSai, numSet = 1 }) {
+    const transaction = db.transaction((dadosSubstituicao) => {
+      return Substituicao.registrarSubstituicao(dadosSubstituicao, db);
+    });
+
     try {
-      return Substituicao.registrarSubstituicao({
+      return transaction({
         pontoTime1,
         pontoTime2,
         partidaId,

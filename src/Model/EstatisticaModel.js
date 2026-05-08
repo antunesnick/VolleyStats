@@ -330,20 +330,17 @@ class EstatisticaModel {
       throw new Error('Tipo de acao invalido.');
     }
 
-    const updateTransaction = db.transaction(() => {
-      const stmt = db.prepare(`
-        UPDATE Acao
-        SET Jogador_id = ?, idTipoAcao = ?, Qualidade = ?
-        WHERE id = ? AND Ponto_Partida_id = ?
-      `);
+    const stmt = db.prepare(`
+      UPDATE Acao
+      SET Jogador_id = ?, idTipoAcao = ?, Qualidade = ?
+      WHERE id = ? AND Ponto_Partida_id = ?
+    `);
 
-      const result = stmt.run(jogadorId, tipoAcaoId, qualidade, acaoId, Number(partidaId));
-      if (result.changes === 0) {
-        throw new Error('Nenhuma acao foi atualizada.');
-      }
-    });
+    const result = stmt.run(jogadorId, tipoAcaoId, qualidade, acaoId, Number(partidaId));
+    if (result.changes === 0) {
+      throw new Error('Nenhuma acao foi atualizada.');
+    }
 
-    updateTransaction();
     return this.buscarEstatisticasPartida(partidaId);
   }
 
@@ -355,70 +352,67 @@ class EstatisticaModel {
       throw new Error('Acao invalida para exclusao.');
     }
 
-    const deleteTransaction = db.transaction(() => {
-      const acaoRow = db.prepare(`
-        SELECT Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id
-        FROM Acao
-        WHERE id = ? AND Ponto_Partida_id = ?
-      `).get(acao, partida);
+    const acaoRow = db.prepare(`
+      SELECT Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id
+      FROM Acao
+      WHERE id = ? AND Ponto_Partida_id = ?
+    `).get(acao, partida);
 
-      if (!acaoRow) {
-        throw new Error('Acao nao encontrada para esta partida.');
-      }
+    if (!acaoRow) {
+      throw new Error('Acao nao encontrada para esta partida.');
+    }
 
-      const result = db.prepare(`
-        DELETE FROM Acao
-        WHERE id = ? AND Ponto_Partida_id = ?
-      `).run(acao, partida);
+    const result = db.prepare(`
+      DELETE FROM Acao
+      WHERE id = ? AND Ponto_Partida_id = ?
+    `).run(acao, partida);
 
-      if (result.changes === 0) {
-        throw new Error('Acao nao encontrada para esta partida.');
-      }
+    if (result.changes === 0) {
+      throw new Error('Acao nao encontrada para esta partida.');
+    }
 
-      const acoesRestantes = db.prepare(`
-        SELECT COUNT(*) AS total
-        FROM Acao
+    const acoesRestantes = db.prepare(`
+      SELECT COUNT(*) AS total
+      FROM Acao
+      WHERE Ponto_pontoTime1 = ?
+        AND Ponto_pontoTime2 = ?
+        AND Ponto_NumSet = ?
+        AND Ponto_Partida_id = ?
+    `).get(
+      acaoRow.Ponto_pontoTime1,
+      acaoRow.Ponto_pontoTime2,
+      acaoRow.Ponto_NumSet,
+      acaoRow.Ponto_Partida_id,
+    );
+
+    if (Number(acoesRestantes?.total || 0) === 0) {
+      db.prepare(`
+        DELETE FROM Substituicao
         WHERE Ponto_pontoTime1 = ?
           AND Ponto_pontoTime2 = ?
           AND Ponto_NumSet = ?
           AND Ponto_Partida_id = ?
-      `).get(
+      `).run(
         acaoRow.Ponto_pontoTime1,
         acaoRow.Ponto_pontoTime2,
         acaoRow.Ponto_NumSet,
         acaoRow.Ponto_Partida_id,
       );
 
-      if (Number(acoesRestantes?.total || 0) === 0) {
-        db.prepare(`
-          DELETE FROM Substituicao
-          WHERE Ponto_pontoTime1 = ?
-            AND Ponto_pontoTime2 = ?
-            AND Ponto_NumSet = ?
-            AND Ponto_Partida_id = ?
-        `).run(
-          acaoRow.Ponto_pontoTime1,
-          acaoRow.Ponto_pontoTime2,
-          acaoRow.Ponto_NumSet,
-          acaoRow.Ponto_Partida_id,
-        );
+      db.prepare(`
+        DELETE FROM Ponto
+        WHERE pontoTime1 = ?
+          AND pontoTime2 = ?
+          AND NumSet = ?
+          AND Set_Partida_id = ?
+      `).run(
+        acaoRow.Ponto_pontoTime1,
+        acaoRow.Ponto_pontoTime2,
+        acaoRow.Ponto_NumSet,
+        acaoRow.Ponto_Partida_id,
+      );
+    }
 
-        db.prepare(`
-          DELETE FROM Ponto
-          WHERE pontoTime1 = ?
-            AND pontoTime2 = ?
-            AND NumSet = ?
-            AND Set_Partida_id = ?
-        `).run(
-          acaoRow.Ponto_pontoTime1,
-          acaoRow.Ponto_pontoTime2,
-          acaoRow.Ponto_NumSet,
-          acaoRow.Ponto_Partida_id,
-        );
-      }
-    });
-
-    deleteTransaction();
     return this.buscarEstatisticasPartida(partidaId);
   }
 
@@ -430,18 +424,15 @@ class EstatisticaModel {
       throw new Error('Set invalido para exclusao.');
     }
 
-    const deleteTransaction = db.transaction(() => {
-      db.prepare('DELETE FROM Substituicao WHERE Ponto_Partida_id = ? AND Ponto_NumSet = ?')
-        .run(partida, setNumber);
-      db.prepare('DELETE FROM Acao WHERE Ponto_Partida_id = ? AND Ponto_NumSet = ?')
-        .run(partida, setNumber);
-      db.prepare('DELETE FROM Ponto WHERE Set_Partida_id = ? AND NumSet = ?')
-        .run(partida, setNumber);
-      db.prepare('DELETE FROM "Set" WHERE Partida_id = ? AND NumSet = ?')
-        .run(partida, setNumber);
-    });
+    db.prepare('DELETE FROM Substituicao WHERE Ponto_Partida_id = ? AND Ponto_NumSet = ?')
+      .run(partida, setNumber);
+    db.prepare('DELETE FROM Acao WHERE Ponto_Partida_id = ? AND Ponto_NumSet = ?')
+      .run(partida, setNumber);
+    db.prepare('DELETE FROM Ponto WHERE Set_Partida_id = ? AND NumSet = ?')
+      .run(partida, setNumber);
+    db.prepare('DELETE FROM "Set" WHERE Partida_id = ? AND NumSet = ?')
+      .run(partida, setNumber);
 
-    deleteTransaction();
     return this.buscarEstatisticasPartida(partidaId);
   }
 
@@ -452,29 +443,26 @@ class EstatisticaModel {
 
     this.garantirColunasPlacarSet();
 
-    const saveTransaction = db.transaction((partida, draftSets) => {
-      const insertSet = db.prepare('INSERT OR IGNORE INTO "Set" (NumSet, Partida_id) VALUES (?, ?)');
-      const updateSet = db.prepare(`
-        UPDATE "Set"
-        SET pontosTime1 = ?, pontosTime2 = ?
-        WHERE NumSet = ? AND Partida_id = ?
-      `);
+    const insertSet = db.prepare('INSERT OR IGNORE INTO "Set" (NumSet, Partida_id) VALUES (?, ?)');
+    const updateSet = db.prepare(`
+      UPDATE "Set"
+      SET pontosTime1 = ?, pontosTime2 = ?
+      WHERE NumSet = ? AND Partida_id = ?
+    `);
 
-      for (const setScore of draftSets) {
-        const numSet = Number(setScore.numSet);
-        if (!numSet) continue;
+    for (const setScore of sets) {
+      const numSet = Number(setScore.numSet);
+      if (!numSet) continue;
 
-        insertSet.run(numSet, Number(partida));
-        updateSet.run(
-          this.normalizarPlacar(setScore.home),
-          this.normalizarPlacar(setScore.away),
-          numSet,
-          Number(partida),
-        );
-      }
-    });
+      insertSet.run(numSet, Number(partidaId));
+      updateSet.run(
+        this.normalizarPlacar(setScore.home),
+        this.normalizarPlacar(setScore.away),
+        numSet,
+        Number(partidaId),
+      );
+    }
 
-    saveTransaction(Number(partidaId), sets);
     return this.buscarEstatisticasPartida(partidaId);
   }
 }

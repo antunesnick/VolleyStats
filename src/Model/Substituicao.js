@@ -168,7 +168,7 @@ class Substituicao extends Evento {
         };
     }
 
-    static registrarSubstituicao({ pontoTime1 = 0, pontoTime2 = 0, partidaId, jogadorEntra, jogadorSai, numSet = 1 }) {
+    static registrarSubstituicao({ pontoTime1 = 0, pontoTime2 = 0, partidaId, jogadorEntra, jogadorSai, numSet = 1 }, database = db) {
         const validacao = Substituicao.validarSubstituicao({ partidaId, jogadorEntra, jogadorSai, numSet });
 
         if (!validacao.permissaoSubstituir) {
@@ -178,39 +178,35 @@ class Substituicao extends Evento {
             };
         }
 
-        const transaction = db.transaction(() => {
-            db.prepare('INSERT OR IGNORE INTO "Set" (NumSet, Partida_id) VALUES (?, ?)')
-                .run(Number(numSet), Number(partidaId));
+        database.prepare('INSERT OR IGNORE INTO "Set" (NumSet, Partida_id) VALUES (?, ?)')
+            .run(Number(numSet), Number(partidaId));
 
-            db.prepare(`
-                INSERT OR IGNORE INTO Ponto (pontoTime1, pontoTime2, NumSet, Set_Partida_id)
-                VALUES (?, ?, ?, ?)
-            `).run(Number(pontoTime1), Number(pontoTime2), Number(numSet), Number(partidaId));
+        database.prepare(`
+            INSERT OR IGNORE INTO Ponto (pontoTime1, pontoTime2, NumSet, Set_Partida_id)
+            VALUES (?, ?, ?, ?)
+        `).run(Number(pontoTime1), Number(pontoTime2), Number(numSet), Number(partidaId));
 
-            const info = db.prepare(`
-                INSERT INTO Substituicao (
-                    Ponto_pontoTime1,
-                    Ponto_pontoTime2,
-                    Ponto_NumSet,
-                    Ponto_Partida_id,
-                    JogadorEntra,
-                    JogadorSai
-                ) VALUES (?, ?, ?, ?, ?, ?)
-            `).run(
-                Number(pontoTime1),
-                Number(pontoTime2),
-                Number(numSet),
-                Number(partidaId),
-                Number(jogadorEntra),
-                Number(jogadorSai),
-            );
-
-            return info.lastInsertRowid;
-        });
+        const info = database.prepare(`
+            INSERT INTO Substituicao (
+                Ponto_pontoTime1,
+                Ponto_pontoTime2,
+                Ponto_NumSet,
+                Ponto_Partida_id,
+                JogadorEntra,
+                JogadorSai
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        `).run(
+            Number(pontoTime1),
+            Number(pontoTime2),
+            Number(numSet),
+            Number(partidaId),
+            Number(jogadorEntra),
+            Number(jogadorSai),
+        );
 
         return {
             success: true,
-            id: transaction(),
+            id: info.lastInsertRowid,
         };
     }
 }
