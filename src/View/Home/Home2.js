@@ -341,6 +341,12 @@ const handleConfirmarImportacao = async () => {
           >
             Ginasios
           </button>
+          <button
+            onClick={() => navigate('/times')}
+            className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all"
+          >
+            Times
+          </button>
           <button 
             onClick={handleImportarExcel}
             disabled={isReadingExcel}
