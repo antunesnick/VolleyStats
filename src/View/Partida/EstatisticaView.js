@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import EstatisticaControl from '../../Control/EstatisticaControl';
 import { Alertas } from '../../utils/Alertas';
 
@@ -22,6 +22,16 @@ const EmptyState = ({ title, message }) => (
   </div>
 );
 
+const getScoreInputValue = (value) => {
+  if (value === '' || value === null || value === undefined || Number(value) === 0) {
+    return '';
+  }
+
+  return value;
+};
+
+const getScoreNumber = (value) => Number(value) || 0;
+
 const EstatisticaView = ({
   open,
   onClose,
@@ -32,6 +42,8 @@ const EstatisticaView = ({
   partidaId,
   onConfirm,
   onStatisticsChange,
+  resumoOnly = false,
+  useDraftSetsAsResult = false,
 }) => {
   const initialState = EstatisticaControl.criarEstadoInicial(score);
   const [activeTab, setActiveTab] = useState(initialState.activeTab);
@@ -43,8 +55,13 @@ const EstatisticaView = ({
   const [statisticsError, setStatisticsError] = useState(initialState.statisticsError);
   const [playerSearch, setPlayerSearch] = useState('');
   const [playerSearchMode, setPlayerSearchMode] = useState('nome');
+  const rollbackSnapshotRef = useRef(null);
+  const confirmedRef = useRef(false);
+  const initializedOpenRef = useRef(false);
 
-  const resultadoPartida = EstatisticaControl.obterResultadoPartida(statistics, draftSets);
+  const resultadoPartida = useDraftSetsAsResult && draftSets.length > 0
+    ? EstatisticaControl.calcularResultadoSets(draftSets)
+    : EstatisticaControl.obterResultadoPartida(statistics, draftSets);
   const jogadoresFiltrados = statistics.jogadores.filter((jogador) => {
     const termo = playerSearch.trim().toLowerCase();
     if (!termo) {
@@ -59,12 +76,27 @@ const EstatisticaView = ({
   });
 
   useEffect(() => {
+    if (!open) {
+      initializedOpenRef.current = false;
+      return;
+    }
+
     if (open) {
+      if (initializedOpenRef.current) {
+        return;
+      }
+
+      initializedOpenRef.current = true;
+      confirmedRef.current = false;
+      rollbackSnapshotRef.current = !resumoOnly
+        ? EstatisticaControl.criarSnapshotPartida(partidaId)
+        : null;
+
       const resetState = EstatisticaControl.resetarAoAbrir(score);
       const resumoState = EstatisticaControl.carregarResumo(partidaId);
       const actionOptions = EstatisticaControl.carregarOpcoesEdicaoAcao(partidaId);
 
-      setActiveTab(resetState.activeTab);
+      setActiveTab(resumoOnly ? 'sets' : resetState.activeTab);
       setDraftSets(resumoState.draftSets);
       setEditOptions(actionOptions);
       setEditingAction(null);
@@ -74,7 +106,28 @@ const EstatisticaView = ({
       setPlayerSearch('');
       setPlayerSearchMode('nome');
     }
-  }, [open, score, partidaId]);
+  }, [open, partidaId, resumoOnly]);
+
+  const handleCloseWithRollback = () => {
+    if (!confirmedRef.current && rollbackSnapshotRef.current) {
+      const rollbackState = EstatisticaControl.restaurarSnapshotPartida(partidaId, rollbackSnapshotRef.current);
+
+      if (rollbackState?.statisticsError) {
+        setStatisticsError(rollbackState.statisticsError);
+        return;
+      }
+
+      setStatistics(rollbackState.statistics);
+      setDraftSets(rollbackState.draftSets);
+      setStatisticsError('');
+      onStatisticsChange?.();
+    }
+
+    rollbackSnapshotRef.current = null;
+    confirmedRef.current = false;
+    initializedOpenRef.current = false;
+    onClose?.();
+  };
 
   const handleDraftSetChange = (numSet, side, value) => {
     setDraftSets((current) => EstatisticaControl.alterarPlacarSet(current, numSet, side, value));
@@ -86,6 +139,7 @@ const EstatisticaView = ({
       setStatistics(nextState.statistics);
       setDraftSets(nextState.draftSets);
       setStatisticsError(nextState.statisticsError);
+      onStatisticsChange?.();
       return nextState;
     } catch (error) {
       console.error('Erro ao salvar sets:', error);
@@ -94,9 +148,38 @@ const EstatisticaView = ({
     }
   };
 
+  const handleAddSet = () => {
+    setDraftSets((current) => {
+      const nextSetNumber = current.reduce((max, setScore) => {
+        return Math.max(max, Number(setScore.numSet) || 0);
+      }, 0) + 1;
+
+      return [
+        ...current,
+        {
+          numSet: nextSetNumber,
+          home: 0,
+          away: 0,
+        },
+      ];
+    });
+    setActiveTab('sets');
+    setStatisticsError('');
+  };
+
   const handleConfirm = () => {
     const savedState = handleSaveSets();
-    EstatisticaControl.confirmar(onConfirm, savedState.statistics, savedState.draftSets);
+
+    if (typeof onConfirm === 'function') {
+      const finalScore = useDraftSetsAsResult && savedState.draftSets.length > 0
+        ? EstatisticaControl.calcularResultadoSets(savedState.draftSets)
+        : EstatisticaControl.obterResultadoPartida(savedState.statistics, savedState.draftSets);
+
+      confirmedRef.current = true;
+      rollbackSnapshotRef.current = null;
+      initializedOpenRef.current = false;
+      onConfirm(finalScore);
+    }
   };
 
   const handleOpenActionEdit = (acao) => {
@@ -122,6 +205,7 @@ const EstatisticaView = ({
     setEditingAction(null);
     setDraftAction(null);
     setStatisticsError('');
+    onStatisticsChange?.();
   };
 
   const handleDeleteAction = async (acao) => {
@@ -174,12 +258,16 @@ const EstatisticaView = ({
       <div className="w-full max-w-6xl rounded-[2rem] bg-white p-8 shadow-2xl border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-widest text-gray-500">Encerramento da partida</p>
-            <h2 className="mt-1 text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Finalizar Partida</h2>
+            <p className="text-[11px] font-black uppercase tracking-widest text-gray-500">
+              {resumoOnly ? 'Resumo da partida' : 'Encerramento da partida'}
+            </p>
+            <h2 className="mt-1 text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+              {resumoOnly ? 'Resultado e Sets' : 'Finalizar Partida'}
+            </h2>
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCloseWithRollback}
             className="rounded-full bg-gray-100 px-4 py-3 text-sm font-black text-gray-600 hover:bg-gray-200 transition-colors"
             aria-label="Fechar"
           >
@@ -194,7 +282,7 @@ const EstatisticaView = ({
         )}
 
         <div className="flex flex-wrap gap-3 mb-6 border-b border-gray-100 pb-4">
-          {TAB_ITEMS.map((item) => (
+          {(resumoOnly ? TAB_ITEMS.filter((item) => item.id !== 'jogadores') : TAB_ITEMS).map((item) => (
             <button
               key={item.id}
               type="button"
@@ -212,11 +300,11 @@ const EstatisticaView = ({
 
         {activeTab === 'geral' && (
           <div className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-4">
+            <div className={`grid gap-4 ${resumoOnly ? 'sm:grid-cols-3' : 'sm:grid-cols-4'}`}>
               <StatCard label="Sets da partida" value={`${resultadoPartida.home} x ${resultadoPartida.away}`} />
               <StatCard label="Sets registrados" value={statistics.totals.sets} />
               <StatCard label="Pontos registrados" value={statistics.totals.pontos} />
-              <StatCard label="Acoes registradas" value={statistics.totals.acoes} />
+              {!resumoOnly && <StatCard label="Acoes registradas" value={statistics.totals.acoes} />}
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
@@ -238,9 +326,11 @@ const EstatisticaView = ({
                 ) : (
                   <div className="space-y-2">
                     {draftSets.map((setScore) => {
-                      const winner = setScore.home > setScore.away
+                      const homeScore = getScoreNumber(setScore.home);
+                      const awayScore = getScoreNumber(setScore.away);
+                      const winner = homeScore > awayScore
                         ? homeLabel
-                        : setScore.away > setScore.home
+                        : awayScore > homeScore
                           ? awayLabel
                           : 'Empate';
 
@@ -248,7 +338,7 @@ const EstatisticaView = ({
                         <div key={setScore.numSet} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 border border-gray-100">
                           <span className="text-xs font-black uppercase tracking-widest text-gray-500">Set {setScore.numSet}</span>
                           <span className="text-sm font-black text-gray-900">
-                            {setScore.home} x {setScore.away} - {winner}
+                            {homeScore} x {awayScore} - {winner}
                           </span>
                         </div>
                       );
@@ -260,7 +350,7 @@ const EstatisticaView = ({
           </div>
         )}
 
-        {activeTab === 'jogadores' && (
+        {!resumoOnly && activeTab === 'jogadores' && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
               <input
@@ -375,18 +465,29 @@ const EstatisticaView = ({
 
         {activeTab === 'sets' && (
           <div className="space-y-4 max-h-[52vh] overflow-auto pr-1">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleAddSet}
+                className="rounded-full bg-gray-900 px-5 py-3 text-[11px] font-black uppercase tracking-widest text-white hover:bg-gray-800 transition-colors"
+              >
+                Adicionar set
+              </button>
+            </div>
             {draftSets.length === 0 ? (
               <EmptyState
                 title="Nenhum set registrado"
-                message="Quando um scout e gravado, o set atual passa a aparecer neste resumo."
+                message={resumoOnly ? 'Adicione um set para registrar o placar da partida.' : 'Quando um scout e gravado, o set atual passa a aparecer neste resumo.'}
               />
             ) : (
               <>
                 {draftSets.map((setScore) => {
                   const setStats = statistics.sets.find((item) => Number(item.numSet) === Number(setScore.numSet));
-                  const winner = setScore.home > setScore.away
+                  const homeScore = getScoreNumber(setScore.home);
+                  const awayScore = getScoreNumber(setScore.away);
+                  const winner = homeScore > awayScore
                     ? homeLabel
-                    : setScore.away > setScore.home
+                    : awayScore > homeScore
                       ? awayLabel
                       : 'Empate';
 
@@ -399,14 +500,16 @@ const EstatisticaView = ({
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
                           <StatCard label="Pontos" value={setStats?.pontos || 0} />
-                          <StatCard label="Acoes" value={setStats?.acoes || 0} />
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSet(setScore.numSet)}
-                            className="rounded-full bg-red-500 px-5 py-3 text-[11px] font-black uppercase tracking-widest text-white hover:bg-red-600 transition-colors"
-                          >
-                            Excluir set
-                          </button>
+                          {!resumoOnly && <StatCard label="Acoes" value={setStats?.acoes || 0} />}
+                          {!resumoOnly && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSet(setScore.numSet)}
+                              className="rounded-full bg-red-500 px-5 py-3 text-[11px] font-black uppercase tracking-widest text-white hover:bg-red-600 transition-colors"
+                            >
+                              Excluir set
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -416,9 +519,11 @@ const EstatisticaView = ({
                           <input
                             type="number"
                             min="0"
-                            value={setScore.home}
+                            placeholder="0"
+                            value={getScoreInputValue(setScore.home)}
+                            onFocus={(event) => event.target.select()}
                             onChange={(event) => handleDraftSetChange(setScore.numSet, 'home', event.target.value)}
-                            className="w-full text-center text-4xl font-black text-gray-900 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100"
+                            className="w-full text-center text-4xl font-black text-gray-900 placeholder:text-gray-300 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100"
                           />
                         </div>
                         <div className="text-3xl font-black text-gray-300 pt-6">x</div>
@@ -427,9 +532,11 @@ const EstatisticaView = ({
                           <input
                             type="number"
                             min="0"
-                            value={setScore.away}
+                            placeholder="0"
+                            value={getScoreInputValue(setScore.away)}
+                            onFocus={(event) => event.target.select()}
                             onChange={(event) => handleDraftSetChange(setScore.numSet, 'away', event.target.value)}
-                            className="w-full text-center text-4xl font-black text-gray-900 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100"
+                            className="w-full text-center text-4xl font-black text-gray-900 placeholder:text-gray-300 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100"
                           />
                         </div>
                       </div>
@@ -445,7 +552,7 @@ const EstatisticaView = ({
         <div className="mt-8 flex justify-end gap-3">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCloseWithRollback}
             className="rounded-full bg-gray-100 px-6 py-3 text-sm font-black uppercase tracking-widest text-gray-700 hover:bg-gray-200 transition-colors"
           >
             Cancelar
@@ -455,7 +562,7 @@ const EstatisticaView = ({
             onClick={handleConfirm}
             className="rounded-full bg-green-500 px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-green-600 transition-colors"
           >
-            Confirmar resultado
+            {resumoOnly ? 'Salvar resultado' : 'Confirmar resultado'}
           </button>
         </div>
 

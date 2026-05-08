@@ -114,6 +114,41 @@ class EstatisticaControl {
     }
   }
 
+  criarSnapshotPartida(partidaId) {
+    try {
+      return this.estatisticaModel.criarSnapshotPartida(partidaId);
+    } catch (error) {
+      console.error("Erro ao criar snapshot da partida:", error);
+      return null;
+    }
+  }
+
+  restaurarSnapshotPartida(partidaId, snapshot) {
+    if (!snapshot) {
+      return null;
+    }
+
+    try {
+      const transaction = db.transaction((idPartida, snapshotPartida) => {
+        return this.estatisticaModel.restaurarSnapshotPartida(idPartida, snapshotPartida);
+      });
+      const statistics = transaction(partidaId, snapshot);
+
+      return {
+        statistics,
+        draftSets: this.criarRascunhoSets(statistics),
+        statisticsError: "",
+      };
+    } catch (error) {
+      console.error("Erro ao restaurar snapshot da partida:", error);
+      return {
+        statistics: null,
+        draftSets: null,
+        statisticsError: error?.message || "Nao foi possivel desfazer as alteracoes.",
+      };
+    }
+  }
+
   salvarSets(partidaId, draftSets) {
     const transaction = db.transaction((idPartida, sets) => {
       return this.estatisticaModel.salvarPontuacaoSets(idPartida, sets);

@@ -48,6 +48,73 @@ class EstatisticaModel {
     };
   }
 
+  criarSnapshotPartida(partidaId) {
+    const partida = Number(partidaId);
+    if (!partida) {
+      return null;
+    }
+
+    this.garantirColunasPlacarSet();
+
+    return {
+      partida: db.prepare(`
+        SELECT id, status, pontosTime1, pontosTime2
+        FROM Partidas
+        WHERE id = ?
+      `).get(partida),
+      sets: db.prepare('SELECT * FROM "Set" WHERE Partida_id = ?').all(partida),
+      pontos: db.prepare('SELECT * FROM Ponto WHERE Set_Partida_id = ?').all(partida),
+      acoes: db.prepare('SELECT * FROM Acao WHERE Ponto_Partida_id = ?').all(partida),
+      substituicoes: db.prepare('SELECT * FROM Substituicao WHERE Ponto_Partida_id = ?').all(partida),
+    };
+  }
+
+  inserirLinhas(tableName, rows = []) {
+    if (!rows.length) {
+      return;
+    }
+
+    for (const row of rows) {
+      const columns = Object.keys(row);
+      const quotedColumns = columns.map((column) => `"${column}"`).join(', ');
+      const placeholders = columns.map((column) => `@${column}`).join(', ');
+
+      db.prepare(`INSERT INTO "${tableName}" (${quotedColumns}) VALUES (${placeholders})`).run(row);
+    }
+  }
+
+  restaurarSnapshotPartida(partidaId, snapshot) {
+    const partida = Number(partidaId);
+    if (!partida || !snapshot) {
+      return this.buscarEstatisticasPartida(partidaId);
+    }
+
+    db.prepare('DELETE FROM Substituicao WHERE Ponto_Partida_id = ?').run(partida);
+    db.prepare('DELETE FROM Acao WHERE Ponto_Partida_id = ?').run(partida);
+    db.prepare('DELETE FROM Ponto WHERE Set_Partida_id = ?').run(partida);
+    db.prepare('DELETE FROM "Set" WHERE Partida_id = ?').run(partida);
+
+    this.inserirLinhas('Set', snapshot.sets);
+    this.inserirLinhas('Ponto', snapshot.pontos);
+    this.inserirLinhas('Acao', snapshot.acoes);
+    this.inserirLinhas('Substituicao', snapshot.substituicoes);
+
+    if (snapshot.partida) {
+      db.prepare(`
+        UPDATE Partidas
+        SET status = ?, pontosTime1 = ?, pontosTime2 = ?
+        WHERE id = ?
+      `).run(
+        snapshot.partida.status,
+        snapshot.partida.pontosTime1,
+        snapshot.partida.pontosTime2,
+        partida,
+      );
+    }
+
+    return this.buscarEstatisticasPartida(partidaId);
+  }
+
   garantirColunasPlacarSet() {
     const columns = db.prepare('PRAGMA table_info("Set")').all().map((column) => column.name);
 

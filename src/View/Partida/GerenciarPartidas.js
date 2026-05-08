@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import logoTime from '../assets/logoTransparent.png';
 import ControlePartida from './ControlePartida';
+import EstatisticaView from './EstatisticaView';
+import TimesControl from '../../Control/TimesControl';
 import { Alertas } from '../../utils/Alertas';
 
 const ACTIVE_MATCH_STORAGE_KEY = 'volleystats.activeMatch';
+const NOSSO_TIME_NOME = 'volei prudente';
+
+const normalizarTexto = (texto) => String(texto || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .toLowerCase();
 
 const CustomSelect = ({ label, icon, children, ...props }) => (
   <div className="flex-1 min-w-[260px]">
@@ -48,6 +57,8 @@ const GerenciarPartidas = ({ tournamentId = null, onMatchesUpdated }) => {
 
   const [partidaParaControlar, setPartidaParaControlar] = useState(null);
   const [isControleCarregado, setIsControleCarregado] = useState(false);
+  const [partidaParaResumo, setPartidaParaResumo] = useState(null);
+  const [isResumoFinalizacaoOpen, setIsResumoFinalizacaoOpen] = useState(false);
 
   const [filtros, setFiltros] = useState({
     dataPartida: '',
@@ -72,6 +83,9 @@ const GerenciarPartidas = ({ tournamentId = null, onMatchesUpdated }) => {
   const [videoLinkAtualizando, setVideoLinkAtualizando] = useState(false);
   const [videoLinkValidado, setVideoLinkValidado] = useState(true);
   const [videoLinkValidadoValor, setVideoLinkValidadoValor] = useState('');
+  const [videoModalPartida, setVideoModalPartida] = useState(null);
+  const [videoModalLink, setVideoModalLink] = useState('');
+  const [videoModalSaving, setVideoModalSaving] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     title: '',
@@ -168,6 +182,7 @@ const formatarDataBrasil = (dataString) => {
         onMatchesUpdated(dadosPartidas);
       }
 
+      const dadosTimes = await TimesControl.getInstance().listarTimes();
       const mockTimes = [
         { id: 1, nome: 'Vôlei Prudente', cidade: 'Presidente Prudente' },
         { id: 2, nome: 'Sada Cruzeiro', cidade: 'Belo Horizonte' },
@@ -176,7 +191,7 @@ const formatarDataBrasil = (dataString) => {
 
       const dadosGinasios = await window.ElectronAPI.listarGinasios();
 
-      setTimesCadastrados(mockTimes);
+      setTimesCadastrados(dadosTimes || mockTimes);
       setGinasiosCadastrados(dadosGinasios);
 
     } catch (error) {
@@ -185,7 +200,35 @@ const formatarDataBrasil = (dataString) => {
   };
 
   const getNomeTime = (id) => timesCadastrados.find(t => t.id === Number(id))?.nome || `Time ${id}`;
+  const getTimeCadastrado = (id) => timesCadastrados.find((time) => Number(time.id) === Number(id));
+  const isNossoTime = (nome) => {
+    const nomeNormalizado = normalizarTexto(nome);
+    return nomeNormalizado === NOSSO_TIME_NOME || nomeNormalizado.includes(NOSSO_TIME_NOME);
+  };
+  const partidaTemNossoTime = (partida) => {
+    const time1 = partida?.time1Nome || getTimeCadastrado(partida?.time1)?.nome;
+    const time2 = partida?.time2Nome || getTimeCadastrado(partida?.time2)?.nome;
+
+    return isNossoTime(time1) || isNossoTime(time2);
+  };
   const getNomeGinasio = (id) => ginasiosCadastrados.find(g => g.id === Number(id))?.nome || `Ginásio ${id}`;
+
+  const partidaExternaAutomaticaPorTimes = (time1Id, time2Id) => {
+    if (!time1Id || !time2Id) {
+      return false;
+    }
+
+    const time1 = getTimeCadastrado(time1Id)?.nome;
+    const time2 = getTimeCadastrado(time2Id)?.nome;
+
+    return !isNossoTime(time1) && !isNossoTime(time2);
+  };
+
+  const montarMatchInfo = (partida) => ({
+    name: partida?.nome || 'Partida',
+    date: formatarDataBrasil(partida?.dataPartida),
+    gymnasium: partida?.ginasioNome || getNomeGinasio(partida?.ginasio_id),
+  });
 
   const handleFiltroChange = (e) => {
     const { name, value } = e.target;
@@ -207,6 +250,21 @@ const formatarDataBrasil = (dataString) => {
     setFiltros({ dataPartida: '', timeId: '' });
     await carregarTudo();
   };
+
+  useEffect(() => {
+    const externaAutomatica = partidaExternaAutomaticaPorTimes(formData.time1, formData.time2);
+
+    setFormData((current) => {
+      if (current.externa === externaAutomatica) {
+        return current;
+      }
+
+      return {
+        ...current,
+        externa: externaAutomatica,
+      };
+    });
+  }, [formData.time1, formData.time2, timesCadastrados]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -267,6 +325,7 @@ const formatarDataBrasil = (dataString) => {
 
     const payload = {
       ...formData,
+      externa: partidaExternaAutomaticaPorTimes(formData.time1, formData.time2),
       videoLink: resolvedVideoLink,
       torneio_id: torneioIdNumerico && !Number.isNaN(torneioIdNumerico) ? torneioIdNumerico : null,
     };
@@ -341,6 +400,37 @@ const formatarDataBrasil = (dataString) => {
     }
   };
 
+  const abrirModalVideoFinalizado = (partida) => {
+    setVideoModalPartida(partida);
+    setVideoModalLink(partida?.videoLink || '');
+  };
+
+  const fecharModalVideoFinalizado = () => {
+    setVideoModalPartida(null);
+    setVideoModalLink('');
+    setVideoModalSaving(false);
+  };
+
+  const salvarVideoFinalizado = async (event) => {
+    event.preventDefault();
+
+    if (!videoModalPartida?.id) {
+      return;
+    }
+
+    setVideoModalSaving(true);
+    try {
+      await window.api.partidas.updateVideoLink(videoModalPartida.id, videoModalLink || '');
+      await carregarTudo();
+      fecharModalVideoFinalizado();
+      Alertas.sucesso('Link do video salvo com sucesso.');
+    } catch (error) {
+      Alertas.erro(error?.message || 'Nao foi possivel salvar o link do video.');
+    } finally {
+      setVideoModalSaving(false);
+    }
+  };
+
   const abrirModalCriar = () => {
     setFormData(estadoInicialForm);
     setVideoLinkValidado(true);
@@ -370,6 +460,19 @@ const formatarDataBrasil = (dataString) => {
         Alertas.erro('Partida não encontrada no banco de dados.');
         return;
       }
+      if (String(partidaBanco.status || '').toUpperCase() === 'FINALIZADA') {
+        Alertas.aviso('Partida finalizada. O resultado nao pode mais ser alterado.');
+        return;
+      }
+
+      if (!partidaTemNossoTime(partidaBanco)) {
+        sessionStorage.removeItem(ACTIVE_MATCH_STORAGE_KEY);
+        setPartidaParaControlar(null);
+        setPartidaParaResumo(partidaBanco);
+        setIsResumoFinalizacaoOpen(true);
+        return;
+      }
+
       sessionStorage.setItem(ACTIVE_MATCH_STORAGE_KEY, JSON.stringify({
         tournamentId,
         partidaId: partidaBanco.id,
@@ -379,6 +482,26 @@ const formatarDataBrasil = (dataString) => {
     } catch (error) {
       console.error('Erro ao carregar partida para controle:', error);
       Alertas.erro('Não foi possível carregar o controle da partida. Veja o console.');
+    }
+  };
+
+  const fecharResumoFinalizacao = () => {
+    setIsResumoFinalizacaoOpen(false);
+    setPartidaParaResumo(null);
+  };
+
+  const confirmarResumoFinalizacao = async (finalScore) => {
+    if (!partidaParaResumo?.id) {
+      return;
+    }
+
+    try {
+      await window.api.partidas.finalizar(partidaParaResumo.id, finalScore.home, finalScore.away);
+      await carregarTudo();
+      fecharResumoFinalizacao();
+      Alertas.sucesso('Resultado salvo com sucesso.');
+    } catch (error) {
+      Alertas.erro(error?.message || 'Nao foi possivel salvar o resultado.');
     }
   };
 
@@ -541,6 +664,16 @@ const formatarDataBrasil = (dataString) => {
                 <span className="truncate font-medium">{getNomeGinasio(partida.ginasio_id)}</span>
               </div>
 
+              {partida.status === 'FINALIZADA' && (
+                <button
+                  type="button"
+                  onClick={() => abrirModalVideoFinalizado(partida)}
+                  className="mb-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg transition-colors hover:bg-red-700"
+                >
+                  {partida.videoLink ? 'Alterar Link da Partida' : 'Adicionar Link da Partida'}
+                </button>
+              )}
+
               {partida.videoLink && (
                 <a
                   href={partida.videoLink}
@@ -562,11 +695,25 @@ const formatarDataBrasil = (dataString) => {
                 <button onClick={() => handleDeletar(partida.id)} className="bg-gray-100 hover:bg-red-100 text-gray-700 hover:text-red-700 font-semibold py-3.5 rounded-xl text-sm transition-colors">
                   Apagar
                 </button>
-                <button 
-                onClick={() => abrirControlePartida(partida.id)}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all transform hover:scale-105 active:scale-95 shadow-lg">
-                  Iniciar Controle
-                </button>
+                {partida.status === 'FINALIZADA' ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled
+                      className="bg-gray-300 text-gray-600 font-bold py-3.5 rounded-xl text-sm cursor-not-allowed shadow-sm"
+                    >
+                      Finalizada
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => abrirControlePartida(partida.id)}
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all transform hover:scale-105 active:scale-95 shadow-lg"
+                  >
+                    {partidaTemNossoTime(partida) ? 'Iniciar Controle' : 'Resultado / Sets'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -677,20 +824,6 @@ const formatarDataBrasil = (dataString) => {
                   ))}
                 </CustomSelect>
               </div>
-              <div className="flex items-center gap-4 bg-red-50 border-2 border-dashed border-red-100 p-5 rounded-2xl shadow-inner">
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" name="externa" checked={formData.externa} onChange={handleInputChange} className="sr-only peer" />
-                  <div className="w-14 h-7 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-red-600 shadow-inner"></div>
-                </label>
-                <div>
-                  <h4 className="font-extrabold text-black text-sm uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-1.5 h-4 bg-yellow-400 rounded-full block shadow"></span>
-                    Partida Externa
-                  </h4>
-                  <p className="text-xs text-gray-600 font-medium">Ative se esta partida ocorrer fora dos domínios do Vôlei Prudente.</p>
-                </div>
-              </div>
-
               {editandoId && (
                 <div className="space-y-3 rounded-2xl border-2 border-blue-100 bg-blue-50 p-5 shadow-inner">
                   <label className="block text-xs font-bold text-blue-700 uppercase tracking-widest">
@@ -725,6 +858,85 @@ const formatarDataBrasil = (dataString) => {
                 </button>
                 <button type="submit" className="px-10 py-3.5 font-black text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 text-base">
                   {editandoId ? 'SALVAR ALTERAÇÕES' : 'CONFIRMAR CADASTRO'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <EstatisticaView
+        open={isResumoFinalizacaoOpen}
+        onClose={fecharResumoFinalizacao}
+        homeLabel={getNomeTime(partidaParaResumo?.time1)}
+        awayLabel={getNomeTime(partidaParaResumo?.time2)}
+        matchInfo={montarMatchInfo(partidaParaResumo)}
+        score={{
+          home: partidaParaResumo?.pontosTime1 || 0,
+          away: partidaParaResumo?.pontosTime2 || 0,
+        }}
+        partidaId={partidaParaResumo?.id}
+        onConfirm={confirmarResumoFinalizacao}
+        onStatisticsChange={carregarTudo}
+        resumoOnly
+        useDraftSetsAsResult
+      />
+
+      {videoModalPartida && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl border-4 border-black">
+            <div className="bg-black px-7 py-5 border-b-4 border-red-600 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-red-400">Partida finalizada</p>
+                <h2 className="text-2xl font-black text-white tracking-wide uppercase">Link do Video</h2>
+              </div>
+              <button
+                type="button"
+                onClick={fecharModalVideoFinalizado}
+                className="text-gray-400 hover:text-red-500 transition-colors text-3xl font-light p-2"
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={salvarVideoFinalizado} className="p-8 space-y-6">
+              <div className="rounded-2xl bg-gray-50 border border-gray-200 p-5">
+                <p className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Confronto</p>
+                <p className="text-lg font-black text-gray-900">
+                  {getNomeTime(videoModalPartida.time1)} x {getNomeTime(videoModalPartida.time2)}
+                </p>
+                <p className="text-sm font-bold text-gray-500 mt-1">
+                  Resultado travado. Apenas o link do video pode ser alterado.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2">
+                  Link do Video da Partida
+                </label>
+                <input
+                  type="url"
+                  value={videoModalLink}
+                  onChange={(event) => setVideoModalLink(event.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="w-full rounded-xl border-2 border-gray-200 bg-white p-4 text-sm font-semibold text-black shadow-inner focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-5 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={fecharModalVideoFinalizado}
+                  className="px-6 py-3 font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={videoModalSaving}
+                  className="px-7 py-3 font-black text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-lg transition-colors disabled:bg-red-300 disabled:cursor-not-allowed"
+                >
+                  {videoModalSaving ? 'Salvando...' : 'Salvar Link'}
                 </button>
               </div>
             </form>
