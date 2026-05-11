@@ -714,9 +714,18 @@ const handleConfirmarImportacao = async () => {
                 <tbody>
                   {dadosExcel.slice(0, 10).map((row, index) => (
                     <tr key={index}>
-                      {Object.values(row).map((val, i) => (
-                        <td key={i} className="py-3 px-4 border-b text-sm text-gray-700">{val}</td>
-                      ))}
+                      {Object.values(row).map((val, i) => {
+                        let formatado = val;
+                        if (typeof val === 'number') {
+                           formatado = Math.round(val * 100) / 100;
+                        }
+                        
+                        return (
+                          <td key={i} className="py-3 px-4 border-b text-sm text-gray-700">
+                            {formatado}
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>
