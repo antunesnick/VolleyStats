@@ -89,8 +89,8 @@
   };
 
   const ControlePartida = ({ partida, aoVoltar }) => {
- const [score, setScore] = useState({ home: 0, away: 0 }); // pontos dentro do set
-  const [setsGanhos, setSetsGanhos] = useState({              // sets ganhos na partida
+ const [score, setScore] = useState({ home: 0, away: 0 }); 
+  const [setsGanhos, setSetsGanhos] = useState({              
     home: partida?.pontosTime1 ?? 0,
     away: partida?.pontosTime2 ?? 0,
   });

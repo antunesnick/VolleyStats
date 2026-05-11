@@ -14,19 +14,18 @@ class Acao extends Evento {
         this.qualidade = qualidade;
     }
 
-    criarAcao(db) {
+   criarAcao(db) {
         try {
-            // FK completa: (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id)
             const sql = db.prepare(
-                `INSERT INTO Acao 
-                (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id, Jogador_id, Qualidade, idTipoAcao) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)`
+                `INSERT INTO Acao
+                 (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id, Jogador_id, Qualidade, idTipoAcao)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`
             );
             const info = sql.run(
-                this.ponto.pontoTime1,
-                this.ponto.pontoTime2,
-                this.ponto.set.numSet,
-                this.ponto.set.partida.id,
+                this.ponto?.pontoTime1 ?? null,
+                this.ponto?.pontoTime2 ?? null,
+                this.ponto?.set?.numSet ?? null,
+                this.ponto?.set?.partida?.id ?? null,
                 this.jogador.id,
                 this.qualidade,
                 this.tipoAcao.idTipoAcao
