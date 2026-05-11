@@ -12,6 +12,7 @@ const ExcelImportControl = require('./Control/ExcelImportControl').default;
 const db = require('./db/db');
 const { initDatabase } = db;
 const TournamentControl = require('./Control/TournamentControl').default;
+const { gerarDadosFalsos } = require('./db/seed');
 
 if (require('electron-squirrel-startup')) {
   app.quit();
@@ -102,6 +103,7 @@ app.whenReady().then(() => {
   });
 
   initDatabase();
+  gerarDadosFalsos();
 
 
   ipcMain.handle('salvar-categoria', async (event, dados) => {
