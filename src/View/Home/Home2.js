@@ -8,6 +8,8 @@ import TournamentControl from '../../Control/TournamentControl';
 import { PlayerRegView } from '../PlayerRegister/PlayerRegView';
 import PlayerView from '../PlayerView/PlayerView';
 import Ginasio from '../Ginasios/Ginasio';
+import { Alertas } from '../../utils/Alertas';
+
 
 const TOURNAMENT_TYPES = [
   { value: 1, label: 'Pontos Corridos' },
@@ -101,6 +103,8 @@ const Home = () => {
   const [dadosExcel, setDadosExcel] = useState([]);
   const [nomeArquivoExcel, setNomeArquivoExcel] = useState('');
   const [isReadingExcel, setIsReadingExcel] = useState(false);
+  const [modalHistoricoOpen, setModalHistoricoOpen] = useState(false);
+  const [historicoImportacoes, setHistoricoImportacoes] = useState([]);
   
   const showToast = (type, text) => {
     showToastMessage(setToasts, type, text);
@@ -130,7 +134,7 @@ const Home = () => {
 const handleConfirmarImportacao = async () => {
     setIsSubmitting(true);
     try {
-      const result = await window.excelAPI.salvarDados(dadosExcel);
+      const result = await window.excelAPI.salvarDados(dadosExcel, nomeArquivoExcel);
       if (result.success) {
         showToast('success', 'Dados importados com sucesso!');
         setModalExcelOpen(false);
@@ -306,6 +310,37 @@ const handleConfirmarImportacao = async () => {
     );
   }
 
+  const abrirHistoricoImportacoes = async () => {
+    const result = await window.excelAPI.listarHistorico();
+    if (result.success) {
+      setHistoricoImportacoes(result.data);
+      setModalHistoricoOpen(true); // Abre a janelinha
+    } else {
+      showToast('error', result.error);
+    }
+  };
+
+  const handleReverterImportacao = async (id) => {
+    const confirmar = await Alertas.confirmacao(
+      "Isso apagará todas as estatísticas que vieram deste arquivo! (Os perfis dos jogadores NÃO serão apagados).", 
+      "Tem certeza?"
+    );
+    if (!confirmar) return;
+
+    try {
+      const result = await window.excelAPI.reverter(id);
+      if (result.success) {
+        showToast('success', result.message);
+        abrirHistoricoImportacoes(); // Recarrega a listinha para sumir com o item apagado
+        setTimeout(() => window.location.reload(), 1500); // Dá um F5 para atualizar os números na tela principal
+      } else {
+        showToast('error', result.error);
+      }
+    } catch (error) {
+      showToast('error', "Erro de conexão ao reverter.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#FAFAFA] pb-20">
       <div className="fixed top-5 right-5 z-80 space-y-2 pointer-events-none">
@@ -368,6 +403,17 @@ const handleConfirmarImportacao = async () => {
               'Importar'
             )}
           </button>
+
+            <button 
+             onClick={abrirHistoricoImportacoes}
+             className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all"
+           >
+             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+             </svg>
+             Histórico
+           </button>
+
           <button className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
             Exportar
           </button>
@@ -541,7 +587,7 @@ const handleConfirmarImportacao = async () => {
         </section>
       </main>
 
-      {/* --- MODAL DE TORNEIO --- */}
+{/* --- MODAL DE TORNEIO --- */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-2xl bg-white rounded-2xl overflow-hidden shadow-2xl border border-zinc-200">
@@ -650,41 +696,96 @@ const handleConfirmarImportacao = async () => {
         </div>
       )}
 
-    {modalExcelOpen && (
-    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl bg-white rounded-2xl overflow-hidden shadow-2xl border border-zinc-200 flex flex-col max-h-[85vh]">
-        <div className="px-7 pt-6 pb-5 border-b border-zinc-100">
-          <h2 className="text-2xl text-zinc-900 font-black uppercase tracking-tighter">Confirmar Importação</h2>
-          <p className="text-sm font-semibold text-zinc-400 mt-2">Arquivo: {nomeArquivoExcel}</p>
-        </div>
-        <div className="p-7 overflow-auto flex-1">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr>
-                {dadosExcel.length > 0 && Object.keys(dadosExcel[0]).map((key) => (
-                  <th key={key} className="border-b-2 pb-3 text-[11px] font-black uppercase text-gray-500 px-4">{key}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {dadosExcel.slice(0, 10).map((row, index) => (
-                <tr key={index}>
-                  {Object.values(row).map((val, i) => (
-                    <td key={i} className="py-3 px-4 border-b text-sm text-gray-700">{val}</td>
+      {/* --- MODAL DE CONFIRMAÇÃO DO EXCEL --- */}
+      {modalExcelOpen && (
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
+          <div className="w-full max-w-4xl bg-white rounded-2xl overflow-hidden shadow-2xl border border-zinc-200 flex flex-col max-h-[85vh]">
+            <div className="px-7 pt-6 pb-5 border-b border-zinc-100">
+              <h2 className="text-2xl text-zinc-900 font-black uppercase tracking-tighter">Confirmar Importação</h2>
+              <p className="text-sm font-semibold text-zinc-400 mt-2">Arquivo: {nomeArquivoExcel}</p>
+            </div>
+            <div className="p-7 overflow-auto flex-1">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr>
+                    {dadosExcel.length > 0 && Object.keys(dadosExcel[0]).map((key) => (
+                      <th key={key} className="border-b-2 pb-3 text-[11px] font-black uppercase text-gray-500 px-4">{key}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dadosExcel.slice(0, 10).map((row, index) => (
+                    <tr key={index}>
+                      {Object.values(row).map((val, i) => {
+                        let formatado = val;
+                        if (typeof val === 'number') {
+                           formatado = Math.round(val * 100) / 100;
+                        }
+                        
+                        return (
+                          <td key={i} className="py-3 px-4 border-b text-sm text-gray-700">
+                            {formatado}
+                          </td>
+                        );
+                      })}
+                    </tr>
                   ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {dadosExcel.length > 10 && <p className="text-center text-xs mt-4">Mostrando os primeiros 10 registros de {dadosExcel.length}...</p>}
+                </tbody>
+              </table>
+              {dadosExcel.length > 10 && <p className="text-center text-xs mt-4">Mostrando os primeiros 10 registros de {dadosExcel.length}...</p>}
+            </div>
+            <div className="p-5 border-t flex justify-end gap-3">
+              <button onClick={() => setModalExcelOpen(false)} className="px-6 py-2 border rounded-lg">Cancelar</button>
+              <button onClick={handleConfirmarImportacao} className="px-6 py-2 bg-red-600 text-white rounded-lg">Confirmar e Salvar</button>
+            </div>
+          </div>
         </div>
-        <div className="p-5 border-t flex justify-end gap-3">
-          <button onClick={() => setModalExcelOpen(false)} className="px-6 py-2 border rounded-lg">Cancelar</button>
-          <button onClick={handleConfirmarImportacao} className="px-6 py-2 bg-red-600 text-white rounded-lg">Confirmar e Salvar</button>
+      )}
+
+      {/* --- MODAL DE HISTÓRICO DE IMPORTAÇÕES --- */}
+      {modalHistoricoOpen && (
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-white rounded-2xl overflow-hidden shadow-2xl border border-zinc-200 flex flex-col max-h-[85vh]">
+            <div className="px-7 pt-6 pb-5 border-b border-zinc-100 flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl text-zinc-900 font-black uppercase tracking-tighter">Histórico de Importações</h2>
+                <p className="text-sm font-semibold text-zinc-400 mt-1">Gerencie os arquivos Excel que alimentaram o banco de dados.</p>
+              </div>
+              <button onClick={() => setModalHistoricoOpen(false)} className="text-gray-400 hover:text-red-600 font-bold text-xl">X</button>
+            </div>
+            
+            <div className="p-7 overflow-auto flex-1">
+              {historicoImportacoes.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 font-bold uppercase tracking-widest text-xs border-2 border-dashed rounded-xl">
+                  Nenhuma importação registrada
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {historicoImportacoes.map((hist) => (
+                    <div key={hist.id} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-4">
+                      <div>
+                        <h4 className="font-black text-gray-900 text-sm truncate max-w-[300px]" title={hist.nomeArquivo}>
+                          {hist.nomeArquivo}
+                        </h4>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-1">
+                          {new Date(hist.dataImportacao.replace(' ', 'T') + 'Z').toLocaleString('pt-BR')}
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => handleReverterImportacao(hist.id)}
+                        className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-600 hover:text-white rounded-lg text-xs font-black uppercase tracking-widest transition-colors"
+                      >
+                        Reverter
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-  </div>
-)}
+      )}
+
     </div>
   );
 };

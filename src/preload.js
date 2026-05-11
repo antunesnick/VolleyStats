@@ -40,7 +40,9 @@ window.tournamentAPI = {
 
 window.excelAPI = {
     importar: () => ipcRenderer.invoke('excel:importar'),
-    salvarDados: (dados) => ipcRenderer.invoke('excel:salvar', dados)
+    salvarDados: (dados, nomeArquivo) => ipcRenderer.invoke('excel:salvar', dados, nomeArquivo),
+    listarHistorico: () => ipcRenderer.invoke('excel:listarHistorico'),
+    reverter: (id) => ipcRenderer.invoke('excel:reverter', id)
 };
 
 window.reportAPI = {

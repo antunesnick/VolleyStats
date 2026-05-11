@@ -251,6 +251,12 @@ function initDatabase() {
                 idTipoAcao INTEGER PRIMARY KEY,
                 Nome VARCHAR(45)
             );
+            
+            CREATE TABLE IF NOT EXISTS ImportacaoHistorico (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nomeArquivo VARCHAR(255) NOT NULL,
+                dataImportacao DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
 
            CREATE TABLE IF NOT EXISTS Acao (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -259,12 +265,14 @@ function initDatabase() {
             Ponto_Partida_id INTEGER , -- REMOVIDO NOT NULL PARA DADOS IMPORTADOS 28/04
             Ponto_NumSet INTEGER ,     -- REMOVIDO NOT NULL PARA DADOS IMPORTADOS 28/04
             Jogador_id INTEGER NOT NULL,
+            importacao_id INTEGER,
             Qualidade TEXT CHECK(Qualidade IN ('A', 'B', 'C')),
             idTipoAcao INTEGER NOT NULL,
             -- CORREÇÃO DA FOREIGN KEY AQUI:
             FOREIGN KEY (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id) REFERENCES Ponto (pontoTime1, pontoTime2, NumSet, Set_Partida_id),
             FOREIGN KEY (Jogador_id) REFERENCES Jogadores (id),
-            FOREIGN KEY (idTipoAcao) REFERENCES TipoAcao (idTipoAcao)
+            FOREIGN KEY (idTipoAcao) REFERENCES TipoAcao (idTipoAcao),
+            FOREIGN KEY (importacao_id) REFERENCES ImportacaoHistorico(id) ON DELETE CASCADE
             );
 
             CREATE TABLE IF NOT EXISTS Substituicao (

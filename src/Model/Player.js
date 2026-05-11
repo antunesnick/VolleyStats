@@ -57,10 +57,10 @@ class Player {
     this.categoriaId = categoriaId; 
   }
 
-  #validarCPF(cpfString) {
-    if (!cpfString) return false;
-    return cpf.isValid(cpfString); 
-  }
+    #validarCPF(cpfString) {
+      if (!cpfString) return true;
+      return cpf.isValid(cpfString);
+    }
 
   static buscarJogador(jogadorId) {
     if (!jogadorId) {

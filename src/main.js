@@ -177,8 +177,16 @@ app.whenReady().then(() => {
     return await ExcelImportControl.getInstance().importarExcel();
   });
 
-  ipcMain.handle('excel:salvar', async (event, dados) => {
-    return await ExcelImportControl.getInstance().salvarDados(dados);
+  ipcMain.handle('excel:salvar', async (event, dados, nomeArquivo) => {
+    return await ExcelImportControl.getInstance().salvarDados(dados, nomeArquivo);
+  });
+
+  ipcMain.handle('excel:listarHistorico', async () => {
+    return await ExcelImportControl.getInstance().listarImportacoes();
+  });
+
+  ipcMain.handle('excel:reverter', async (event, id) => {
+    return await ExcelImportControl.getInstance().reverterImportacao(id);
   });
 
   ipcMain.handle('relatorio:salvarPdf', async (event, payload = {}) => {
