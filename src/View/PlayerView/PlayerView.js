@@ -4,6 +4,8 @@ import * as Style from "./PleayerStyles";
 import PlayerControl from "../../Control/PlayerControl"; 
 import PositionControl from "../../Control/PositionControl"; 
 import { PlayerRegView } from "../PlayerRegister/PlayerRegView";
+import PlayerReportModal from "./PlayerReportModal";
+import { Alertas } from "../../utils/Alertas";
 
 const PlayerAvatar = ({ player }) => {
   const [imageError, setImageError] = useState(false);
@@ -32,6 +34,10 @@ export function PlayerView() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPosition, setSelectedPosition] = useState("");
   const [positions, setPositions] = useState([]);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportData, setReportData] = useState(null);
+  const [reportPlayer, setReportPlayer] = useState(null);
 
   useEffect(() => {
     const positionControl = PositionControl.getInstance();
@@ -95,6 +101,37 @@ export function PlayerView() {
     setIsModalOpen(false); 
   };
 
+  const handleCloseReport = () => {
+    setReportOpen(false);
+    setReportLoading(false);
+    setReportData(null);
+    setReportPlayer(null);
+  };
+
+  const handleOpenReport = async (player) => {
+    if (!player?.id) {
+      return;
+    }
+
+    setReportOpen(true);
+    setReportLoading(true);
+    setReportData(null);
+    setReportPlayer(player);
+
+    try {
+      const report = await PlayerControl.getInstance().buscarRelatorioJogador(player.id);
+      if (!report) {
+        Alertas.aviso("Relatorio nao encontrado para este jogador.");
+      }
+      setReportData(report);
+    } catch (error) {
+      console.error("Erro ao carregar relatorio do jogador:", error);
+      Alertas.erro("Nao foi possivel carregar o relatorio do jogador.");
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   return (
     <Style.Container>
       <Style.TopBar>
@@ -149,7 +186,7 @@ export function PlayerView() {
             </div>
           ) : (
             players.map((p) => (
-              <Style.PlayerCard key={p.id}>
+              <Style.PlayerCard key={p.id} onClick={() => handleOpenReport(p)}>
                 <Style.ImageWrapper>
                   <PlayerAvatar player={p} />
 
@@ -203,6 +240,14 @@ export function PlayerView() {
           categories={[]} 
         />
       )}
+
+      <PlayerReportModal
+        open={reportOpen}
+        onClose={handleCloseReport}
+        loading={reportLoading}
+        report={reportData}
+        player={reportPlayer}
+      />
 
     </Style.Container>
   );

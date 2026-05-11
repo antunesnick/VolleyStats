@@ -119,6 +119,15 @@ class PlayerControl {
             throw e;
         }
     }
+
+    async buscarRelatorioJogador(jogadorId) {
+        const playerInstance = new Player();
+        try {
+            return playerInstance.buscarRelatorioJogador(jogadorId);
+        } catch (e) {
+            throw e;
+        }
+    }
 }
 
 export default PlayerControl;
