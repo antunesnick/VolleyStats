@@ -6,6 +6,7 @@ import db from '../db/db';
 import Player from '../Model/Player';
 import Position from '../Model/Position';
 import Acao from '../Model/Acao';
+import ImportHistory from '../Model/ImportHistory'; 
 
 const removerAcentos = (texto) => {
     if (!texto) return '';
@@ -160,7 +161,8 @@ class ExcelImportControl {
         }
     }
 
-    async salvarDados(dadosPlanilha) {
+    // 2. RECEBE O nomeArquivo AQUI
+    async salvarDados(dadosPlanilha, nomeArquivo) {
         if (!dadosPlanilha || dadosPlanilha.length === 0) {
             return { success: false, error: 'Nenhum dado válido para salvar.' };
         }
@@ -168,6 +170,10 @@ class ExcelImportControl {
         try {
             const saveTransaction = db.transaction((dados) => {
                 
+                // 3. REGISTRA A IMPORTAÇÃO NO HISTÓRICO USANDO A MODEL
+                const historico = new ImportHistory(null, nomeArquivo || 'Arquivo_Desconhecido.xlsx');
+                const importacaoId = historico.insert(db);
+
                 const playerModel = new Player();
                 const positionModel = new Position();
 
@@ -234,8 +240,8 @@ class ExcelImportControl {
                         const objTipoAcao = { idTipoAcao: tipoAcaoId };
 
                         for (let i = 0; i < qtd; i++) {
-                            // Instancia a ação com um Ponto nulo
-                            const novaAcao = new Acao(null, objJogador, objTipoAcao, qualidade);
+                            // 4. PASSA O importacaoId AQUI NA CRIAÇÃO DA AÇÃO
+                            const novaAcao = new Acao(null, objJogador, objTipoAcao, qualidade, importacaoId);
                             novaAcao.criarAcao(db);
                             acoesInseridas++;
                         }
@@ -261,6 +267,30 @@ class ExcelImportControl {
         } catch (error) {
             console.error("Erro ao salvar dados do excel na base de dados:", error);
             return { success: false, error: 'Erro ao registrar dados na base de dados. Verifique a consola.' };
+        }
+    }
+
+    // 5. NOVOS MÉTODOS PARA O HISTÓRICO COMUNICAREM COM A MODEL
+    async listarImportacoes() {
+        try {
+            const logs = ImportHistory.findAll(db);
+            return { success: true, data: logs };
+        } catch (error) {
+            console.error("Erro ao listar importações:", error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async reverterImportacao(idImportacao) {
+        try {
+            const revertTx = db.transaction((id) => {
+                ImportHistory.delete(db, id);
+            });
+            revertTx(idImportacao);
+            return { success: true, message: "Importação revertida com sucesso." };
+        } catch (error) {
+            console.error("Erro ao reverter importação:", error);
+            return { success: false, error: error.message };
         }
     }
 }
