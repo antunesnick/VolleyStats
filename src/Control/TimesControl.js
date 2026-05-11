@@ -130,6 +130,26 @@ class TimesControl {
         }
     }
 
+    async emitirRelatorioTime(id) {
+        const timeInstance = new Times();
+
+        try {
+            return timeInstance.buscarRelatorio(id);
+        } catch (e) {
+            throw e;
+        }
+    }
+
+    async emitirRelatorioGeralTimes() {
+        const timeInstance = new Times();
+
+        try {
+            return timeInstance.buscarRelatorioGeral();
+        } catch (e) {
+            throw e;
+        }
+    }
+
     async cadastrarDados(dados) {
         return this.createTime(dados);
     }
@@ -148,6 +168,14 @@ class TimesControl {
 
     async pesquisarTime(filtro) {
         return this.findTimeFiltered(filtro);
+    }
+
+    async relatorioTime(id) {
+        return this.emitirRelatorioTime(id);
+    }
+
+    async relatorioGeralTimes() {
+        return this.emitirRelatorioGeralTimes();
     }
 }
 

@@ -153,6 +153,20 @@ export const PlayerImage = styled.img`
   transition: all 0.5s ease;
 `;
 
+export const PlayerInitial = styled.div`
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  background-color: #dc2626;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56px;
+  font-weight: 900;
+  text-transform: uppercase;
+`;
+
 export const Overlay = styled.div`
   position: absolute;
   top: 0;

@@ -5,6 +5,24 @@ import PlayerControl from "../../Control/PlayerControl";
 import PositionControl from "../../Control/PositionControl"; 
 import { PlayerRegView } from "../PlayerRegister/PlayerRegView";
 
+const PlayerAvatar = ({ player }) => {
+  const [imageError, setImageError] = useState(false);
+  const partesNome = String(player?.nome || "Jogador").trim().split(/\s+/).filter(Boolean);
+  const iniciais = `${partesNome[0]?.slice(0, 1) || "J"}${partesNome.length > 1 ? partesNome[partesNome.length - 1].slice(0, 1) : ""}`.toUpperCase();
+
+  if (player?.foto && !imageError) {
+    return (
+      <Style.PlayerImage
+        src={player.foto}
+        alt={player.nome}
+        onError={() => setImageError(true)}
+      />
+    );
+  }
+
+  return <Style.PlayerInitial>{iniciais}</Style.PlayerInitial>;
+};
+
 export function PlayerView() {
   const [players, setPlayers] = useState([]); 
   const [isEditing, setIsEditing] = useState(false);
@@ -31,7 +49,7 @@ export function PlayerView() {
         id: p.id,
         nome: p.nome, 
         numCamisa: p.numCamisa, 
-        foto: p.foto || "https://via.placeholder.com/150",
+        foto: p.foto || "",
         cpf: p.cpf,
         rg: p.rg,
         altura: p.altura, 
@@ -133,7 +151,7 @@ export function PlayerView() {
             players.map((p) => (
               <Style.PlayerCard key={p.id}>
                 <Style.ImageWrapper>
-                  <Style.PlayerImage src={p.foto} alt={p.nome} />
+                  <PlayerAvatar player={p} />
 
                   <Style.Overlay>
                     <Style.OverlayText>

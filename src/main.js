@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, dialog } = require('electron');
 const path = require('node:path');
+const fs = require('node:fs/promises');
 const CategoriaControl = require("./Control/CategoriaControl").default;
 const GinasioControlModule = require('./Control/GinasioControl');
 const GinasioControl = GinasioControlModule.default || GinasioControlModule;
@@ -178,6 +179,61 @@ app.whenReady().then(() => {
 
   ipcMain.handle('excel:salvar', async (event, dados) => {
     return await ExcelImportControl.getInstance().salvarDados(dados);
+  });
+
+  ipcMain.handle('relatorio:salvarPdf', async (event, payload = {}) => {
+    const sourceWindow = BrowserWindow.fromWebContents(event.sender);
+    if (!sourceWindow) {
+      throw new Error('Janela do relatorio nao encontrada.');
+    }
+
+    const nomeArquivo = typeof payload === 'string' ? payload : payload.nomeArquivo;
+    const nomeSeguro = String(nomeArquivo || 'relatorio.pdf')
+      .replace(/[<>:"/\\|?*]/g, '-')
+      .replace(/\s+/g, '-');
+    const defaultPath = nomeSeguro.toLowerCase().endsWith('.pdf')
+      ? nomeSeguro
+      : `${nomeSeguro}.pdf`;
+
+    const { canceled, filePath } = await dialog.showSaveDialog(sourceWindow, {
+      title: 'Salvar relatorio como PDF',
+      defaultPath,
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+
+    if (canceled || !filePath) {
+      return { success: false, canceled: true };
+    }
+
+    const reportWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        offscreen: true,
+      },
+    });
+
+    try {
+      const html = typeof payload === 'object' && payload.html
+        ? payload.html
+        : '<html><body><h1>Relatorio</h1></body></html>';
+
+      await reportWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
+      const pdfBuffer = await reportWindow.webContents.printToPDF({
+        printBackground: true,
+        landscape: true,
+        pageSize: 'A4',
+        margins: {
+          marginType: 'default',
+        },
+      });
+
+      await fs.writeFile(filePath, pdfBuffer);
+    } finally {
+      reportWindow.destroy();
+    }
+
+    return { success: true, filePath };
   });
 
   createWindow();

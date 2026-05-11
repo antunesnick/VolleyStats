@@ -154,21 +154,21 @@ const GerenciarCategorias = () => {
       <div className="max-w-7xl mx-auto w-full">
 
         {/* Cabeçalho */}
-        <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center mb-8 border-b-2 border-red-600 pb-6">
+        <div className="flex justify-between items-center gap-4 mb-8 border-b-2 border-red-600 pb-4">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="bg-black hover:bg-gray-800 text-white font-bold py-3 px-5 rounded-lg shadow-md transition-colors"
+          >
+            Voltar
+          </button>
+
           <div>
             <h1 className="text-4xl font-black text-black tracking-tight uppercase">Categorias</h1>
-            <p className="text-gray-500 text-sm">Gerencie as divisões por faixa etária</p>
+            <p className="text-gray-500 mt-1">Gerencie as divisões por faixa etária</p>
           </div>
+
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/')}
-              className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all transform hover:scale-105 flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-              </svg>
-              VOLTAR
-            </button>
             <button
               onClick={handleAbrirNovo}
               className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all transform hover:scale-105 flex items-center gap-2"

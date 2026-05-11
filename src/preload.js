@@ -42,3 +42,7 @@ window.excelAPI = {
     importar: () => ipcRenderer.invoke('excel:importar'),
     salvarDados: (dados) => ipcRenderer.invoke('excel:salvar', dados)
 };
+
+window.reportAPI = {
+    salvarPdf: (payload) => ipcRenderer.invoke('relatorio:salvarPdf', payload)
+};
