@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
+import { Alertas } from "../../utils/Alertas";
 
 const ACTION_LABELS = ["Saque", "Ataque", "Bloqueio", "Recepcao", "Defesa"];
 
@@ -30,6 +31,34 @@ const StatCard = ({ label, value }) => (
   </div>
 );
 
+const PlayerAvatar = ({ player, className = "h-16 w-16" }) => {
+  const [imageError, setImageError] = useState(false);
+  const partesNome = String(player?.nome || "Jogador")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const iniciais = `${partesNome[0]?.slice(0, 1) || "J"}${
+    partesNome.length > 1 ? partesNome[partesNome.length - 1].slice(0, 1) : ""
+  }`.toUpperCase();
+
+  if (player?.foto && !imageError) {
+    return (
+      <img
+        src={player.foto}
+        alt={player.nome}
+        onError={() => setImageError(true)}
+        className={`${className} rounded-lg object-cover border border-gray-200 bg-gray-100`}
+      />
+    );
+  }
+
+  return (
+    <div className={`${className} rounded-lg bg-gray-200 text-gray-700 flex items-center justify-center font-black text-lg border border-gray-200`}>
+      {iniciais}
+    </div>
+  );
+};
+
 const EmptyState = ({ title, message }) => (
   <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-4 text-center">
     <p className="text-sm font-black text-gray-900">{title}</p>
@@ -53,7 +82,264 @@ const getTopAction = (acoesPorTipo = {}) => {
 
 const sumCounts = (counts = {}) => (Number(counts.A) || 0) + (Number(counts.B) || 0) + (Number(counts.C) || 0);
 
+const escapeHtml = (value) => String(value ?? "")
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/\"/g, "&quot;")
+  .replace(/'/g, "&#039;");
+
+const montarHtmlRelatorioJogador = ({ jogador, totals, partidas, torneios }) => {
+  const nomeJogador = jogador?.nome || "Jogador";
+  const iniciais = String(nomeJogador)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((parte) => parte.slice(0, 1))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "J";
+
+  const linhasAcoes = ACTION_LABELS.concat("Outros")
+    .filter((label) => totals.acoesPorTipoQualidade?.[label])
+    .map((label) => {
+      const counts = totals.acoesPorTipoQualidade?.[label] || { A: 0, B: 0, C: 0 };
+      return `
+        <tr>
+          <td>${escapeHtml(label)}</td>
+          <td class="center">${counts.A || 0}</td>
+          <td class="center">${counts.B || 0}</td>
+          <td class="center">${counts.C || 0}</td>
+        </tr>
+      `;
+    }).join("");
+
+  const linhasPartidas = (partidas || []).map((partida) => {
+    const placarLabel = partida.time1Nome && partida.time2Nome
+      ? `${partida.time1Nome} x ${partida.time2Nome}`
+      : "Partida sem times";
+    return `
+      <tr>
+        <td>${escapeHtml(formatDate(partida.dataPartida))}</td>
+        <td>
+          <strong>${escapeHtml(partida.nome || placarLabel)}</strong>
+          <span>${escapeHtml(partida.torneioNome || "Sem torneio")}</span>
+        </td>
+        <td class="center">${partida.acoes || 0}</td>
+        <td class="center">${partida.qualidade?.A || 0}</td>
+        <td class="center">${partida.qualidade?.B || 0}</td>
+        <td class="center">${partida.qualidade?.C || 0}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const linhasTorneios = (torneios || []).map((torneio) => `
+    <tr>
+      <td>${escapeHtml(torneio.nome || "Sem torneio")}</td>
+      <td>${escapeHtml(formatDate(torneio.inicio))} - ${escapeHtml(formatDate(torneio.termino))}</td>
+      <td class="center">${torneio.partidas || 0}</td>
+      <td class="center">${torneio.acoes || 0}</td>
+    </tr>
+  `).join("");
+
+  return `
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Relatorio do Jogador - ${escapeHtml(nomeJogador)}</title>
+        <style>
+          * { box-sizing: border-box; }
+          body {
+            margin: 0;
+            padding: 32px;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #111827;
+            background: #ffffff;
+          }
+          header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            padding: 22px 24px;
+            color: #ffffff;
+            background: #000000;
+            border-bottom: 6px solid #dc2626;
+            border-radius: 14px 14px 0 0;
+          }
+          .eyebrow {
+            margin: 0 0 6px;
+            color: #f87171;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+          }
+          h1 {
+            margin: 0;
+            font-size: 30px;
+            line-height: 1;
+            text-transform: uppercase;
+          }
+          .meta {
+            margin-top: 8px;
+            color: #d1d5db;
+            font-size: 13px;
+            font-weight: 700;
+          }
+          .avatar {
+            width: 72px;
+            height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            border-radius: 12px;
+            background: #dc2626;
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: 900;
+          }
+          .metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 22px 0;
+          }
+          .metric {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px;
+            background: #ffffff;
+          }
+          .metric span {
+            display: block;
+            color: #6b7280;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+          }
+          .metric strong {
+            display: block;
+            margin-top: 8px;
+            font-size: 28px;
+            font-weight: 900;
+          }
+          .table-title {
+            margin: 26px 0 0;
+            padding: 14px 18px;
+            background: #dc2626;
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 900;
+            text-transform: uppercase;
+            border-radius: 12px 12px 0 0;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #e5e7eb;
+          }
+          th {
+            padding: 11px;
+            background: #000000;
+            color: #ffffff;
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-align: left;
+            text-transform: uppercase;
+          }
+          td {
+            padding: 12px 11px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 12px;
+            vertical-align: top;
+          }
+          td span {
+            display: block;
+            margin-top: 4px;
+            color: #6b7280;
+            font-size: 10px;
+            font-weight: 700;
+          }
+          .center { text-align: center; }
+        </style>
+      </head>
+      <body>
+        <header>
+          <div>
+            <p class="eyebrow">Relatorio do Jogador</p>
+            <h1>${escapeHtml(nomeJogador)}</h1>
+            <div class="meta">Camisa ${escapeHtml(jogador?.numCamisa || "--")} | ${escapeHtml(jogador?.posicaoNome || "--")} | ${escapeHtml(jogador?.categoriaNome || "--")}</div>
+            <div class="meta">Altura ${escapeHtml(formatHeight(jogador?.altura))} | Nascimento ${escapeHtml(formatDate(jogador?.dataNasc))}</div>
+          </div>
+          <div class="avatar">${escapeHtml(iniciais)}</div>
+        </header>
+
+        <section class="metrics">
+          <div class="metric"><span>Acoes</span><strong>${totals.acoes || 0}</strong></div>
+          <div class="metric"><span>Partidas</span><strong>${totals.partidas || 0}</strong></div>
+          <div class="metric"><span>Torneios</span><strong>${totals.torneios || 0}</strong></div>
+          <div class="metric"><span>Qualidade A</span><strong>${totals.qualidade?.A || 0}</strong></div>
+          <div class="metric"><span>Qualidade B</span><strong>${totals.qualidade?.B || 0}</strong></div>
+          <div class="metric"><span>Qualidade C</span><strong>${totals.qualidade?.C || 0}</strong></div>
+        </section>
+
+        <h2 class="table-title">Acoes por tipo</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Acao</th>
+              <th class="center">A</th>
+              <th class="center">B</th>
+              <th class="center">C</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linhasAcoes || '<tr><td colspan="4" class="center">Nenhuma acao encontrada.</td></tr>'}
+          </tbody>
+        </table>
+
+        <h2 class="table-title">Partidas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Partida</th>
+              <th class="center">Acoes</th>
+              <th class="center">A</th>
+              <th class="center">B</th>
+              <th class="center">C</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linhasPartidas || '<tr><td colspan="6" class="center">Nenhuma partida encontrada.</td></tr>'}
+          </tbody>
+        </table>
+
+        <h2 class="table-title">Torneios</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Torneio</th>
+              <th>Periodo</th>
+              <th class="center">Partidas</th>
+              <th class="center">Acoes</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linhasTorneios || '<tr><td colspan="4" class="center">Nenhum torneio encontrado.</td></tr>'}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `;
+};
+
 const PlayerReportModal = ({ open, onClose, loading, report, player }) => {
+  const [isSavingPdf, setIsSavingPdf] = useState(false);
   const jogador = report?.jogador || player || {};
   const totals = report?.totals || {
     acoes: 0,
@@ -81,6 +367,33 @@ const PlayerReportModal = ({ open, onClose, loading, report, player }) => {
   const partidas = report?.partidas || [];
   const torneios = report?.torneios || [];
 
+  const handleSalvarRelatorioPdf = async () => {
+    if (!report) {
+      return;
+    }
+
+    setIsSavingPdf(true);
+
+    try {
+      const nomeJogador = String(jogador?.nome || "jogador")
+        .trim()
+        .replace(/\s+/g, "-")
+        .toLowerCase();
+      const result = await window.reportAPI.salvarPdf({
+        nomeArquivo: `relatorio-jogador-${nomeJogador}.pdf`,
+        html: montarHtmlRelatorioJogador({ jogador, totals, partidas, torneios }),
+      });
+
+      if (result?.success) {
+        Alertas.sucesso("Relatorio salvo em PDF com sucesso.");
+      }
+    } catch (e) {
+      Alertas.erro(e?.message || "Nao foi possivel salvar o relatorio em PDF.");
+    } finally {
+      setIsSavingPdf(false);
+    }
+  };
+
   if (!open) {
     return null;
   }
@@ -90,15 +403,7 @@ const PlayerReportModal = ({ open, onClose, loading, report, player }) => {
       <div className="w-full max-w-3xl rounded-2xl bg-white p-5 shadow-2xl border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-300 max-h-[90vh] overflow-y-auto">
         <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="h-16 w-16 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex-shrink-0">
-              {jogador.foto ? (
-                <img src={jogador.foto} alt={jogador.nome} className="h-full w-full object-cover" />
-              ) : (
-                <div className="h-full w-full flex items-center justify-center text-[10px] font-black text-gray-400">
-                  Sem foto
-                </div>
-              )}
-            </div>
+            <PlayerAvatar player={jogador} />
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
                 Camisa #{jogador.numCamisa || "--"}
@@ -116,14 +421,24 @@ const PlayerReportModal = ({ open, onClose, loading, report, player }) => {
               </div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full bg-gray-100 px-3 py-2 text-xs font-black text-gray-600 hover:bg-gray-200 transition-colors flex-shrink-0"
-            aria-label="Fechar"
-          >
-            X
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={handleSalvarRelatorioPdf}
+              disabled={!report || isSavingPdf}
+              className="rounded-full bg-black px-3 py-2 text-xs font-black text-white hover:bg-gray-900 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSavingPdf ? "Salvando..." : "Exportar PDF"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full bg-gray-100 px-3 py-2 text-xs font-black text-gray-600 hover:bg-gray-200 transition-colors"
+              aria-label="Fechar"
+            >
+              X
+            </button>
+          </div>
         </div>
 
         <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">
