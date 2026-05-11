@@ -9,7 +9,8 @@ const url = require('url');
 const xlsx = require('xlsx');
 const ExcelImportControl = require('./Control/ExcelImportControl').default;
 
-const { initDatabase } = require('./db/db');
+const db = require('./db/db');
+const { initDatabase } = db;
 const TournamentControl = require('./Control/TournamentControl').default;
 
 if (require('electron-squirrel-startup')) {
@@ -172,6 +173,159 @@ app.whenReady().then(() => {
   ipcMain.handle('tournaments:delete', async (_event, id) => {
     return TournamentControl.deleteTournament(id);
   });
+
+  ipcMain.handle('relatorio:torneioPartidas', async (_event, tournamentId) => {
+    const torneioId = Number(tournamentId);
+    if (!torneioId || Number.isNaN(torneioId)) {
+      throw new Error('Torneio invalido para emitir relatorio.');
+    }
+
+    const torneio = db.prepare('SELECT id, nome, tipo, inicio, termino FROM Torneios WHERE id = ?').get(torneioId);
+    if (!torneio) {
+      throw new Error('Torneio nao encontrado.');
+    }
+
+    const partidas = db.prepare(`
+      SELECT
+        p.id,
+        p.nome,
+        p.dataPartida,
+        p.status,
+        p.pontosTime1,
+        p.pontosTime2,
+        p.fase,
+        t1.nome AS time1Nome,
+        t2.nome AS time2Nome,
+        g.nome AS ginasioNome
+      FROM Partidas p
+      LEFT JOIN Times t1 ON t1.id = p.time1
+      LEFT JOIN Times t2 ON t2.id = p.time2
+      LEFT JOIN Ginasios g ON g.id = p.ginasio_id
+      WHERE p.torneio_id = ?
+      ORDER BY p.dataPartida DESC, p.id DESC
+    `).all(torneioId);
+
+    const timesMap = new Map();
+    const ensureTime = (nome) => {
+      const key = nome || 'Time nao definido';
+      if (!timesMap.has(key)) {
+        timesMap.set(key, {
+          nome: key,
+          jogos: 0,
+          finalizadas: 0,
+          vitorias: 0,
+          derrotas: 0,
+          empates: 0,
+          setsGanhos: 0,
+          setsPerdidos: 0,
+          saldoSets: 0,
+          taxaVitoria: 0,
+        });
+      }
+      return timesMap.get(key);
+    };
+
+    const jogos = partidas.map((partida) => {
+      const status = String(partida.status || 'AGENDADA').toUpperCase();
+      const finalizada = status === 'FINALIZADA';
+      const pontosTime1 = Number(partida.pontosTime1) || 0;
+      const pontosTime2 = Number(partida.pontosTime2) || 0;
+      const time1 = ensureTime(partida.time1Nome);
+      const time2 = ensureTime(partida.time2Nome);
+
+      time1.jogos += 1;
+      time2.jogos += 1;
+
+      if (finalizada) {
+        time1.finalizadas += 1;
+        time2.finalizadas += 1;
+        time1.setsGanhos += pontosTime1;
+        time1.setsPerdidos += pontosTime2;
+        time2.setsGanhos += pontosTime2;
+        time2.setsPerdidos += pontosTime1;
+
+        if (pontosTime1 > pontosTime2) {
+          time1.vitorias += 1;
+          time2.derrotas += 1;
+        } else if (pontosTime2 > pontosTime1) {
+          time2.vitorias += 1;
+          time1.derrotas += 1;
+        } else {
+          time1.empates += 1;
+          time2.empates += 1;
+        }
+      }
+
+      return {
+        id: partida.id,
+        nome: partida.nome,
+        dataPartida: partida.dataPartida,
+        status,
+        fase: partida.fase || 'Sem fase',
+        time1Nome: partida.time1Nome || 'Time 1',
+        time2Nome: partida.time2Nome || 'Time 2',
+        ginasioNome: partida.ginasioNome || 'Local nao definido',
+        pontosTime1,
+        pontosTime2,
+        placar: finalizada ? `${pontosTime1} x ${pontosTime2}` : '--',
+        vencedor: finalizada
+          ? pontosTime1 > pontosTime2
+            ? partida.time1Nome
+            : pontosTime2 > pontosTime1
+              ? partida.time2Nome
+              : 'Empate'
+          : 'Pendente',
+      };
+    });
+
+    const times = Array.from(timesMap.values()).map((time) => ({
+      ...time,
+      saldoSets: time.setsGanhos - time.setsPerdidos,
+      taxaVitoria: time.finalizadas > 0
+        ? Number(((time.vitorias / time.finalizadas) * 100).toFixed(1))
+        : 0,
+    })).sort((a, b) => (
+      b.vitorias - a.vitorias
+      || b.taxaVitoria - a.taxaVitoria
+      || b.saldoSets - a.saldoSets
+      || String(a.nome).localeCompare(String(b.nome), 'pt-BR', { sensitivity: 'base' })
+    ));
+
+    const melhorJogador = db.prepare(`
+      SELECT
+        j.id,
+        j.nome,
+        j.numCamisa,
+        COUNT(a.id) AS totalAcoes,
+        SUM(CASE WHEN a.Qualidade = 'A' THEN 1 ELSE 0 END) AS acoesA,
+        SUM(CASE WHEN a.Qualidade = 'B' THEN 1 ELSE 0 END) AS acoesB,
+        SUM(CASE WHEN a.Qualidade = 'C' THEN 1 ELSE 0 END) AS acoesC,
+        SUM(CASE WHEN ta.Nome = 'Saque' THEN 1 ELSE 0 END) AS saques,
+        SUM(CASE WHEN ta.Nome = 'Ataque' THEN 1 ELSE 0 END) AS ataques,
+        SUM(CASE WHEN ta.Nome = 'Bloqueio' THEN 1 ELSE 0 END) AS bloqueios
+      FROM Acao a
+      INNER JOIN Jogadores j ON j.id = a.Jogador_id
+      LEFT JOIN TipoAcao ta ON ta.idTipoAcao = a.idTipoAcao
+      INNER JOIN Partidas p ON p.id = a.Ponto_Partida_id
+      WHERE p.torneio_id = ?
+      GROUP BY j.id, j.nome, j.numCamisa
+      ORDER BY acoesA DESC, totalAcoes DESC, j.nome ASC
+      LIMIT 1
+    `).get(torneioId) || null;
+
+    return {
+      torneio,
+      resumo: {
+        totalPartidas: jogos.length,
+        finalizadas: jogos.filter((jogo) => jogo.status === 'FINALIZADA').length,
+        agendadas: jogos.filter((jogo) => jogo.status !== 'FINALIZADA').length,
+      },
+      melhorTime: times[0] || null,
+      melhorJogador,
+      times,
+      jogos,
+    };
+  });
   
   ipcMain.handle('excel:importar', async () => {
     return await ExcelImportControl.getInstance().importarExcel();
@@ -188,6 +342,7 @@ app.whenReady().then(() => {
   ipcMain.handle('excel:reverter', async (event, id) => {
     return await ExcelImportControl.getInstance().reverterImportacao(id);
   });
+
 
   ipcMain.handle('relatorio:salvarPdf', async (event, payload = {}) => {
     const sourceWindow = BrowserWindow.fromWebContents(event.sender);

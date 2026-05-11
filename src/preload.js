@@ -45,6 +45,8 @@ window.excelAPI = {
     reverter: (id) => ipcRenderer.invoke('excel:reverter', id)
 };
 
+
 window.reportAPI = {
-    salvarPdf: (payload) => ipcRenderer.invoke('relatorio:salvarPdf', payload)
+    salvarPdf: (payload) => ipcRenderer.invoke('relatorio:salvarPdf', payload),
+    torneioPartidas: (tournamentId) => ipcRenderer.invoke('relatorio:torneioPartidas', tournamentId)
 };

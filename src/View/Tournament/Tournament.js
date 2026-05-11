@@ -340,6 +340,17 @@ const buildBracketRounds = (teams = [], matches = []) => {
   return rounds;
 };
 
+const ReportMetric = ({ label, value, featured = false }) => (
+  <div className={`${featured ? 'bg-black text-white border-black' : 'bg-white text-black border-gray-200'} rounded-xl border p-5 shadow-sm`}>
+    <p className={`text-[11px] font-black uppercase tracking-widest ${featured ? 'text-red-400' : 'text-gray-500'}`}>
+      {label}
+    </p>
+    <p className={`mt-2 text-2xl font-black tracking-tight ${featured ? 'text-white' : 'text-black'}`}>
+      {value}
+    </p>
+  </div>
+);
+
 const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamentDeleted }) => {
   const [tournament, setTournament] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -356,6 +367,10 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
   const [tournamentModalOpen, setTournamentModalOpen] = useState(false);
   const [tournamentSubmitting, setTournamentSubmitting] = useState(false);
   const [tournamentForm, setTournamentForm] = useState({ id: null, name: '', type: 1, startDate: '', endDate: '' });
+  const [matchReport, setMatchReport] = useState(null);
+  const [matchReportOpen, setMatchReportOpen] = useState(false);
+  const [matchReportLoading, setMatchReportLoading] = useState(false);
+  const [matchReportPdfSaving, setMatchReportPdfSaving] = useState(false);
 
   const showToast = (type, text) => {
     showToastMessage(setToasts, type, text);
@@ -567,23 +582,142 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     }
   };
 
-  const exportTournamentReport = () => {
+  const formatDateBR = (value) => {
+    if (!value) return '--/--/----';
+    const [year, month, day] = String(value).split('-');
+    if (!year || !month || !day) return value;
+    return `${day}/${month}/${year}`;
+  };
+
+  const escapeHtml = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  const openMatchReport = async () => {
     if (!tournament) {
       return;
     }
 
-    const report = {
-      tournament,
-      matches: tournamentMatches,
-      exportDate: new Date().toISOString(),
-    };
+    setMatchReportLoading(true);
 
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const element = document.createElement('a');
-    element.href = url;
-    element.download = `tournament-${tournament.name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.json`;
-    element.click();
+    try {
+      const report = await window.reportAPI.torneioPartidas(tournament.id);
+      setMatchReport(report);
+      setMatchReportOpen(true);
+    } catch (error) {
+      showToast('error', error?.message || 'Nao foi possivel emitir o relatorio de partidas.');
+    } finally {
+      setMatchReportLoading(false);
+    }
+  };
+
+  const closeMatchReport = () => {
+    setMatchReportOpen(false);
+    setMatchReport(null);
+    setMatchReportPdfSaving(false);
+  };
+
+  const buildMatchReportHtml = () => {
+    if (!matchReport) return '<html><body><h1>Relatorio de partidas</h1></body></html>';
+
+    const rowsTimes = matchReport.times.map((time, index) => `
+      <tr>
+        <td class="center">${index + 1}</td>
+        <td><strong>${escapeHtml(time.nome)}</strong></td>
+        <td class="center">${time.jogos}</td>
+        <td class="center">${time.vitorias}</td>
+        <td class="center">${time.derrotas}</td>
+        <td class="center">${time.taxaVitoria}%</td>
+        <td class="center">${time.saldoSets}</td>
+      </tr>
+    `).join('');
+
+    const rowsJogos = matchReport.jogos.map((jogo) => `
+      <tr>
+        <td>${escapeHtml(formatDateBR(jogo.dataPartida))}</td>
+        <td><strong>${escapeHtml(jogo.time1Nome)} x ${escapeHtml(jogo.time2Nome)}</strong><span>${escapeHtml(jogo.nome || 'Partida')}</span></td>
+        <td>${escapeHtml(jogo.fase)}</td>
+        <td>${escapeHtml(jogo.ginasioNome)}</td>
+        <td class="center">${escapeHtml(jogo.placar)}</td>
+        <td class="center">${escapeHtml(jogo.vencedor)}</td>
+      </tr>
+    `).join('');
+
+    return `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Relatorio de Partidas - ${escapeHtml(matchReport.torneio.nome)}</title>
+          <style>
+            * { box-sizing: border-box; }
+            body { margin: 0; padding: 30px; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #fff; }
+            header { padding: 22px 24px; color: #fff; background: #000; border-bottom: 6px solid #dc2626; border-radius: 14px 14px 0 0; }
+            .eyebrow { margin: 0 0 6px; color: #f87171; font-size: 11px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
+            h1 { margin: 0; font-size: 30px; text-transform: uppercase; }
+            .sub { margin-top: 8px; color: #d1d5db; font-size: 13px; font-weight: 700; }
+            .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
+            .metric { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; background: #fff; }
+            .metric.featured { color: #fff; background: #000; border-color: #000; }
+            .metric span { display: block; color: #6b7280; font-size: 10px; font-weight: 900; letter-spacing: 1.4px; text-transform: uppercase; }
+            .metric.featured span { color: #f87171; }
+            .metric strong { display: block; margin-top: 8px; font-size: 22px; font-weight: 900; }
+            .table-title { margin: 26px 0 0; padding: 14px 18px; background: #dc2626; color: #fff; font-size: 18px; font-weight: 900; text-transform: uppercase; border-radius: 12px 12px 0 0; }
+            table { width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; }
+            th { padding: 10px; background: #000; color: #fff; font-size: 10px; letter-spacing: 1px; text-align: left; text-transform: uppercase; }
+            td { padding: 10px; border-bottom: 1px solid #f3f4f6; font-size: 12px; vertical-align: top; }
+            td span { display: block; margin-top: 4px; color: #6b7280; font-size: 10px; font-weight: 700; }
+            .center { text-align: center; }
+          </style>
+        </head>
+        <body>
+          <header>
+            <p class="eyebrow">VolleyStats</p>
+            <h1>Relatorio de Partidas</h1>
+            <div class="sub">${escapeHtml(matchReport.torneio.nome)} • ${escapeHtml(formatDateBR(matchReport.torneio.inicio))} ate ${escapeHtml(formatDateBR(matchReport.torneio.termino))}</div>
+          </header>
+          <section class="metrics">
+            <div class="metric featured"><span>Melhor time</span><strong>${escapeHtml(matchReport.melhorTime?.nome || 'Sem dados')}</strong></div>
+            <div class="metric"><span>Vitorias</span><strong>${matchReport.melhorTime?.vitorias || 0}</strong></div>
+            <div class="metric featured"><span>Melhor jogador</span><strong>${escapeHtml(matchReport.melhorJogador?.nome || 'Sem scout')}</strong></div>
+            <div class="metric"><span>Acoes A</span><strong>${matchReport.melhorJogador?.acoesA || 0}</strong></div>
+            <div class="metric"><span>Total partidas</span><strong>${matchReport.resumo.totalPartidas}</strong></div>
+            <div class="metric"><span>Finalizadas</span><strong>${matchReport.resumo.finalizadas}</strong></div>
+            <div class="metric"><span>Agendadas</span><strong>${matchReport.resumo.agendadas}</strong></div>
+            <div class="metric"><span>Times no torneio</span><strong>${matchReport.times.length}</strong></div>
+          </section>
+          <h2 class="table-title">Desempenho por time</h2>
+          <table><thead><tr><th class="center">#</th><th>Time</th><th class="center">J</th><th class="center">V</th><th class="center">D</th><th class="center">Taxa</th><th class="center">Saldo</th></tr></thead><tbody>${rowsTimes || '<tr><td colspan="7" class="center">Sem times no torneio.</td></tr>'}</tbody></table>
+          <h2 class="table-title">Pontuacao das partidas</h2>
+          <table><thead><tr><th>Data</th><th>Jogo</th><th>Fase</th><th>Local</th><th class="center">Placar</th><th class="center">Vencedor</th></tr></thead><tbody>${rowsJogos || '<tr><td colspan="6" class="center">Sem partidas no torneio.</td></tr>'}</tbody></table>
+        </body>
+      </html>
+    `;
+  };
+
+  const saveMatchReportPdf = async () => {
+    if (!matchReport) return;
+
+    setMatchReportPdfSaving(true);
+
+    try {
+      const fileSafeName = String(matchReport.torneio.nome || 'torneio').trim().replace(/\s+/g, '-').toLowerCase();
+      const result = await window.reportAPI.salvarPdf({
+        nomeArquivo: `relatorio-partidas-${fileSafeName}.pdf`,
+        html: buildMatchReportHtml(),
+      });
+
+      if (result?.success) {
+        showToast('success', 'Relatorio de partidas salvo em PDF.');
+      }
+    } catch (error) {
+      showToast('error', error?.message || 'Nao foi possivel salvar o PDF.');
+    } finally {
+      setMatchReportPdfSaving(false);
+    }
   };
 
   return (
@@ -629,10 +763,11 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
 
         <div className="flex items-center gap-4">
           <button
-            onClick={exportTournamentReport}
+            onClick={openMatchReport}
+            disabled={matchReportLoading}
             className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all"
           >
-            Exportar Relatorio
+            {matchReportLoading ? 'Emitindo...' : 'Emitir Relatorio de Partidas'}
           </button>
 
           <button
@@ -756,6 +891,156 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
           </>
         )}
       </main>
+
+      {matchReportOpen && matchReport && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[2100] p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-7xl max-h-[92vh] overflow-y-auto shadow-2xl border-4 border-black">
+            <div className="bg-black px-7 py-5 border-b-4 border-red-600 flex justify-between items-center gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-400">VolleyStats</p>
+                <h2 className="text-3xl font-black text-white tracking-tight uppercase">Relatorio de Partidas</h2>
+                <p className="text-sm font-semibold text-gray-300">
+                  {matchReport.torneio.nome} • melhor jogador, melhor time e pontuacao dos jogos
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeMatchReport}
+                className="shrink-0 text-gray-400 hover:text-red-500 transition-colors text-3xl font-light p-2"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-7 space-y-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <ReportMetric label="Melhor time" value={matchReport.melhorTime?.nome || 'Sem dados'} featured />
+                <ReportMetric label="Vitorias" value={matchReport.melhorTime?.vitorias || 0} />
+                <ReportMetric label="Melhor jogador" value={matchReport.melhorJogador?.nome || 'Sem scout'} featured />
+                <ReportMetric label="Acoes A" value={matchReport.melhorJogador?.acoesA || 0} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <ReportMetric label="Total de partidas" value={matchReport.resumo.totalPartidas} />
+                <ReportMetric label="Finalizadas" value={matchReport.resumo.finalizadas} />
+                <ReportMetric label="Agendadas" value={matchReport.resumo.agendadas} />
+                <ReportMetric label="Times no torneio" value={matchReport.times.length} />
+              </div>
+
+              {matchReport.melhorJogador && (
+                <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-5">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-red-600 mb-2">Resumo do melhor jogador</p>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm font-bold text-gray-700">
+                    <span>Camisa: #{matchReport.melhorJogador.numCamisa || '--'}</span>
+                    <span>Total ações: {matchReport.melhorJogador.totalAcoes || 0}</span>
+                    <span>Saque: {matchReport.melhorJogador.saques || 0}</span>
+                    <span>Ataque: {matchReport.melhorJogador.ataques || 0}</span>
+                    <span>Bloqueio: {matchReport.melhorJogador.bloqueios || 0}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-gray-50 border-2 border-gray-200 rounded-2xl overflow-hidden">
+                <div className="bg-red-600 px-6 py-4">
+                  <h3 className="text-xl font-black text-white uppercase tracking-tight">Desempenho por Time</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[780px] bg-white">
+                    <thead>
+                      <tr className="bg-black text-white">
+                        <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">#</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest">Time</th>
+                        <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">J</th>
+                        <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">V</th>
+                        <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">D</th>
+                        <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">Taxa</th>
+                        <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">Saldo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {matchReport.times.length > 0 ? matchReport.times.map((time, index) => (
+                        <tr key={time.nome} className="border-b border-gray-100 hover:bg-red-50/50 transition-colors">
+                          <td className="px-4 py-3 text-center text-sm font-black text-red-600">{index + 1}</td>
+                          <td className="px-4 py-3 text-sm font-black text-black">{time.nome}</td>
+                          <td className="px-4 py-3 text-center font-black">{time.jogos}</td>
+                          <td className="px-4 py-3 text-center font-black">{time.vitorias}</td>
+                          <td className="px-4 py-3 text-center font-black">{time.derrotas}</td>
+                          <td className="px-4 py-3 text-center font-black">{time.taxaVitoria}%</td>
+                          <td className="px-4 py-3 text-center font-black">{time.saldoSets}</td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan="7" className="px-5 py-10 text-center text-sm font-bold text-gray-500">Nenhum time com partidas neste torneio.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 border-2 border-gray-200 rounded-2xl overflow-hidden">
+                <div className="bg-red-600 px-6 py-4 flex items-center justify-between gap-4">
+                  <h3 className="text-xl font-black text-white uppercase tracking-tight">Pontuacao das Partidas</h3>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-red-100">{matchReport.jogos.length} jogos</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[980px] bg-white">
+                    <thead>
+                      <tr className="bg-black text-white">
+                        <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest">Data</th>
+                        <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest">Jogo</th>
+                        <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest">Fase</th>
+                        <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest">Local</th>
+                        <th className="px-5 py-3 text-center text-[10px] font-black uppercase tracking-widest">Placar</th>
+                        <th className="px-5 py-3 text-center text-[10px] font-black uppercase tracking-widest">Vencedor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {matchReport.jogos.length > 0 ? matchReport.jogos.map((jogo) => (
+                        <tr key={jogo.id} className="border-b border-gray-100 hover:bg-red-50/50 transition-colors">
+                          <td className="px-5 py-4 text-sm font-bold text-gray-700">{formatDateBR(jogo.dataPartida)}</td>
+                          <td className="px-5 py-4">
+                            <p className="text-sm font-black text-black">{jogo.time1Nome} x {jogo.time2Nome}</p>
+                            <p className="text-xs font-semibold text-gray-500">{jogo.nome || 'Partida'}</p>
+                          </td>
+                          <td className="px-5 py-4 text-sm font-semibold text-gray-600">{jogo.fase}</td>
+                          <td className="px-5 py-4 text-sm font-semibold text-gray-600">{jogo.ginasioNome}</td>
+                          <td className="px-5 py-4 text-center">
+                            <span className="inline-flex items-center justify-center rounded-lg bg-gray-100 px-3 py-1 text-sm font-black text-black">{jogo.placar}</span>
+                          </td>
+                          <td className="px-5 py-4 text-center text-sm font-black text-black">{jogo.vencedor}</td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan="6" className="px-5 py-10 text-center text-sm font-bold text-gray-500">Nenhuma partida cadastrada neste torneio.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
+                <button
+                  type="button"
+                  onClick={closeMatchReport}
+                  className="px-6 py-3 font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={saveMatchReportPdf}
+                  disabled={matchReportPdfSaving}
+                  className="px-6 py-3 font-black text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-md transition-colors uppercase tracking-wider text-sm disabled:opacity-60 disabled:cursor-wait"
+                >
+                  {matchReportPdfSaving ? 'Salvando...' : 'Salvar como PDF'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {matchModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
