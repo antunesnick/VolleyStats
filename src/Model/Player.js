@@ -127,9 +127,10 @@ class Player {
   findPlayerFiltered(filtro, db) {
     try {
       let sqlQuery = `
-        SELECT j.*, p.nome as posicao 
+        SELECT j.*, p.nome as posicao, c.nome as categoria
         FROM Jogadores j 
         LEFT JOIN Posicoes p ON j.posicao_id = p.id 
+        LEFT JOIN Categorias c ON c.id = j.categoria_id
         WHERE 1=1
       `;
       const params = [];
@@ -151,6 +152,78 @@ class Player {
     } catch (e) {
       throw e;
     }       
+  }
+
+  buscarRankingJogadores(filtro = {}) {
+    const params = [];
+    let where = 'WHERE 1=1';
+
+    if (filtro.posicaoId) {
+      where += ' AND j.posicao_id = ?';
+      params.push(Number(filtro.posicaoId));
+    }
+
+    if (filtro.categoriaId) {
+      where += ' AND j.categoria_id = ?';
+      params.push(Number(filtro.categoriaId));
+    }
+
+    const rows = db.prepare(`
+      SELECT
+        j.id,
+        j.nome,
+        j.numCamisa,
+        j.foto,
+        j.posicao_id AS posicaoId,
+        p.nome AS posicaoNome,
+        j.categoria_id AS categoriaId,
+        c.nome AS categoriaNome,
+        COUNT(a.id) AS totalAcoes,
+        SUM(CASE WHEN UPPER(COALESCE(a.Qualidade, '')) = 'A' THEN 1 ELSE 0 END) AS acertos,
+        SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'bloq%' THEN 1 ELSE 0 END) AS bloqueios
+      FROM Jogadores j
+      LEFT JOIN Posicoes p ON p.id = j.posicao_id
+      LEFT JOIN Categorias c ON c.id = j.categoria_id
+      LEFT JOIN Acao a ON a.Jogador_id = j.id
+      LEFT JOIN TipoAcao ta ON ta.idTipoAcao = a.idTipoAcao
+      ${where}
+      GROUP BY j.id
+    `).all(...params);
+
+    const ranking = rows.map((row) => {
+      const totalAcoes = Number(row.totalAcoes) || 0;
+      const acertos = Number(row.acertos) || 0;
+      const bloqueios = Number(row.bloqueios) || 0;
+
+      return {
+        id: row.id,
+        nome: row.nome,
+        numCamisa: row.numCamisa,
+        foto: row.foto || '',
+        posicaoId: row.posicaoId,
+        posicaoNome: row.posicaoNome || '--',
+        categoriaId: row.categoriaId,
+        categoriaNome: row.categoriaNome || '--',
+        totalAcoes,
+        acertos,
+        bloqueios,
+        efetividade: totalAcoes > 0 ? Number(((acertos / totalAcoes) * 100).toFixed(1)) : 0,
+      };
+    });
+
+    const ordenacao = filtro.ordenacao || 'efetividade';
+    const getMetric = (player) => {
+      if (ordenacao === 'acertos') return player.acertos;
+      if (ordenacao === 'bloqueios') return player.bloqueios;
+      if (ordenacao === 'acoes') return player.totalAcoes;
+      return player.efetividade;
+    };
+
+    return ranking.sort((a, b) => {
+      const metricDiff = getMetric(b) - getMetric(a);
+      if (metricDiff !== 0) return metricDiff;
+      return String(a.nome || '').localeCompare(String(b.nome || ''));
+    });
   }
 
   buscarRelatorioJogador(jogadorId) {
