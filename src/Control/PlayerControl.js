@@ -45,7 +45,8 @@ class PlayerControl {
             null, data.cpf, data.nome, data.dataNasc, 
             data.numCamisa, data.rg, data.altura, 
             Number(data.posicaoId), 
-            caminhoDaFoto 
+            caminhoDaFoto,
+            data.categoria_id ? Number(data.categoria_id) : null
         );
         
         const insertTransaction = db.transaction((playerObj) => {
@@ -68,7 +69,8 @@ class PlayerControl {
             data.id, data.cpf, data.nome, data.dataNasc, 
             data.numCamisa, data.rg, data.altura, 
             Number(data.posicaoId), 
-            caminhoDaFoto
+            caminhoDaFoto,
+            data.categoria_id ? Number(data.categoria_id) : null
         );    
         
         const updateTransaction = db.transaction((playerObj) => {
@@ -124,6 +126,15 @@ class PlayerControl {
         const playerInstance = new Player();
         try {
             return playerInstance.buscarRelatorioJogador(jogadorId);
+        } catch (e) {
+            throw e;
+        }
+    }
+
+    async buscarRankingJogadores(filtro = {}) {
+        const playerInstance = new Player();
+        try {
+            return playerInstance.buscarRankingJogadores(filtro);
         } catch (e) {
             throw e;
         }

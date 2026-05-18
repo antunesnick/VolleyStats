@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Settings, Trash2, Pencil, ChevronRight, Plus, Search } from "lucide-react";
+import { Settings, Trash2, Pencil, ChevronRight, Plus, Search, Trophy } from "lucide-react";
 import * as Style from "./PleayerStyles"; 
 import PlayerControl from "../../Control/PlayerControl"; 
 import PositionControl from "../../Control/PositionControl"; 
 import { PlayerRegView } from "../PlayerRegister/PlayerRegView";
 import PlayerReportModal from "./PlayerReportModal";
+import PlayerRanking from "./PlayerRanking";
 import { Alertas } from "../../utils/Alertas";
 
 const PlayerAvatar = ({ player }) => {
@@ -38,6 +39,7 @@ export function PlayerView() {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [reportPlayer, setReportPlayer] = useState(null);
+  const [rankingOpen, setRankingOpen] = useState(false);
 
   useEffect(() => {
     const positionControl = PositionControl.getInstance();
@@ -61,6 +63,9 @@ export function PlayerView() {
         altura: p.altura, 
         posicaoId: p.posicao_id,
         posicaoNome: p.posicao, 
+        categoriaId: p.categoria_id,
+        categoria_id: p.categoria_id,
+        categoriaNome: p.categoria,
         dataNasc: p.dataNasc, 
       }));
       setPlayers(formattedPlayers);
@@ -135,6 +140,13 @@ export function PlayerView() {
   return (
     <Style.Container>
       <Style.TopBar>
+        <Style.ManageButton
+          type="button"
+          onClick={() => setRankingOpen(true)}
+        >
+          <Trophy size={16} />
+          Ranking
+        </Style.ManageButton>
         <Style.ManageButton
           $isEditing={isEditing}
           onClick={() => setIsEditing(!isEditing)}
@@ -247,6 +259,11 @@ export function PlayerView() {
         loading={reportLoading}
         report={reportData}
         player={reportPlayer}
+      />
+
+      <PlayerRanking
+        open={rankingOpen}
+        onClose={() => setRankingOpen(false)}
       />
 
     </Style.Container>

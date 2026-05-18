@@ -12,6 +12,8 @@ export const Container = styled.div`
 export const TopBar = styled.div`
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 20px;
 `;
 
