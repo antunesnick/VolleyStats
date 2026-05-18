@@ -217,6 +217,160 @@ class GinasioModel {
 	findGinasioFiltered(filter) {
 		return this.buscarFiltrado(filter);
 	}
+
+	buscarRelatorio(id = this.id) {
+		const ginasioId = Number(id);
+
+		if (!ginasioId || Number.isNaN(ginasioId)) {
+			throw new Error("Ginasio invalido para emitir relatorio.");
+		}
+
+		const ginasio = db.prepare(`
+			SELECT id, nome, cidade, estado, endereco
+			FROM Ginasios
+			WHERE id = ?
+		`).get(ginasioId);
+
+		if (!ginasio) {
+			throw new Error("Ginasio nao encontrado.");
+		}
+
+		const partidas = db.prepare(`
+			SELECT
+				p.id,
+				p.nome,
+				p.dataPartida,
+				p.status,
+				p.pontosTime1,
+				p.pontosTime2,
+				p.time1,
+				p.time2,
+				t1.nome AS time1Nome,
+				t2.nome AS time2Nome,
+				tr.nome AS torneioNome
+			FROM Partidas p
+			LEFT JOIN Times t1 ON t1.id = p.time1
+			LEFT JOIN Times t2 ON t2.id = p.time2
+			LEFT JOIN Torneios tr ON tr.id = p.torneio_id
+			WHERE p.ginasio_id = ?
+			ORDER BY p.dataPartida DESC, p.id DESC
+		`).all(ginasioId);
+
+		const resumo = {
+			totalPartidas: partidas.length,
+			finalizadas: 0,
+			agendadas: 0,
+			vitorias: 0,
+			derrotas: 0,
+			empates: 0,
+			totalTimes: 0,
+		};
+
+		const timesMap = new Map();
+		const ensureTime = (nome) => {
+			const key = nome || "Time nao definido";
+			if (!timesMap.has(key)) {
+				timesMap.set(key, {
+					nome: key,
+					jogos: 0,
+					finalizadas: 0,
+					vitorias: 0,
+					derrotas: 0,
+					empates: 0,
+					setsGanhos: 0,
+					setsPerdidos: 0,
+					saldoSets: 0,
+					taxaVitoria: 0,
+				});
+			}
+			return timesMap.get(key);
+		};
+
+		const jogos = partidas.map((partida) => {
+			const status = String(partida.status || "AGENDADA").toUpperCase();
+			const finalizada = status === "FINALIZADA";
+			const pontosTime1 = Number(partida.pontosTime1) || 0;
+			const pontosTime2 = Number(partida.pontosTime2) || 0;
+
+			const time1 = ensureTime(partida.time1Nome);
+			const time2 = ensureTime(partida.time2Nome);
+
+			time1.jogos += 1;
+			time2.jogos += 1;
+
+			if (finalizada) {
+				resumo.finalizadas += 1;
+				time1.finalizadas += 1;
+				time2.finalizadas += 1;
+
+				time1.setsGanhos += pontosTime1;
+				time1.setsPerdidos += pontosTime2;
+				time2.setsGanhos += pontosTime2;
+				time2.setsPerdidos += pontosTime1;
+
+				if (pontosTime1 > pontosTime2) {
+					time1.vitorias += 1;
+					time2.derrotas += 1;
+					resumo.vitorias += 1;
+					resumo.derrotas += 1;
+				} else if (pontosTime2 > pontosTime1) {
+					time2.vitorias += 1;
+					time1.derrotas += 1;
+					resumo.vitorias += 1;
+					resumo.derrotas += 1;
+				} else {
+					time1.empates += 1;
+					time2.empates += 1;
+					resumo.empates += 1;
+				}
+			} else {
+				resumo.agendadas += 1;
+			}
+
+			return {
+				id: partida.id,
+				nome: partida.nome,
+				dataPartida: partida.dataPartida,
+				status,
+				torneioNome: partida.torneioNome || "Sem torneio",
+				time1Nome: partida.time1Nome || "Time 1",
+				time2Nome: partida.time2Nome || "Time 2",
+				pontosTime1,
+				pontosTime2,
+				placar: finalizada ? `${pontosTime1} x ${pontosTime2}` : "--",
+				vencedor: finalizada
+					? pontosTime1 > pontosTime2
+						? partida.time1Nome
+						: pontosTime2 > pontosTime1
+							? partida.time2Nome
+							: "Empate"
+					: "Pendente",
+			};
+		});
+
+		const times = Array.from(timesMap.values()).map((time) => ({
+			...time,
+			saldoSets: time.setsGanhos - time.setsPerdidos,
+			taxaVitoria: time.finalizadas > 0
+				? Number(((time.vitorias / time.finalizadas) * 100).toFixed(1))
+				: 0,
+		})).sort((a, b) => (
+			b.vitorias - a.vitorias
+			|| b.taxaVitoria - a.taxaVitoria
+			|| b.saldoSets - a.saldoSets
+			|| String(a.nome).localeCompare(String(b.nome), "pt-BR", { sensitivity: "base" })
+		));
+
+		resumo.totalTimes = timesMap.size;
+
+		return {
+			ginasio,
+			resumo,
+			melhorTime: times[0] || null,
+			times,
+			jogos,
+		};
+	}
 }
 
 export default GinasioModel;

@@ -48,5 +48,6 @@ window.excelAPI = {
 
 window.reportAPI = {
     salvarPdf: (payload) => ipcRenderer.invoke('relatorio:salvarPdf', payload),
-    torneioPartidas: (tournamentId) => ipcRenderer.invoke('relatorio:torneioPartidas', tournamentId)
+    torneioPartidas: (tournamentId) => ipcRenderer.invoke('relatorio:torneioPartidas', tournamentId),
+    ginasioRelatorio: (ginasioId) => ipcRenderer.invoke('relatorio:ginasio', ginasioId)
 };

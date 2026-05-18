@@ -328,6 +328,10 @@ app.whenReady().then(() => {
       jogos,
     };
   });
+
+  ipcMain.handle('relatorio:ginasio', async (_event, ginasioId) => {
+    return GinasioControl.relatorioGinasio(ginasioId);
+  });
   
   ipcMain.handle('excel:importar', async () => {
     return await ExcelImportControl.getInstance().importarExcel();
