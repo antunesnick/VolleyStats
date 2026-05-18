@@ -3,6 +3,7 @@ import logoTime from '../assets/logoTransparent.png';
 import ControlePartida from './ControlePartida';
 import EstatisticaView from './EstatisticaView';
 import TimesControl from '../../Control/TimesControl';
+import EstatisticaControl from '../../Control/EstatisticaControl';
 import { Alertas } from '../../utils/Alertas';
 
 const ACTIVE_MATCH_STORAGE_KEY = 'volleystats.activeMatch';
@@ -43,6 +44,17 @@ const showToastMessage = (setToasts, type, text, duration = 3200) => {
   }, duration);
 };
 
+const formatPercent = (value) => `${Number(value || 0).toFixed(1)}%`;
+
+const ReportMetric = ({ label, value, featured = false }) => (
+  <div className={`${featured ? 'bg-black text-white border-black' : 'bg-white text-black border-gray-200'} rounded-xl border p-5 shadow-sm`}>
+    <p className={`text-[11px] font-black uppercase tracking-widest ${featured ? 'text-red-400' : 'text-gray-500'}`}>
+      {label}
+    </p>
+    <p className="mt-2 text-2xl font-black tracking-tight">{value}</p>
+  </div>
+);
+
 const GerenciarPartidas = ({ tournamentId = null, onMatchesUpdated }) => {
   const [partidas, setPartidas] = useState([]);
   const [toasts, setToasts] = useState([]);
@@ -59,6 +71,10 @@ const GerenciarPartidas = ({ tournamentId = null, onMatchesUpdated }) => {
   const [isControleCarregado, setIsControleCarregado] = useState(false);
   const [partidaParaResumo, setPartidaParaResumo] = useState(null);
   const [isResumoFinalizacaoOpen, setIsResumoFinalizacaoOpen] = useState(false);
+  const [relatorioPartidaReadOnly, setRelatorioPartidaReadOnly] = useState(false);
+  const [relatorioGeralOpen, setRelatorioGeralOpen] = useState(false);
+  const [relatorioGeral, setRelatorioGeral] = useState(null);
+  const [relatorioGeralLoading, setRelatorioGeralLoading] = useState(false);
 
   const [filtros, setFiltros] = useState({
     dataPartida: '',
@@ -468,6 +484,7 @@ const formatarDataBrasil = (dataString) => {
       if (!partidaTemNossoTime(partidaBanco)) {
         sessionStorage.removeItem(ACTIVE_MATCH_STORAGE_KEY);
         setPartidaParaControlar(null);
+        setRelatorioPartidaReadOnly(false);
         setPartidaParaResumo(partidaBanco);
         setIsResumoFinalizacaoOpen(true);
         return;
@@ -488,6 +505,37 @@ const formatarDataBrasil = (dataString) => {
   const fecharResumoFinalizacao = () => {
     setIsResumoFinalizacaoOpen(false);
     setPartidaParaResumo(null);
+    setRelatorioPartidaReadOnly(false);
+  };
+
+  const abrirRelatorioPartida = (partida) => {
+    setRelatorioPartidaReadOnly(true);
+    setPartidaParaResumo(partida);
+    setIsResumoFinalizacaoOpen(true);
+  };
+
+  const abrirRelatorioGeral = () => {
+    setRelatorioGeralLoading(true);
+
+    try {
+      const result = EstatisticaControl.carregarRelatorioGeralPartidas(tournamentId);
+      if (result.erro) {
+        Alertas.erro(result.erro);
+        return;
+      }
+
+      setRelatorioGeral(result.relatorio);
+      setRelatorioGeralOpen(true);
+    } catch (error) {
+      Alertas.erro(error?.message || 'Nao foi possivel emitir o relatorio geral de partidas.');
+    } finally {
+      setRelatorioGeralLoading(false);
+    }
+  };
+
+  const fecharRelatorioGeral = () => {
+    setRelatorioGeralOpen(false);
+    setRelatorioGeral(null);
   };
 
   const confirmarResumoFinalizacao = async (finalScore) => {
@@ -555,13 +603,22 @@ const formatarDataBrasil = (dataString) => {
             <p className="text-gray-600 text-sm font-medium mt-1">Gerencie, edite e acompanhe os confrontos agendados</p>
           </div>
         </div>
-        <button
-          onClick={abrirModalCriar}
-          className="bg-red-600 hover:bg-red-700 text-white font-extrabold py-3 px-8 rounded-2xl shadow-lg transition-all transform hover:scale-105 flex items-center gap-2.5 active:scale-95 text-base whitespace-nowrap"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
-          NOVA PARTIDA
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={abrirRelatorioGeral}
+            disabled={relatorioGeralLoading}
+            className="bg-black hover:bg-neutral-800 disabled:bg-gray-400 text-white font-extrabold py-3 px-6 rounded-2xl shadow-lg transition-all flex items-center gap-2.5 active:scale-95 text-sm whitespace-nowrap uppercase tracking-wider"
+          >
+            {relatorioGeralLoading ? 'Emitindo...' : 'Relatorio Geral'}
+          </button>
+          <button
+            onClick={abrirModalCriar}
+            className="bg-red-600 hover:bg-red-700 text-white font-extrabold py-3 px-8 rounded-2xl shadow-lg transition-all transform hover:scale-105 flex items-center gap-2.5 active:scale-95 text-base whitespace-nowrap"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
+            NOVA PARTIDA
+          </button>
+        </div>
       </div>
 
       {/* SEÇÃO DE FILTROS - GRID ESTÁTICO */}
@@ -663,6 +720,16 @@ const formatarDataBrasil = (dataString) => {
                 <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 <span className="truncate font-medium">{getNomeGinasio(partida.ginasio_id)}</span>
               </div>
+
+              {partida.status === 'FINALIZADA' && (
+                <button
+                  type="button"
+                  onClick={() => abrirRelatorioPartida(partida)}
+                  className="mb-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg transition-colors hover:bg-neutral-800"
+                >
+                  Relatorio da Partida
+                </button>
+              )}
 
               {partida.status === 'FINALIZADA' && (
                 <button
@@ -876,11 +943,172 @@ const formatarDataBrasil = (dataString) => {
           away: partidaParaResumo?.pontosTime2 || 0,
         }}
         partidaId={partidaParaResumo?.id}
-        onConfirm={confirmarResumoFinalizacao}
+        onConfirm={relatorioPartidaReadOnly ? undefined : confirmarResumoFinalizacao}
         onStatisticsChange={carregarTudo}
-        resumoOnly
+        resumoOnly={!relatorioPartidaReadOnly}
+        readOnly={relatorioPartidaReadOnly}
         useDraftSetsAsResult
       />
+
+      {relatorioGeralOpen && relatorioGeral && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[2100] p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-7xl max-h-[92vh] overflow-y-auto shadow-2xl border-4 border-black">
+            <div className="bg-black px-7 py-5 border-b-4 border-red-600 flex justify-between items-center gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-400">VolleyStats</p>
+                <h2 className="text-3xl font-black text-white tracking-tight uppercase">Relatorio Geral de Partidas</h2>
+                <p className="text-sm font-semibold text-gray-300">
+                  Estatisticas no mesmo padrao da planilha de scout
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={fecharRelatorioGeral}
+                className="shrink-0 text-gray-400 hover:text-red-500 transition-colors text-3xl font-light p-2"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-7 space-y-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <ReportMetric label="Melhor time" value={relatorioGeral.melhorTime?.nome || 'Sem dados'} featured />
+                <ReportMetric label="Vitorias" value={relatorioGeral.melhorTime?.vitorias || 0} />
+                <ReportMetric label="Melhor jogador" value={relatorioGeral.melhorJogador?.nome || 'Sem scout'} featured />
+                <ReportMetric label="Pontos do jogador" value={relatorioGeral.melhorJogador?.scout?.pontosTotais || 0} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <ReportMetric label="Total de partidas" value={relatorioGeral.resumo.totalPartidas} />
+                <ReportMetric label="Finalizadas" value={relatorioGeral.resumo.finalizadas} />
+                <ReportMetric label="Acoes scout" value={relatorioGeral.resumo.scout?.totalAcoes || 0} />
+                <ReportMetric label="Pontos scout" value={relatorioGeral.resumo.scout?.pontosTotais || 0} />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <ReportMetric label="Saque ace/pts" value={relatorioGeral.resumo.scout?.saque?.aces || 0} />
+                <ReportMetric label="Recepcao positiva" value={formatPercent(relatorioGeral.resumo.scout?.recepcao?.positivaPct)} />
+                <ReportMetric label="Ataque eff" value={formatPercent(relatorioGeral.resumo.scout?.ataque?.eficiencia)} />
+              </div>
+
+              <div className="rounded-2xl overflow-hidden border-2 border-gray-200">
+                <div className="bg-red-600 px-6 py-4 flex items-center justify-between gap-4">
+                  <h3 className="text-xl font-black text-white uppercase tracking-tight">Scout dos Jogadores</h3>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-red-100">{relatorioGeral.jogadores.length} jogadores</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1100px] bg-white">
+                    <thead>
+                      <tr className="bg-black text-white">
+                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-widest">Jogador</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">PTS</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Saq Tot</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Saq Pts</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Saq Err</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Rec Pos%</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Rec Prf%</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Atq Pts</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Atq Err</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Atq Eff</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">BK Pts</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Def +</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Def -</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {relatorioGeral.jogadores.length > 0 ? relatorioGeral.jogadores.map((jogador) => (
+                        <tr key={jogador.id} className="border-b border-gray-100 hover:bg-red-50/50 transition-colors">
+                          <td className="px-4 py-3 text-sm font-black text-black">#{jogador.numero || '--'} - {jogador.nome}</td>
+                          <td className="px-4 py-3 text-center font-black text-red-600">{jogador.scout?.pontosTotais || 0}</td>
+                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.saque?.total || 0}</td>
+                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.saque?.aces || 0}</td>
+                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.saque?.erros || 0}</td>
+                          <td className="px-4 py-3 text-center font-bold">{formatPercent(jogador.scout?.recepcao?.positivaPct)}</td>
+                          <td className="px-4 py-3 text-center font-bold">{formatPercent(jogador.scout?.recepcao?.perfeitaPct)}</td>
+                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.ataque?.pontos || 0}</td>
+                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.ataque?.erros || 0}</td>
+                          <td className="px-4 py-3 text-center font-bold">{formatPercent(jogador.scout?.ataque?.eficiencia)}</td>
+                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.bloqueio?.pontos || 0}</td>
+                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.defesa?.positivas || 0}</td>
+                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.defesa?.erros || 0}</td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan="13" className="px-4 py-10 text-center text-sm font-bold text-gray-500">
+                            Nenhum scout registrado nas partidas selecionadas.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="rounded-2xl overflow-hidden border-2 border-gray-200">
+                <div className="bg-black px-6 py-4 flex items-center justify-between gap-4">
+                  <h3 className="text-xl font-black text-white uppercase tracking-tight">Pontuacao e Scout por Partida</h3>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-red-300">{relatorioGeral.jogos.length} jogos</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[980px] bg-white">
+                    <thead>
+                      <tr className="bg-gray-100 text-gray-700">
+                        <th className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest">Data</th>
+                        <th className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest">Partida</th>
+                        <th className="px-5 py-3 text-center text-[11px] font-black uppercase tracking-widest">Status</th>
+                        <th className="px-5 py-3 text-center text-[11px] font-black uppercase tracking-widest">Placar</th>
+                        <th className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest">Vencedor</th>
+                        <th className="px-5 py-3 text-center text-[11px] font-black uppercase tracking-widest">Acoes</th>
+                        <th className="px-5 py-3 text-center text-[11px] font-black uppercase tracking-widest">Saq Pts</th>
+                        <th className="px-5 py-3 text-center text-[11px] font-black uppercase tracking-widest">Atq Pts</th>
+                        <th className="px-5 py-3 text-center text-[11px] font-black uppercase tracking-widest">BK Pts</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {relatorioGeral.jogos.length > 0 ? relatorioGeral.jogos.map((jogo) => (
+                        <tr key={jogo.id} className="border-b border-gray-100 hover:bg-red-50/50 transition-colors">
+                          <td className="px-5 py-4 text-sm font-bold text-gray-700">{formatarDataBrasil(jogo.dataPartida)}</td>
+                          <td className="px-5 py-4">
+                            <p className="text-sm font-black text-black">{jogo.time1Nome || 'Time 1'} x {jogo.time2Nome || 'Time 2'}</p>
+                            <p className="text-xs font-bold text-gray-500">{jogo.nome || 'Partida'} • {jogo.tipo || 'Sem tipo'}</p>
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${jogo.status === 'FINALIZADA' ? 'bg-black text-white' : 'bg-yellow-100 text-yellow-700'}`}>
+                              {jogo.status}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-center text-lg font-black text-red-600">{jogo.placar}</td>
+                          <td className="px-5 py-4 text-sm font-bold text-gray-700">{jogo.vencedor}</td>
+                          <td className="px-5 py-4 text-center font-black">{jogo.scout?.totalAcoes || 0}</td>
+                          <td className="px-5 py-4 text-center font-black">{jogo.scout?.saque?.aces || 0}</td>
+                          <td className="px-5 py-4 text-center font-black">{jogo.scout?.ataque?.pontos || 0}</td>
+                          <td className="px-5 py-4 text-center font-black">{jogo.scout?.bloqueio?.pontos || 0}</td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan="9" className="px-5 py-10 text-center text-sm font-bold text-gray-500">
+                            Nenhuma partida encontrada.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={fecharRelatorioGeral}
+                  className="px-6 py-3 font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {videoModalPartida && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">

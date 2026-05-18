@@ -114,6 +114,21 @@ class EstatisticaControl {
     }
   }
 
+  carregarRelatorioGeralPartidas(tournamentId = null) {
+    try {
+      return {
+        relatorio: this.estatisticaModel.montarRelatorioGeralPartidas(tournamentId),
+        erro: "",
+      };
+    } catch (error) {
+      console.error("Erro ao carregar relatorio geral de partidas:", error);
+      return {
+        relatorio: null,
+        erro: error?.message || "Nao foi possivel carregar o relatorio geral de partidas.",
+      };
+    }
+  }
+
   criarSnapshotPartida(partidaId) {
     try {
       return this.estatisticaModel.criarSnapshotPartida(partidaId);

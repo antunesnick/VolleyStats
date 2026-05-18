@@ -20,6 +20,7 @@ class EstatisticaModel {
         sets: 0,
         pontos: 0,
         acoes: 0,
+        scout: this.criarScoutVazio(),
       },
       resultadoPartida: {
         home: 0,
@@ -133,6 +134,177 @@ class EstatisticaModel {
     return actionName || 'Sem tipo';
   }
 
+  criarScoutVazio() {
+    return {
+      pontosTotais: 0,
+      totalAcoes: 0,
+      qualidade: { A: 0, B: 0, C: 0 },
+      saque: {
+        total: 0,
+        aces: 0,
+        positivos: 0,
+        continuacao: 0,
+        erros: 0,
+        eficiencia: 0,
+      },
+      recepcao: {
+        total: 0,
+        perfeita: 0,
+        positiva: 0,
+        erros: 0,
+        positivaPct: 0,
+        perfeitaPct: 0,
+      },
+      ataque: {
+        total: 0,
+        pontos: 0,
+        positivos: 0,
+        erros: 0,
+        bloqueados: 0,
+        eficiencia: 0,
+        pontosPct: 0,
+      },
+      bloqueio: {
+        total: 0,
+        pontos: 0,
+        positivos: 0,
+        erros: 0,
+        eficiencia: 0,
+      },
+      defesa: {
+        total: 0,
+        positivas: 0,
+        erros: 0,
+        eficiencia: 0,
+      },
+    };
+  }
+
+  arredondarPercentual(value) {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+
+    return Number(value.toFixed(1));
+  }
+
+  finalizarScout(scout) {
+    const nextScout = scout || this.criarScoutVazio();
+    const calcularEficiencia = (positivos, erros, total) =>
+      total > 0 ? this.arredondarPercentual(((positivos - erros) / total) * 100) : 0;
+
+    nextScout.saque.eficiencia = calcularEficiencia(
+      nextScout.saque.aces + nextScout.saque.positivos,
+      nextScout.saque.erros,
+      nextScout.saque.total,
+    );
+    nextScout.recepcao.positivaPct = nextScout.recepcao.total > 0
+      ? this.arredondarPercentual(((nextScout.recepcao.perfeita + nextScout.recepcao.positiva) / nextScout.recepcao.total) * 100)
+      : 0;
+    nextScout.recepcao.perfeitaPct = nextScout.recepcao.total > 0
+      ? this.arredondarPercentual((nextScout.recepcao.perfeita / nextScout.recepcao.total) * 100)
+      : 0;
+    nextScout.ataque.eficiencia = calcularEficiencia(
+      nextScout.ataque.pontos + nextScout.ataque.positivos,
+      nextScout.ataque.erros + nextScout.ataque.bloqueados,
+      nextScout.ataque.total,
+    );
+    nextScout.ataque.pontosPct = nextScout.ataque.total > 0
+      ? this.arredondarPercentual((nextScout.ataque.pontos / nextScout.ataque.total) * 100)
+      : 0;
+    nextScout.bloqueio.eficiencia = calcularEficiencia(
+      nextScout.bloqueio.pontos + nextScout.bloqueio.positivos,
+      nextScout.bloqueio.erros,
+      nextScout.bloqueio.total,
+    );
+    nextScout.defesa.eficiencia = calcularEficiencia(
+      nextScout.defesa.positivas,
+      nextScout.defesa.erros,
+      nextScout.defesa.total,
+    );
+
+    return nextScout;
+  }
+
+  aplicarAcaoNoScout(scout, actionName, quality) {
+    if (!scout) {
+      return;
+    }
+
+    const normalizedAction = this.normalizarNomeAcao(actionName);
+    const normalizedQuality = String(quality || '').toUpperCase();
+    const isA = normalizedQuality === 'A';
+    const isB = normalizedQuality === 'B';
+    const isC = normalizedQuality === 'C';
+
+    scout.totalAcoes += 1;
+    if (Object.prototype.hasOwnProperty.call(scout.qualidade, normalizedQuality)) {
+      scout.qualidade[normalizedQuality] += 1;
+    }
+
+    if (normalizedAction === 'Saque') {
+      scout.saque.total += 1;
+      if (isA) {
+        scout.saque.aces += 1;
+        scout.pontosTotais += 1;
+      } else if (isB) {
+        scout.saque.positivos += 1;
+      } else if (isC) {
+        scout.saque.erros += 1;
+      } else {
+        scout.saque.continuacao += 1;
+      }
+      return;
+    }
+
+    if (normalizedAction === 'Recepcao') {
+      scout.recepcao.total += 1;
+      if (isA) {
+        scout.recepcao.perfeita += 1;
+      } else if (isB) {
+        scout.recepcao.positiva += 1;
+      } else if (isC) {
+        scout.recepcao.erros += 1;
+      }
+      return;
+    }
+
+    if (normalizedAction === 'Ataque') {
+      scout.ataque.total += 1;
+      if (isA) {
+        scout.ataque.pontos += 1;
+        scout.pontosTotais += 1;
+      } else if (isB) {
+        scout.ataque.positivos += 1;
+      } else if (isC) {
+        scout.ataque.erros += 1;
+      }
+      return;
+    }
+
+    if (normalizedAction === 'Bloqueio') {
+      scout.bloqueio.total += 1;
+      if (isA) {
+        scout.bloqueio.pontos += 1;
+        scout.pontosTotais += 1;
+      } else if (isB) {
+        scout.bloqueio.positivos += 1;
+      } else if (isC) {
+        scout.bloqueio.erros += 1;
+      }
+      return;
+    }
+
+    if (normalizedAction === 'Defesa') {
+      scout.defesa.total += 1;
+      if (isA || isB) {
+        scout.defesa.positivas += 1;
+      } else if (isC) {
+        scout.defesa.erros += 1;
+      }
+    }
+  }
+
   criarEstatisticaJogador(row) {
     return {
       id: row.jogadorId,
@@ -148,6 +320,7 @@ class EstatisticaModel {
         acc[actionName] = 0;
         return acc;
       }, {}),
+      scout: this.criarScoutVazio(),
       acoesDetalhadas: [],
     };
   }
@@ -161,6 +334,7 @@ class EstatisticaModel {
 
     const jogadoresMap = new Map();
     const setsMap = new Map();
+    const scoutTotal = this.criarScoutVazio();
     let totalAcoes = 0;
 
     for (const row of rows) {
@@ -225,6 +399,8 @@ class EstatisticaModel {
       if (Object.prototype.hasOwnProperty.call(playerStats.qualidade, quality)) {
         playerStats.qualidade[quality] += 1;
       }
+      this.aplicarAcaoNoScout(playerStats.scout, actionName, quality);
+      this.aplicarAcaoNoScout(scoutTotal, actionName, quality);
 
       playerStats.acoesDetalhadas.push({
         id: row.acaoId,
@@ -255,6 +431,10 @@ class EstatisticaModel {
       .sort((a, b) => a.numSet - b.numSet);
 
     const jogadores = Array.from(jogadoresMap.values())
+      .map((jogador) => ({
+        ...jogador,
+        scout: this.finalizarScout(jogador.scout),
+      }))
       .sort((a, b) => b.totalAcoes - a.totalAcoes || String(a.nome).localeCompare(String(b.nome)));
 
     const resultadoSets = sets.reduce((resultado, setStats) => {
@@ -274,6 +454,7 @@ class EstatisticaModel {
         sets: sets.length,
         pontos: sets.reduce((sum, setStats) => sum + setStats.pontos, 0),
         acoes: totalAcoes,
+        scout: this.finalizarScout(scoutTotal),
       },
       resultadoPartida,
       resultadoSets,
@@ -328,6 +509,191 @@ class EstatisticaModel {
     `);
 
     return this.montarEstatisticasPorLinhas(sql.all(Number(partidaId)), partidaScore);
+  }
+
+  montarRelatorioGeralPartidas(tournamentId = null) {
+    this.garantirColunasPlacarSet();
+
+    const hasTournament = tournamentId !== null && tournamentId !== undefined && tournamentId !== '';
+    const params = hasTournament ? [Number(tournamentId)] : [];
+    const where = hasTournament ? 'WHERE p.torneio_id = ?' : '';
+
+    const partidas = db.prepare(`
+      SELECT
+        p.id,
+        p.nome,
+        p.dataPartida,
+        p.tipo,
+        p.status,
+        p.pontosTime1,
+        p.pontosTime2,
+        p.time1,
+        p.time2,
+        p.torneio_id,
+        t1.nome AS time1Nome,
+        t2.nome AS time2Nome,
+        g.nome AS ginasioNome
+      FROM Partidas p
+      LEFT JOIN Times t1 ON t1.id = p.time1
+      LEFT JOIN Times t2 ON t2.id = p.time2
+      LEFT JOIN Ginasios g ON g.id = p.ginasio_id
+      ${where}
+      ORDER BY p.dataPartida DESC, p.id DESC
+    `).all(...params);
+
+    const ids = partidas.map((partida) => Number(partida.id)).filter(Boolean);
+    const scoutTotal = this.criarScoutVazio();
+    const jogadoresMap = new Map();
+    const scoutPorPartida = new Map(ids.map((id) => [id, this.criarScoutVazio()]));
+
+    if (ids.length > 0) {
+      const placeholders = ids.map(() => '?').join(', ');
+      const acoes = db.prepare(`
+        SELECT
+          A.id AS acaoId,
+          A.Ponto_Partida_id AS partidaId,
+          A.idTipoAcao AS tipoAcaoId,
+          A.Qualidade AS qualidade,
+          J.id AS jogadorId,
+          J.nome AS jogadorNome,
+          J.NumCamisa AS jogadorNumero,
+          T.Nome AS tipoAcaoNome
+        FROM Acao A
+        LEFT JOIN Jogadores J ON A.Jogador_id = J.id
+        LEFT JOIN TipoAcao T ON A.idTipoAcao = T.idTipoAcao
+        WHERE A.Ponto_Partida_id IN (${placeholders})
+        ORDER BY A.Ponto_Partida_id ASC, A.id ASC
+      `).all(...ids);
+
+      for (const row of acoes) {
+        const actionName = this.normalizarNomeAcao(row.tipoAcaoNome);
+        const quality = String(row.qualidade || '').toUpperCase();
+        const playerKey = row.jogadorId || `sem-jogador-${row.acaoId}`;
+
+        if (!jogadoresMap.has(playerKey)) {
+          jogadoresMap.set(playerKey, this.criarEstatisticaJogador(row));
+        }
+
+        const playerStats = jogadoresMap.get(playerKey);
+        playerStats.totalAcoes += 1;
+        playerStats.acoes[actionName] = (playerStats.acoes[actionName] || 0) + 1;
+        if (Object.prototype.hasOwnProperty.call(playerStats.qualidade, quality)) {
+          playerStats.qualidade[quality] += 1;
+        }
+
+        this.aplicarAcaoNoScout(playerStats.scout, actionName, quality);
+        this.aplicarAcaoNoScout(scoutTotal, actionName, quality);
+
+        const matchScout = scoutPorPartida.get(Number(row.partidaId));
+        this.aplicarAcaoNoScout(matchScout, actionName, quality);
+      }
+    }
+
+    const timesMap = new Map();
+    const ensureTime = (id, nome) => {
+      const key = Number(id) || String(nome || 'time');
+      if (!timesMap.has(key)) {
+        timesMap.set(key, {
+          id: Number(id) || null,
+          nome: nome || 'Time nao definido',
+          jogos: 0,
+          finalizadas: 0,
+          vitorias: 0,
+          derrotas: 0,
+          empates: 0,
+          setsGanhos: 0,
+          setsPerdidos: 0,
+          saldoSets: 0,
+          taxaVitoria: 0,
+        });
+      }
+
+      return timesMap.get(key);
+    };
+
+    const jogos = partidas.map((partida) => {
+      const status = String(partida.status || 'AGENDADA').toUpperCase();
+      const finalizada = status === 'FINALIZADA';
+      const pontosTime1 = this.normalizarPlacar(partida.pontosTime1);
+      const pontosTime2 = this.normalizarPlacar(partida.pontosTime2);
+      const time1 = ensureTime(partida.time1, partida.time1Nome);
+      const time2 = ensureTime(partida.time2, partida.time2Nome);
+
+      time1.jogos += 1;
+      time2.jogos += 1;
+
+      if (finalizada) {
+        time1.finalizadas += 1;
+        time2.finalizadas += 1;
+        time1.setsGanhos += pontosTime1;
+        time1.setsPerdidos += pontosTime2;
+        time2.setsGanhos += pontosTime2;
+        time2.setsPerdidos += pontosTime1;
+
+        if (pontosTime1 > pontosTime2) {
+          time1.vitorias += 1;
+          time2.derrotas += 1;
+        } else if (pontosTime2 > pontosTime1) {
+          time2.vitorias += 1;
+          time1.derrotas += 1;
+        } else {
+          time1.empates += 1;
+          time2.empates += 1;
+        }
+      }
+
+      return {
+        ...partida,
+        status,
+        pontosTime1,
+        pontosTime2,
+        placar: finalizada ? `${pontosTime1} x ${pontosTime2}` : '--',
+        vencedor: finalizada
+          ? pontosTime1 > pontosTime2
+            ? partida.time1Nome
+            : pontosTime2 > pontosTime1
+              ? partida.time2Nome
+              : 'Empate'
+          : 'Pendente',
+        scout: this.finalizarScout(scoutPorPartida.get(Number(partida.id)) || this.criarScoutVazio()),
+      };
+    });
+
+    const times = Array.from(timesMap.values()).map((time) => ({
+      ...time,
+      saldoSets: time.setsGanhos - time.setsPerdidos,
+      taxaVitoria: time.finalizadas > 0
+        ? this.arredondarPercentual((time.vitorias / time.finalizadas) * 100)
+        : 0,
+    })).sort((a, b) => (
+      b.vitorias - a.vitorias
+      || b.taxaVitoria - a.taxaVitoria
+      || b.saldoSets - a.saldoSets
+      || String(a.nome).localeCompare(String(b.nome), 'pt-BR', { sensitivity: 'base' })
+    ));
+
+    const jogadores = Array.from(jogadoresMap.values()).map((jogador) => ({
+      ...jogador,
+      scout: this.finalizarScout(jogador.scout),
+    })).sort((a, b) => (
+      b.scout.pontosTotais - a.scout.pontosTotais
+      || b.totalAcoes - a.totalAcoes
+      || String(a.nome).localeCompare(String(b.nome), 'pt-BR', { sensitivity: 'base' })
+    ));
+
+    return {
+      resumo: {
+        totalPartidas: jogos.length,
+        finalizadas: jogos.filter((jogo) => jogo.status === 'FINALIZADA').length,
+        agendadas: jogos.filter((jogo) => jogo.status !== 'FINALIZADA').length,
+        scout: this.finalizarScout(scoutTotal),
+      },
+      melhorTime: times[0] || null,
+      melhorJogador: jogadores[0] || null,
+      times,
+      jogos,
+      jogadores,
+    };
   }
 
   buscarOpcoesEdicaoAcao(partidaId) {
@@ -545,5 +911,7 @@ export const buscarEstatisticasPartida = (partidaId) =>
   estatisticaModel.buscarEstatisticasPartida(partidaId);
 export const salvarPontuacaoSets = (partidaId, sets = []) =>
   estatisticaModel.salvarPontuacaoSets(partidaId, sets);
+export const buscarRelatorioGeralPartidas = (tournamentId = null) =>
+  estatisticaModel.montarRelatorioGeralPartidas(tournamentId);
 
 export default EstatisticaModel;
