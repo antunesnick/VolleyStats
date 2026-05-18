@@ -179,6 +179,10 @@ app.whenReady().then(() => {
   ipcMain.handle('relatorio:torneioPartidas', async (_event, tournamentId) => {
     return TournamentControl.emitirRelatorioPartidas(tournamentId);
   });
+
+  ipcMain.handle('relatorio:ginasio', async (_event, ginasioId) => {
+    return GinasioControl.relatorioGinasio(ginasioId);
+  });
   
   ipcMain.handle('excel:importar', async () => {
     return await ExcelImportControl.getInstance().importarExcel();
