@@ -308,20 +308,30 @@ const EstatisticaView = ({
         <td class="center">${jogador.qualidade?.B || 0}</td>
         <td class="center">${jogador.qualidade?.C || 0}</td>
         <td class="center">${jogador.scout?.saque?.total || 0}</td>
-        <td class="center">${jogador.scout?.saque?.aces || 0}</td>
-        <td class="center">${jogador.scout?.saque?.erros || 0}</td>
+        <td class="center">${jogador.scout?.saque?.qualidade?.A || 0}</td>
+        <td class="center">${jogador.scout?.saque?.qualidade?.B || 0}</td>
+        <td class="center">${jogador.scout?.saque?.qualidade?.C || 0}</td>
         <td class="center">${formatPercent(jogador.scout?.saque?.eficiencia)}</td>
         <td class="center">${jogador.scout?.recepcao?.total || 0}</td>
+        <td class="center">${jogador.scout?.recepcao?.qualidade?.A || 0}</td>
+        <td class="center">${jogador.scout?.recepcao?.qualidade?.B || 0}</td>
+        <td class="center">${jogador.scout?.recepcao?.qualidade?.C || 0}</td>
         <td class="center">${formatPercent(jogador.scout?.recepcao?.positivaPct)}</td>
         <td class="center">${formatPercent(jogador.scout?.recepcao?.perfeitaPct)}</td>
-        <td class="center">${jogador.scout?.recepcao?.erros || 0}</td>
         <td class="center">${jogador.scout?.ataque?.total || 0}</td>
+        <td class="center">${jogador.scout?.ataque?.qualidade?.A || 0}</td>
+        <td class="center">${jogador.scout?.ataque?.qualidade?.B || 0}</td>
+        <td class="center">${jogador.scout?.ataque?.qualidade?.C || 0}</td>
         <td class="center">${jogador.scout?.ataque?.pontos || 0}</td>
-        <td class="center">${jogador.scout?.ataque?.erros || 0}</td>
         <td class="center">${formatPercent(jogador.scout?.ataque?.eficiencia)}</td>
-        <td class="center">${jogador.scout?.bloqueio?.pontos || 0}</td>
-        <td class="center">${jogador.scout?.defesa?.positivas || 0}</td>
-        <td class="center">${jogador.scout?.defesa?.erros || 0}</td>
+        <td class="center">${jogador.scout?.bloqueio?.total || 0}</td>
+        <td class="center">${jogador.scout?.bloqueio?.qualidade?.A || 0}</td>
+        <td class="center">${jogador.scout?.bloqueio?.qualidade?.B || 0}</td>
+        <td class="center">${jogador.scout?.bloqueio?.qualidade?.C || 0}</td>
+        <td class="center">${jogador.scout?.defesa?.total || 0}</td>
+        <td class="center">${jogador.scout?.defesa?.qualidade?.A || 0}</td>
+        <td class="center">${jogador.scout?.defesa?.qualidade?.B || 0}</td>
+        <td class="center">${jogador.scout?.defesa?.qualidade?.C || 0}</td>
       </tr>
     `).join('');
 
@@ -404,23 +414,33 @@ const EstatisticaView = ({
                   <th class="center">B</th>
                   <th class="center">C</th>
                   <th class="center">Saq Tot</th>
-                  <th class="center">Saq Pts</th>
-                  <th class="center">Saq Err</th>
+                  <th class="center">Saq A</th>
+                  <th class="center">Saq B</th>
+                  <th class="center">Saq C</th>
                   <th class="center">Saq Eff</th>
                   <th class="center">Rec Tot</th>
+                  <th class="center">Rec A</th>
+                  <th class="center">Rec B</th>
+                  <th class="center">Rec C</th>
                   <th class="center">Rec Pos%</th>
                   <th class="center">Rec Prf%</th>
-                  <th class="center">Rec Err</th>
                   <th class="center">Atq Tot</th>
+                  <th class="center">Atq A</th>
+                  <th class="center">Atq B</th>
+                  <th class="center">Atq C</th>
                   <th class="center">Atq Pts</th>
-                  <th class="center">Atq Err</th>
                   <th class="center">Atq Eff</th>
-                  <th class="center">BK Pts</th>
-                  <th class="center">Def +</th>
-                  <th class="center">Def -</th>
+                  <th class="center">BK Tot</th>
+                  <th class="center">BK A</th>
+                  <th class="center">BK B</th>
+                  <th class="center">BK C</th>
+                  <th class="center">Def Tot</th>
+                  <th class="center">Def A</th>
+                  <th class="center">Def B</th>
+                  <th class="center">Def C</th>
                 </tr>
               </thead>
-              <tbody>${linhasJogadores || '<tr><td colspan="21">Nenhum scout registrado.</td></tr>'}</tbody>
+              <tbody>${linhasJogadores || '<tr><td colspan="31">Nenhum scout registrado.</td></tr>'}</tbody>
             </table>
           </section>
 
@@ -605,36 +625,54 @@ const EstatisticaView = ({
             </div>
 
             <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
-              <table className="w-full min-w-[1320px] text-left">
+              <table className="w-full min-w-[1800px] text-left">
                 <thead className="bg-black text-white">
                   <tr>
-                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest">Jogador</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Acoes</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">PTS</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">A</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">B</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">C</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Saq Tot</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Saq Pts</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Saq Err</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Saq Eff</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Rec Tot</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Rec Pos%</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Rec Prf%</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Rec Err</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Atq Tot</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Atq Pts</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Atq Err</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Atq Eff</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">BK Pts</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Def +</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Def -</th>
+                    <th rowSpan="2" className="px-4 py-3 text-[10px] font-black uppercase tracking-widest">Jogador</th>
+                    <th rowSpan="2" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Acoes</th>
+                    <th rowSpan="2" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">PTS</th>
+                    <th colSpan="3" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Geral</th>
+                    <th colSpan="5" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Saque</th>
+                    <th colSpan="6" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Recepcao</th>
+                    <th colSpan="6" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Ataque</th>
+                    <th colSpan="4" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Bloqueio</th>
+                    <th colSpan="4" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Defesa</th>
+                  </tr>
+                  <tr className="bg-neutral-900">
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">A</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">B</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">C</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Tot</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">A</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">B</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">C</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Eff</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Tot</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">A</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">B</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">C</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Pos%</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Prf%</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Tot</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">A</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">B</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">C</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Pts</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Eff</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Tot</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">A</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">B</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">C</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Tot</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">A</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">B</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">C</th>
                   </tr>
                 </thead>
                 <tbody>
                   {jogadoresFiltrados.length === 0 ? (
                     <tr>
-                      <td colSpan="21" className="px-4 py-10 text-center text-sm font-bold text-gray-500">
+                      <td colSpan="31" className="px-4 py-10 text-center text-sm font-bold text-gray-500">
                         Nenhum jogador encontrado.
                       </td>
                     </tr>
@@ -647,20 +685,30 @@ const EstatisticaView = ({
                       <td className="px-3 py-3 text-center">{jogador.qualidade?.B || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.qualidade?.C || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.saque?.total || 0}</td>
-                      <td className="px-3 py-3 text-center">{jogador.scout?.saque?.aces || 0}</td>
-                      <td className="px-3 py-3 text-center">{jogador.scout?.saque?.erros || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.saque?.qualidade?.A || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.saque?.qualidade?.B || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.saque?.qualidade?.C || 0}</td>
                       <td className="px-3 py-3 text-center">{formatPercent(jogador.scout?.saque?.eficiencia)}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.recepcao?.total || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.recepcao?.qualidade?.A || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.recepcao?.qualidade?.B || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.recepcao?.qualidade?.C || 0}</td>
                       <td className="px-3 py-3 text-center">{formatPercent(jogador.scout?.recepcao?.positivaPct)}</td>
                       <td className="px-3 py-3 text-center">{formatPercent(jogador.scout?.recepcao?.perfeitaPct)}</td>
-                      <td className="px-3 py-3 text-center">{jogador.scout?.recepcao?.erros || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.ataque?.total || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.ataque?.qualidade?.A || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.ataque?.qualidade?.B || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.ataque?.qualidade?.C || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.ataque?.pontos || 0}</td>
-                      <td className="px-3 py-3 text-center">{jogador.scout?.ataque?.erros || 0}</td>
                       <td className="px-3 py-3 text-center">{formatPercent(jogador.scout?.ataque?.eficiencia)}</td>
-                      <td className="px-3 py-3 text-center">{jogador.scout?.bloqueio?.pontos || 0}</td>
-                      <td className="px-3 py-3 text-center">{jogador.scout?.defesa?.positivas || 0}</td>
-                      <td className="px-3 py-3 text-center">{jogador.scout?.defesa?.erros || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.bloqueio?.total || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.bloqueio?.qualidade?.A || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.bloqueio?.qualidade?.B || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.bloqueio?.qualidade?.C || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.defesa?.total || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.defesa?.qualidade?.A || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.defesa?.qualidade?.B || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.defesa?.qualidade?.C || 0}</td>
                     </tr>
                   ))}
                 </tbody>

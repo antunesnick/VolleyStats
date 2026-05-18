@@ -141,6 +141,7 @@ class EstatisticaModel {
       qualidade: { A: 0, B: 0, C: 0 },
       saque: {
         total: 0,
+        qualidade: { A: 0, B: 0, C: 0 },
         aces: 0,
         positivos: 0,
         continuacao: 0,
@@ -149,6 +150,7 @@ class EstatisticaModel {
       },
       recepcao: {
         total: 0,
+        qualidade: { A: 0, B: 0, C: 0 },
         perfeita: 0,
         positiva: 0,
         erros: 0,
@@ -157,6 +159,7 @@ class EstatisticaModel {
       },
       ataque: {
         total: 0,
+        qualidade: { A: 0, B: 0, C: 0 },
         pontos: 0,
         positivos: 0,
         erros: 0,
@@ -166,6 +169,7 @@ class EstatisticaModel {
       },
       bloqueio: {
         total: 0,
+        qualidade: { A: 0, B: 0, C: 0 },
         pontos: 0,
         positivos: 0,
         erros: 0,
@@ -173,6 +177,7 @@ class EstatisticaModel {
       },
       defesa: {
         total: 0,
+        qualidade: { A: 0, B: 0, C: 0 },
         positivas: 0,
         erros: 0,
         eficiencia: 0,
@@ -244,6 +249,9 @@ class EstatisticaModel {
 
     if (normalizedAction === 'Saque') {
       scout.saque.total += 1;
+      if (Object.prototype.hasOwnProperty.call(scout.saque.qualidade, normalizedQuality)) {
+        scout.saque.qualidade[normalizedQuality] += 1;
+      }
       if (isA) {
         scout.saque.aces += 1;
         scout.pontosTotais += 1;
@@ -259,6 +267,9 @@ class EstatisticaModel {
 
     if (normalizedAction === 'Recepcao') {
       scout.recepcao.total += 1;
+      if (Object.prototype.hasOwnProperty.call(scout.recepcao.qualidade, normalizedQuality)) {
+        scout.recepcao.qualidade[normalizedQuality] += 1;
+      }
       if (isA) {
         scout.recepcao.perfeita += 1;
       } else if (isB) {
@@ -271,6 +282,9 @@ class EstatisticaModel {
 
     if (normalizedAction === 'Ataque') {
       scout.ataque.total += 1;
+      if (Object.prototype.hasOwnProperty.call(scout.ataque.qualidade, normalizedQuality)) {
+        scout.ataque.qualidade[normalizedQuality] += 1;
+      }
       if (isA) {
         scout.ataque.pontos += 1;
         scout.pontosTotais += 1;
@@ -284,6 +298,9 @@ class EstatisticaModel {
 
     if (normalizedAction === 'Bloqueio') {
       scout.bloqueio.total += 1;
+      if (Object.prototype.hasOwnProperty.call(scout.bloqueio.qualidade, normalizedQuality)) {
+        scout.bloqueio.qualidade[normalizedQuality] += 1;
+      }
       if (isA) {
         scout.bloqueio.pontos += 1;
         scout.pontosTotais += 1;
@@ -297,6 +314,9 @@ class EstatisticaModel {
 
     if (normalizedAction === 'Defesa') {
       scout.defesa.total += 1;
+      if (Object.prototype.hasOwnProperty.call(scout.defesa.qualidade, normalizedQuality)) {
+        scout.defesa.qualidade[normalizedQuality] += 1;
+      }
       if (isA || isB) {
         scout.defesa.positivas += 1;
       } else if (isC) {
