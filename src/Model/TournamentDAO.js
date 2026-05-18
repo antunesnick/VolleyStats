@@ -53,6 +53,56 @@ class TournamentDAO {
 
         return rows;
     }
+
+    getMatchReportRows(tournamentId) {
+        const stmt = this.db.prepare(`
+            SELECT
+                p.id,
+                p.nome,
+                p.dataPartida,
+                p.status,
+                p.pontosTime1,
+                p.pontosTime2,
+                p.fase,
+                t1.nome AS time1Nome,
+                t2.nome AS time2Nome,
+                g.nome AS ginasioNome
+            FROM Partidas p
+            LEFT JOIN Times t1 ON t1.id = p.time1
+            LEFT JOIN Times t2 ON t2.id = p.time2
+            LEFT JOIN Ginasios g ON g.id = p.ginasio_id
+            WHERE p.torneio_id = ?
+            ORDER BY p.dataPartida DESC, p.id DESC
+        `);
+
+        return stmt.all(tournamentId);
+    }
+
+    getBestPlayerByTournamentId(tournamentId) {
+        const stmt = this.db.prepare(`
+            SELECT
+                j.id,
+                j.nome,
+                j.numCamisa,
+                COUNT(a.id) AS totalAcoes,
+                SUM(CASE WHEN a.Qualidade = 'A' THEN 1 ELSE 0 END) AS acoesA,
+                SUM(CASE WHEN a.Qualidade = 'B' THEN 1 ELSE 0 END) AS acoesB,
+                SUM(CASE WHEN a.Qualidade = 'C' THEN 1 ELSE 0 END) AS acoesC,
+                SUM(CASE WHEN ta.Nome = 'Saque' THEN 1 ELSE 0 END) AS saques,
+                SUM(CASE WHEN ta.Nome = 'Ataque' THEN 1 ELSE 0 END) AS ataques,
+                SUM(CASE WHEN ta.Nome = 'Bloqueio' THEN 1 ELSE 0 END) AS bloqueios
+            FROM Acao a
+            INNER JOIN Jogadores j ON j.id = a.Jogador_id
+            LEFT JOIN TipoAcao ta ON ta.idTipoAcao = a.idTipoAcao
+            INNER JOIN Partidas p ON p.id = a.Ponto_Partida_id
+            WHERE p.torneio_id = ?
+            GROUP BY j.id, j.nome, j.numCamisa
+            ORDER BY acoesA DESC, totalAcoes DESC, j.nome ASC
+            LIMIT 1
+        `);
+
+        return stmt.get(tournamentId) || null;
+    }
 }
 
 module.exports = {
