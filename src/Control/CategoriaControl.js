@@ -28,6 +28,14 @@ class CategoriaControl {
         }
     }
 
+    async relatorioGeralCategorias() {
+        try {
+            return await new Categoria().buscarRelatorioGeral();
+        } catch (e) {
+            throw e;
+        }
+    }
+
     async editarCategoria(id, dados) {
         try {
             const categoria = new Categoria(dados.nome, dados.idadeMin, dados.idadeMax);

@@ -183,6 +183,10 @@ app.whenReady().then(() => {
   ipcMain.handle('relatorio:ginasio', async (_event, ginasioId) => {
     return GinasioControl.relatorioGinasio(ginasioId);
   });
+
+  ipcMain.handle('relatorio:categorias', async () => {
+    return CategoriaControl.getInstance().relatorioGeralCategorias();
+  });
   
   ipcMain.handle('excel:importar', async () => {
     return await ExcelImportControl.getInstance().importarExcel();
