@@ -63,6 +63,7 @@ class TournamentDAO {
                 p.status,
                 p.pontosTime1,
                 p.pontosTime2,
+                p.tipo,
                 p.fase,
                 t1.nome AS time1Nome,
                 t2.nome AS time2Nome,
@@ -102,6 +103,71 @@ class TournamentDAO {
         `);
 
         return stmt.get(tournamentId) || null;
+    }
+
+    getPlayerRankingByTournamentId(tournamentId) {
+        const stmt = this.db.prepare(`
+            SELECT
+                j.id,
+                j.nome,
+                j.numCamisa,
+                p.nome AS posicaoNome,
+                COUNT(a.id) AS totalAcoes,
+                SUM(CASE WHEN a.Qualidade = 'A' THEN 1 ELSE 0 END) AS acoesA,
+                SUM(CASE WHEN a.Qualidade = 'B' THEN 1 ELSE 0 END) AS acoesB,
+                SUM(CASE WHEN a.Qualidade = 'C' THEN 1 ELSE 0 END) AS acoesC,
+                SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'saq%' THEN 1 ELSE 0 END) AS saques,
+                SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'ata%' THEN 1 ELSE 0 END) AS ataques,
+                SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'bloq%' THEN 1 ELSE 0 END) AS bloqueios,
+                SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'recep%' THEN 1 ELSE 0 END) AS recepcoes,
+                SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'def%' THEN 1 ELSE 0 END) AS defesas
+            FROM Acao a
+            INNER JOIN Jogadores j ON j.id = a.Jogador_id
+            LEFT JOIN Posicoes p ON p.id = j.posicao_id
+            LEFT JOIN TipoAcao ta ON ta.idTipoAcao = a.idTipoAcao
+            INNER JOIN Partidas pa ON pa.id = a.Ponto_Partida_id
+            WHERE pa.torneio_id = ?
+            GROUP BY j.id, j.nome, j.numCamisa, p.nome
+            ORDER BY acoesA DESC, totalAcoes DESC, j.nome ASC
+            LIMIT 10
+        `);
+
+        return stmt.all(tournamentId);
+    }
+
+    getActionSummaryByTournamentId(tournamentId) {
+        const stmt = this.db.prepare(`
+            SELECT
+                COALESCE(ta.Nome, 'Outros') AS tipoAcaoNome,
+                COALESCE(a.Qualidade, '-') AS qualidade,
+                COUNT(a.id) AS total
+            FROM Acao a
+            LEFT JOIN TipoAcao ta ON ta.idTipoAcao = a.idTipoAcao
+            INNER JOIN Partidas p ON p.id = a.Ponto_Partida_id
+            WHERE p.torneio_id = ?
+            GROUP BY ta.Nome, a.Qualidade
+            ORDER BY total DESC
+        `);
+
+        return stmt.all(tournamentId);
+    }
+
+    getGymSummaryByTournamentId(tournamentId) {
+        const stmt = this.db.prepare(`
+            SELECT
+                COALESCE(g.nome, 'Local nao definido') AS nome,
+                COALESCE(g.cidade, '') AS cidade,
+                COALESCE(g.estado, '') AS estado,
+                COUNT(p.id) AS partidas,
+                SUM(CASE WHEN UPPER(COALESCE(p.status, '')) = 'FINALIZADA' THEN 1 ELSE 0 END) AS finalizadas
+            FROM Partidas p
+            LEFT JOIN Ginasios g ON g.id = p.ginasio_id
+            WHERE p.torneio_id = ?
+            GROUP BY g.id, g.nome, g.cidade, g.estado
+            ORDER BY partidas DESC, nome ASC
+        `);
+
+        return stmt.all(tournamentId);
     }
 }
 

@@ -180,6 +180,10 @@ app.whenReady().then(() => {
     return TournamentControl.emitirRelatorioPartidas(tournamentId);
   });
 
+  ipcMain.handle('relatorio:torneio', async (_event, tournamentId) => {
+    return TournamentControl.emitirRelatorioTorneio(tournamentId);
+  });
+
   ipcMain.handle('relatorio:ginasio', async (_event, ginasioId) => {
     return GinasioControl.relatorioGinasio(ginasioId);
   });

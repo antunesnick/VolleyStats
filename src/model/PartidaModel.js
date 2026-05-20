@@ -1,5 +1,5 @@
 class PartidaModel {
-    constructor(id = null, nome = null, pontosTime1 = null, pontosTime2 = null, dataPartida = null, tipo = null, status = 'AGENDADA', externa = 0, ginasio_id = null, time1 = null, time2 = null, torneio_id = null, videoLink = null) {
+    constructor(id = null, nome = null, pontosTime1 = null, pontosTime2 = null, dataPartida = null, tipo = null, status = 'AGENDADA', externa = 0, ginasio_id = null, time1 = null, time2 = null, torneio_id = null, videoLink = null, fase = null) {
         this.id = id;
         this.nome = nome;
         this.pontosTime1 = pontosTime1;
@@ -13,6 +13,7 @@ class PartidaModel {
         this.time2 = time2;
         this.torneio_id = torneio_id;
         this.videoLink = videoLink;
+        this.fase = fase || tipo;
     }
 
     findAll(db) {
@@ -103,8 +104,8 @@ class PartidaModel {
     insert(partida, db) {
         // Incluído videoLink e fase na inserção
         const stmt = db.prepare(`
-            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2, torneio_id, videoLink)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2, torneio_id, videoLink, fase)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const data = stmt.run(
@@ -119,7 +120,8 @@ class PartidaModel {
             partida.time1 || 1,      
             partida.time2 || 2,
                 partida.torneio_id || null,
-            partida.videoLink ? partida.videoLink.trim() : null
+            partida.videoLink ? partida.videoLink.trim() : null,
+            partida.fase || partida.tipo || null
         );
 
         return { id: data.lastInsertRowid, ...partida };
