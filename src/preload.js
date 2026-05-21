@@ -50,7 +50,7 @@ window.reportAPI = {
     salvarPdf: (payload) => ipcRenderer.invoke('relatorio:salvarPdf', payload),
     torneioPartidas: (tournamentId) => ipcRenderer.invoke('relatorio:torneioPartidas', tournamentId),
     torneioRelatorio: (tournamentId, filtros) => ipcRenderer.invoke('relatorio:torneio', tournamentId, filtros),
-    torneiosGeral: () => ipcRenderer.invoke('relatorio:torneiosGeral'),
-    ginasioRelatorio: (ginasioId) => ipcRenderer.invoke('relatorio:ginasio', ginasioId),
+    torneiosGeral: (filtros) => ipcRenderer.invoke('relatorio:torneiosGeral', filtros),
+    ginasioRelatorio: (ginasioId, filtros) => ipcRenderer.invoke('relatorio:ginasio', ginasioId, filtros),
     categoriasRelatorio: (filtros) => ipcRenderer.invoke('relatorio:categorias', filtros)
 };

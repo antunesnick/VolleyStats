@@ -184,12 +184,12 @@ app.whenReady().then(() => {
     return TournamentControl.emitirRelatorioTorneio(tournamentId, filtros);
   });
 
-  ipcMain.handle('relatorio:torneiosGeral', async () => {
-    return TournamentControl.emitirRelatorioGeralTorneios();
+  ipcMain.handle('relatorio:torneiosGeral', async (_event, filtros = {}) => {
+    return TournamentControl.emitirRelatorioGeralTorneios(filtros);
   });
 
-  ipcMain.handle('relatorio:ginasio', async (_event, ginasioId) => {
-    return GinasioControl.relatorioGinasio(ginasioId);
+  ipcMain.handle('relatorio:ginasio', async (_event, ginasioId, filtros = {}) => {
+    return GinasioControl.relatorioGinasio(ginasioId, filtros);
   });
 
   ipcMain.handle('relatorio:categorias', async (_event, filtros = {}) => {

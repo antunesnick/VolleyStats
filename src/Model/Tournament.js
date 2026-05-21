@@ -417,8 +417,24 @@ class Tournament {
         };
     }
 
-    static buildGeneralTournamentReport() {
-        const rows = tournamentDAO.getGeneralTournamentMatchRows();
+    static buildGeneralTournamentReport(filtros = {}) {
+        const dataInicioFiltro = String(filtros.dataInicio || '').trim();
+        const dataFimFiltro = String(filtros.dataFim || '').trim();
+        const dataInicio = dataInicioFiltro && dataFimFiltro && dataInicioFiltro > dataFimFiltro ? dataFimFiltro : dataInicioFiltro;
+        const dataFim = dataInicioFiltro && dataFimFiltro && dataInicioFiltro > dataFimFiltro ? dataInicioFiltro : dataFimFiltro;
+        const tipoTorneio = filtros.tipoTorneio || filtros.tipo;
+        const tipoTorneioNumber = tipoTorneio ? Number(tipoTorneio) : null;
+        const tipoTorneioId = Number.isFinite(tipoTorneioNumber) && tipoTorneioNumber > 0 ? tipoTorneioNumber : null;
+        const timeId = filtros.timeId ? Number(filtros.timeId) : null;
+        const filtrosAtivos = Boolean(dataInicio || dataFim || tipoTorneioId || timeId);
+        const rows = tournamentDAO.getGeneralTournamentMatchRows({
+            dataInicio,
+            dataFim,
+            tipoTorneio: tipoTorneioId,
+            timeId,
+        });
+        const opcoes = tournamentDAO.getGeneralTournamentFilterOptions();
+        const timeFiltro = timeId ? tournamentDAO.getTeamById(timeId) : null;
         const torneiosMap = new Map();
         const timesMap = new Map();
 
@@ -613,13 +629,18 @@ class Tournament {
             || String(a.nome).localeCompare(String(b.nome), 'pt-BR', { sensitivity: 'base' })
         ));
 
-        const timePrincipal = times.find((time) => {
+        const matchIds = rows.map((row) => Number(row.partidaId)).filter(Boolean);
+        const matchIdsForDao = filtrosAtivos ? (matchIds.length > 0 ? matchIds : [-1]) : [];
+        const timePrincipalFiltrado = timeId
+            ? times.find((time) => Number(time.id) === timeId) || (timeFiltro ? { id: timeFiltro.id, nome: timeFiltro.nome } : null)
+            : null;
+        const timePrincipal = timePrincipalFiltrado || times.find((time) => {
             const nome = normalizarTexto(time.nome);
             return nome.includes('volei prudente') || nome.includes('prudente');
         }) || times[0] || null;
 
         const jogadoresTimePrincipal = timePrincipal?.id
-            ? tournamentDAO.getMainTeamPlayerRankingAcrossTournaments(timePrincipal.id).map((jogador) => {
+            ? tournamentDAO.getMainTeamPlayerRankingAcrossTournaments(timePrincipal.id, matchIdsForDao).map((jogador) => {
                 const totalAcoes = Number(jogador.totalAcoes) || 0;
                 const acoesA = Number(jogador.acoesA) || 0;
 
@@ -657,6 +678,21 @@ class Tournament {
                 totalSets,
                 mediaPartidasPorTorneio: torneios.length > 0 ? arredondarUmaCasa(totalPartidas / torneios.length) : 0,
                 mediaSetsPorPartida: totalFinalizadas > 0 ? arredondarUmaCasa(totalSets / totalFinalizadas) : 0,
+            },
+            filtrosAplicados: {
+                dataInicio,
+                dataFim,
+                tipoTorneio: tipoTorneioId,
+                tipoTorneioNome: tipoTorneioId ? getTournamentTypeLabel(tipoTorneioId) : null,
+                timeId,
+                timeNome: timeFiltro?.nome || null,
+            },
+            opcoes: {
+                ...opcoes,
+                tipos: (opcoes.tipos || []).map((tipo) => ({
+                    value: Number(tipo.value),
+                    label: getTournamentTypeLabel(tipo.value),
+                })),
             },
             destaques: {
                 timeMaisVitorias: times[0] || null,

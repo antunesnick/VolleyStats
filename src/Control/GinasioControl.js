@@ -88,10 +88,9 @@ class GinasioControl {
 		}
 	}
 
-	async relatorioGinasio(ginasioId) {
-		return new GinasioModel().buscarRelatorio(ginasioId);
+	async relatorioGinasio(ginasioId, filtros = {}) {
+		return new GinasioModel().buscarRelatorio(ginasioId, filtros);
 	}
 }
 
 export default GinasioControl.getInstance();
-    

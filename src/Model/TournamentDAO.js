@@ -54,7 +54,46 @@ class TournamentDAO {
         return rows;
     }
 
-    getGeneralTournamentMatchRows() {
+    getGeneralTournamentMatchRows(filtros = {}) {
+        const tournamentWhereParts = [];
+        const params = [];
+        const dataInicioFiltro = String(filtros.dataInicio || '').trim();
+        const dataFimFiltro = String(filtros.dataFim || '').trim();
+        const dataInicio = dataInicioFiltro && dataFimFiltro && dataInicioFiltro > dataFimFiltro ? dataFimFiltro : dataInicioFiltro;
+        const dataFim = dataInicioFiltro && dataFimFiltro && dataInicioFiltro > dataFimFiltro ? dataInicioFiltro : dataFimFiltro;
+        const tipoTorneio = filtros.tipoTorneio || filtros.tipo;
+        const tipoTorneioNumber = tipoTorneio ? Number(tipoTorneio) : null;
+        const timeId = filtros.timeId ? Number(filtros.timeId) : null;
+
+        if (dataInicio && dataFim) {
+            tournamentWhereParts.push("date(tr.inicio) <= date(?) AND date(COALESCE(tr.termino, tr.inicio)) >= date(?)");
+            params.push(dataFim, dataInicio);
+        } else if (dataInicio) {
+            tournamentWhereParts.push("date(COALESCE(tr.termino, tr.inicio)) >= date(?)");
+            params.push(dataInicio);
+        } else if (dataFim) {
+            tournamentWhereParts.push("date(tr.inicio) <= date(?)");
+            params.push(dataFim);
+        }
+
+        if (Number.isFinite(tipoTorneioNumber) && tipoTorneioNumber > 0) {
+            tournamentWhereParts.push('tr.tipo = ?');
+            params.push(tipoTorneioNumber);
+        }
+
+        if (timeId) {
+            tournamentWhereParts.push(`
+                EXISTS (
+                    SELECT 1
+                    FROM Partidas pf
+                    WHERE pf.torneio_id = tr.id
+                      AND (pf.time1 = ? OR pf.time2 = ?)
+                )
+            `);
+            params.push(timeId, timeId);
+        }
+
+        const whereSql = tournamentWhereParts.length > 0 ? `WHERE ${tournamentWhereParts.join(' AND ')}` : '';
         const stmt = this.db.prepare(`
             SELECT
                 tr.id AS torneioId,
@@ -79,13 +118,16 @@ class TournamentDAO {
             LEFT JOIN Times t1 ON t1.id = p.time1
             LEFT JOIN Times t2 ON t2.id = p.time2
             LEFT JOIN Ginasios g ON g.id = p.ginasio_id
+            ${whereSql}
             ORDER BY tr.inicio DESC, tr.id DESC, p.dataPartida DESC, p.id DESC
         `);
 
-        return stmt.all();
+        return stmt.all(...params);
     }
 
-    getMainTeamPlayerRankingAcrossTournaments(teamId) {
+    getMainTeamPlayerRankingAcrossTournaments(teamId, matchIds = []) {
+        const ids = (matchIds || []).map(Number).filter(Boolean);
+        const matchFilter = ids.length > 0 ? `AND pa.id IN (${ids.map(() => '?').join(',')})` : '';
         const stmt = this.db.prepare(`
             SELECT
                 j.id,
@@ -111,17 +153,31 @@ class TournamentDAO {
             LEFT JOIN TimesPartida tp ON tp.Partida_id = pa.id
                                     AND tp.Jogadores_id = j.id
                                     AND tp.Times_id = ?
-            WHERE tp.Times_id = ?
-               OR (
+            WHERE (
+                tp.Times_id = ?
+                OR (
                     tp.Times_id IS NULL
                     AND (pa.time1 = ? OR pa.time2 = ?)
-               )
+                )
+            )
+            ${matchFilter}
             GROUP BY j.id, j.nome, j.numCamisa, p.nome
             ORDER BY acoesA DESC, totalAcoes DESC, torneios DESC, j.nome ASC
             LIMIT 10
         `);
 
-        return stmt.all(teamId, teamId, teamId, teamId);
+        return stmt.all(teamId, teamId, teamId, teamId, ...ids);
+    }
+
+    getTeamById(teamId) {
+        return this.db.prepare('SELECT id, nome FROM Times WHERE id = ?').get(teamId) || null;
+    }
+
+    getGeneralTournamentFilterOptions() {
+        return {
+            times: this.db.prepare('SELECT id, nome FROM Times ORDER BY nome ASC').all(),
+            tipos: this.db.prepare('SELECT DISTINCT tipo AS value FROM Torneios WHERE tipo IS NOT NULL ORDER BY tipo ASC').all(),
+        };
     }
 
     getMatchReportRows(tournamentId) {

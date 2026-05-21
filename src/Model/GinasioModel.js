@@ -218,8 +218,10 @@ class GinasioModel {
 		return this.buscarFiltrado(filter);
 	}
 
-	buscarRelatorio(id = this.id) {
+	buscarRelatorio(id = this.id, filtros = {}) {
 		const ginasioId = Number(id);
+		const torneioId = filtros.torneioId ? Number(filtros.torneioId) : null;
+		const timeId = filtros.timeId ? Number(filtros.timeId) : null;
 
 		if (!ginasioId || Number.isNaN(ginasioId)) {
 			throw new Error("Ginasio invalido para emitir relatorio.");
@@ -235,6 +237,19 @@ class GinasioModel {
 			throw new Error("Ginasio nao encontrado.");
 		}
 
+		const wherePartidas = ["p.ginasio_id = ?"];
+		const paramsPartidas = [ginasioId];
+
+		if (torneioId) {
+			wherePartidas.push("p.torneio_id = ?");
+			paramsPartidas.push(torneioId);
+		}
+
+		if (timeId) {
+			wherePartidas.push("(p.time1 = ? OR p.time2 = ?)");
+			paramsPartidas.push(timeId, timeId);
+		}
+
 		const partidas = db.prepare(`
 			SELECT
 				p.id,
@@ -243,6 +258,7 @@ class GinasioModel {
 				p.status,
 				p.pontosTime1,
 				p.pontosTime2,
+				p.torneio_id AS torneioId,
 				p.time1,
 				p.time2,
 				t1.nome AS time1Nome,
@@ -252,9 +268,36 @@ class GinasioModel {
 			LEFT JOIN Times t1 ON t1.id = p.time1
 			LEFT JOIN Times t2 ON t2.id = p.time2
 			LEFT JOIN Torneios tr ON tr.id = p.torneio_id
-			WHERE p.ginasio_id = ?
+			WHERE ${wherePartidas.join(" AND ")}
 			ORDER BY p.dataPartida DESC, p.id DESC
-		`).all(ginasioId);
+		`).all(...paramsPartidas);
+
+		const opcoes = {
+			torneios: db.prepare(`
+				SELECT DISTINCT tr.id, tr.nome
+				FROM Partidas p
+				INNER JOIN Torneios tr ON tr.id = p.torneio_id
+				WHERE p.ginasio_id = ?
+				ORDER BY tr.nome ASC
+			`).all(ginasioId),
+			times: db.prepare(`
+				SELECT DISTINCT t.id, t.nome
+				FROM Times t
+				INNER JOIN (
+					SELECT time1 AS timeId FROM Partidas WHERE ginasio_id = ? AND time1 IS NOT NULL
+					UNION
+					SELECT time2 AS timeId FROM Partidas WHERE ginasio_id = ? AND time2 IS NOT NULL
+				) pt ON pt.timeId = t.id
+				ORDER BY t.nome ASC
+			`).all(ginasioId, ginasioId),
+		};
+
+		const filtrosAplicados = {
+			torneioId,
+			torneioNome: torneioId ? db.prepare("SELECT nome FROM Torneios WHERE id = ?").get(torneioId)?.nome || null : null,
+			timeId,
+			timeNome: timeId ? db.prepare("SELECT nome FROM Times WHERE id = ?").get(timeId)?.nome || null : null,
+		};
 
 		const resumo = {
 			totalPartidas: partidas.length,
@@ -365,6 +408,8 @@ class GinasioModel {
 
 		return {
 			ginasio,
+			filtrosAplicados,
+			opcoes,
 			resumo,
 			melhorTime: times[0] || null,
 			times,

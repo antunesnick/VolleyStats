@@ -10,6 +10,11 @@ const initialFormData = {
   estado: "",
 };
 
+const DEFAULT_REPORT_FILTERS = {
+  torneioId: "",
+  timeId: "",
+};
+
 const ESTADOS_UF = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
   "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN",
@@ -26,6 +31,7 @@ const Ginasio = () => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isReportLoadingId, setIsReportLoadingId] = useState(null);
   const [isReportPdfSaving, setIsReportPdfSaving] = useState(false);
+  const [reportFilters, setReportFilters] = useState(DEFAULT_REPORT_FILTERS);
   const [filtrosPesquisa, setFiltrosPesquisa] = useState({
     nome: "",
     estado: "",
@@ -61,6 +67,16 @@ const Ginasio = () => {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+
+  const getReportFilterSummary = (report = reportData) => {
+    const filtros = report?.filtrosAplicados || {};
+    const itens = [];
+
+    itens.push(`Torneio: ${filtros.torneioNome || "Todos"}`);
+    itens.push(`Time: ${filtros.timeNome || "Todos"}`);
+
+    return `Filtros: ${itens.join(" | ")}`;
+  };
 
   const carregarGinasios = async () => {
     try {
@@ -193,7 +209,15 @@ const Ginasio = () => {
     }
   };
 
-  const handleEmitirRelatorio = async (ginasio) => {
+  const handleReportFilterChange = (e) => {
+    const { name, value } = e.target;
+    setReportFilters((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleEmitirRelatorio = async (ginasio, filtros = DEFAULT_REPORT_FILTERS) => {
     if (!ginasio?.id) {
       return;
     }
@@ -205,7 +229,8 @@ const Ginasio = () => {
 
     setIsReportLoadingId(ginasio.id);
     try {
-      const relatorio = await window.reportAPI.ginasioRelatorio(ginasio.id);
+      const filtrosRelatorio = filtros?.target ? reportFilters : filtros;
+      const relatorio = await window.reportAPI.ginasioRelatorio(ginasio.id, filtrosRelatorio);
       setReportData(relatorio);
       setIsReportOpen(true);
     } catch (e) {
@@ -215,10 +240,20 @@ const Ginasio = () => {
     }
   };
 
+  const handleAplicarFiltrosRelatorio = () => {
+    handleEmitirRelatorio(reportData?.ginasio, reportFilters);
+  };
+
+  const handleLimparFiltrosRelatorio = () => {
+    setReportFilters(DEFAULT_REPORT_FILTERS);
+    handleEmitirRelatorio(reportData?.ginasio, DEFAULT_REPORT_FILTERS);
+  };
+
   const handleFecharRelatorio = () => {
     setIsReportOpen(false);
     setReportData(null);
     setIsReportPdfSaving(false);
+    setReportFilters(DEFAULT_REPORT_FILTERS);
   };
 
   const montarHtmlRelatorioGinasio = () => {
@@ -289,6 +324,7 @@ const Ginasio = () => {
             <h1>${escapeHtml(ginasio.nome || "Ginasio")}</h1>
             <div class="sub">${escapeHtml(ginasio.cidade || "Cidade nao informada")} - ${escapeHtml(ginasio.estado || "UF")}</div>
             <div class="sub">${escapeHtml(ginasio.endereco || "Endereco nao informado")}</div>
+            <div class="sub">${escapeHtml(getReportFilterSummary(reportData))}</div>
           </header>
 
           <section class="metrics">
@@ -698,6 +734,7 @@ const Ginasio = () => {
                 <h2 className="mt-1 text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
                   {reportData.ginasio?.nome || "Ginasio"}
                 </h2>
+                <p className="mt-1 text-sm font-semibold text-gray-500">{getReportFilterSummary(reportData)}</p>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -706,7 +743,7 @@ const Ginasio = () => {
                   onClick={handleSalvarRelatorioPdf}
                   className="rounded-full bg-black px-5 py-2.5 text-sm font-black text-white hover:bg-gray-900 transition-colors disabled:opacity-60 disabled:cursor-wait"
                 >
-                  {isReportPdfSaving ? "Salvando..." : "Salvar PDF"}
+                  {isReportPdfSaving ? "Salvando..." : "Salvar como PDF"}
                 </button>
                 <button
                   type="button"
@@ -720,6 +757,69 @@ const Ginasio = () => {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 space-y-6">
+              <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-5">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-widest text-red-600">Filtros do Relatorio</p>
+                    <h3 className="text-xl font-black uppercase tracking-tight text-black">Filtrar partidas</h3>
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">
+                    Por torneio e time
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Torneio</label>
+                    <select
+                      name="torneioId"
+                      value={reportFilters.torneioId}
+                      onChange={handleReportFilterChange}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    >
+                      <option value="">Todos os torneios</option>
+                      {(reportData.opcoes?.torneios || []).map((torneio) => (
+                        <option key={torneio.id} value={torneio.id}>{torneio.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Time</label>
+                    <select
+                      name="timeId"
+                      value={reportFilters.timeId}
+                      onChange={handleReportFilterChange}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    >
+                      <option value="">Todos os times</option>
+                      {(reportData.opcoes?.times || []).map((time) => (
+                        <option key={time.id} value={time.id}>{time.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-end gap-3">
+                    <button
+                      type="button"
+                      onClick={handleAplicarFiltrosRelatorio}
+                      disabled={isReportLoadingId === reportData.ginasio?.id}
+                      className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-colors hover:bg-red-700 disabled:bg-red-300"
+                    >
+                      {isReportLoadingId === reportData.ginasio?.id ? "Filtrando..." : "Aplicar"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLimparFiltrosRelatorio}
+                      disabled={isReportLoadingId === reportData.ginasio?.id}
+                      className="flex-1 rounded-xl bg-black px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-colors hover:bg-neutral-800 disabled:bg-gray-400"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5">
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Local</p>
                 <div className="text-sm font-medium text-gray-700 space-y-1">

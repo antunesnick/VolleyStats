@@ -25,6 +25,13 @@ const DEFAULT_FORM = {
   endDate: '',
 };
 
+const DEFAULT_GENERAL_TOURNAMENT_REPORT_FILTERS = {
+  dataInicio: '',
+  dataFim: '',
+  tipoTorneio: '',
+  timeId: '',
+};
+
 const ACTIVE_PAGE_STORAGE_KEY = 'volleystats.activePage';
 const SELECTED_TOURNAMENT_STORAGE_KEY = 'volleystats.selectedTournamentId';
 
@@ -116,6 +123,7 @@ const Home = () => {
   const [generalTournamentReportOpen, setGeneralTournamentReportOpen] = useState(false);
   const [generalTournamentReportLoading, setGeneralTournamentReportLoading] = useState(false);
   const [generalTournamentReportPdfSaving, setGeneralTournamentReportPdfSaving] = useState(false);
+  const [generalTournamentReportFilters, setGeneralTournamentReportFilters] = useState(DEFAULT_GENERAL_TOURNAMENT_REPORT_FILTERS);
   const [matchReport, setMatchReport] = useState(null);
   const [matchReportOpen, setMatchReportOpen] = useState(false);
   const [matchReportLoading, setMatchReportLoading] = useState(false);
@@ -320,11 +328,14 @@ const handleConfirmarImportacao = async () => {
     }
   };
 
-  const openGeneralTournamentReport = async () => {
+  const openGeneralTournamentReport = async (filters = generalTournamentReportFilters) => {
+    const filtrosRelatorio = filters?.target ? { ...generalTournamentReportFilters } : { ...filters };
     setGeneralTournamentReportLoading(true);
 
     try {
-      const report = await window.reportAPI.torneiosGeral();
+      const report = typeof window.reportAPI?.torneiosGeral === 'function' && window.reportAPI.torneiosGeral.length > 0
+        ? await window.reportAPI.torneiosGeral(filtrosRelatorio)
+        : await TournamentControl.emitirRelatorioGeralTorneios(filtrosRelatorio);
       setGeneralTournamentReport(report);
       setGeneralTournamentReportOpen(true);
     } catch (error) {
@@ -338,6 +349,39 @@ const handleConfirmarImportacao = async () => {
     setGeneralTournamentReportOpen(false);
     setGeneralTournamentReport(null);
     setGeneralTournamentReportPdfSaving(false);
+  };
+
+  const handleGeneralTournamentReportFilterChange = (event) => {
+    const { name, value } = event.target;
+    setGeneralTournamentReportFilters((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const clearGeneralTournamentReportFilters = () => {
+    setGeneralTournamentReportFilters(DEFAULT_GENERAL_TOURNAMENT_REPORT_FILTERS);
+    openGeneralTournamentReport(DEFAULT_GENERAL_TOURNAMENT_REPORT_FILTERS);
+  };
+
+  const getGeneralTournamentReportFilterSummary = (report = generalTournamentReport) => {
+    const filtros = report?.filtrosAplicados || {};
+    const itens = [];
+    let periodo = 'Todos';
+
+    if (filtros.dataInicio && filtros.dataFim) {
+      periodo = `${formatDateBR(filtros.dataInicio)} ate ${formatDateBR(filtros.dataFim)}`;
+    } else if (filtros.dataInicio) {
+      periodo = `A partir de ${formatDateBR(filtros.dataInicio)}`;
+    } else if (filtros.dataFim) {
+      periodo = `Ate ${formatDateBR(filtros.dataFim)}`;
+    }
+
+    itens.push(`Periodo: ${periodo}`);
+    itens.push(`Tipo: ${filtros.tipoTorneioNome || 'Todos'}`);
+    itens.push(`Time: ${filtros.timeNome || 'Todos'}`);
+
+    return `Filtros: ${itens.join(' | ')}`;
   };
 
   const buildGeneralTournamentReportHtml = () => {
@@ -419,6 +463,7 @@ const handleConfirmarImportacao = async () => {
             <p class="eyebrow">VolleyStats</p>
             <h1>Relatorio Geral de Torneios</h1>
             <div class="sub">Resumo consolidado de todos os torneios cadastrados</div>
+            <div class="sub">${escapeHtml(getGeneralTournamentReportFilterSummary(report))}</div>
           </header>
           <section class="metrics">
             <div class="metric featured"><span>Time que ganhou mais</span><strong>${escapeHtml(report.destaques.timeMaisVitorias?.nome || 'Sem dados')}</strong></div>
@@ -1159,6 +1204,9 @@ const handleConfirmarImportacao = async () => {
                 <p className="text-sm font-semibold text-gray-300">
                   Consolidado de torneios, times campeoes e destaque do time principal
                 </p>
+                <p className="mt-1 text-sm font-semibold text-gray-300">
+                  {getGeneralTournamentReportFilterSummary(generalTournamentReport)}
+                </p>
               </div>
               <button
                 type="button"
@@ -1170,6 +1218,91 @@ const handleConfirmarImportacao = async () => {
             </div>
 
             <div className="p-7 space-y-8">
+              <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-5">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-widest text-red-600">Filtros do Relatorio</p>
+                    <h3 className="text-xl font-black uppercase tracking-tight text-black">Filtrar torneios</h3>
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">
+                    Por data, tipo e time
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Data de inicio</label>
+                    <input
+                      type="date"
+                      name="dataInicio"
+                      value={generalTournamentReportFilters.dataInicio}
+                      onChange={handleGeneralTournamentReportFilterChange}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Data de fim</label>
+                    <input
+                      type="date"
+                      name="dataFim"
+                      value={generalTournamentReportFilters.dataFim}
+                      onChange={handleGeneralTournamentReportFilterChange}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Tipo de Torneio</label>
+                    <select
+                      name="tipoTorneio"
+                      value={generalTournamentReportFilters.tipoTorneio}
+                      onChange={handleGeneralTournamentReportFilterChange}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    >
+                      <option value="">Todos os tipos</option>
+                      {TOURNAMENT_TYPES.map((tipo) => (
+                        <option key={tipo.value} value={tipo.value}>{tipo.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Time</label>
+                    <select
+                      name="timeId"
+                      value={generalTournamentReportFilters.timeId}
+                      onChange={handleGeneralTournamentReportFilterChange}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    >
+                      <option value="">Todos os times</option>
+                      {(generalTournamentReport.opcoes?.times || timesCadastrados).map((time) => (
+                        <option key={time.id} value={time.id}>{time.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => openGeneralTournamentReport(generalTournamentReportFilters)}
+                      disabled={generalTournamentReportLoading}
+                      className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-colors hover:bg-red-700 disabled:bg-red-300"
+                    >
+                      {generalTournamentReportLoading ? 'Filtrando...' : 'Aplicar'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearGeneralTournamentReportFilters}
+                      disabled={generalTournamentReportLoading}
+                      className="flex-1 rounded-xl bg-black px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-colors hover:bg-neutral-800 disabled:bg-gray-400"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="rounded-xl border bg-black text-white border-black p-5 shadow-sm">
                   <p className="text-[11px] font-black uppercase tracking-widest text-red-400">Time que ganhou mais</p>

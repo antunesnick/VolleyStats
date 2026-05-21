@@ -82,8 +82,8 @@ class TournamentControl {
     return Tournament.buildTournamentReport(tournamentId, filtros);
   }
 
-  async emitirRelatorioGeralTorneios() {
-    return Tournament.buildGeneralTournamentReport();
+  async emitirRelatorioGeralTorneios(filtros = {}) {
+    return Tournament.buildGeneralTournamentReport(filtros);
   }
 }
 
