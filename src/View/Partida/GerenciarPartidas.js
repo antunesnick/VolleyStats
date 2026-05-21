@@ -45,6 +45,12 @@ const showToastMessage = (setToasts, type, text, duration = 3200) => {
 };
 
 const formatPercent = (value) => `${Number(value || 0).toFixed(1)}%`;
+const escapeHtml = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
 
 const ReportMetric = ({ label, value, featured = false }) => (
   <div className={`${featured ? 'bg-black text-white border-black' : 'bg-white text-black border-gray-200'} rounded-xl border p-5 shadow-sm`}>
@@ -75,6 +81,7 @@ const GerenciarPartidas = ({ tournamentId = null, onMatchesUpdated }) => {
   const [relatorioGeralOpen, setRelatorioGeralOpen] = useState(false);
   const [relatorioGeral, setRelatorioGeral] = useState(null);
   const [relatorioGeralLoading, setRelatorioGeralLoading] = useState(false);
+  const [relatorioGeralPdfSaving, setRelatorioGeralPdfSaving] = useState(false);
 
   const [filtros, setFiltros] = useState({
     dataPartida: '',
@@ -527,7 +534,7 @@ const formatarDataBrasil = (dataString) => {
       setRelatorioGeral(result.relatorio);
       setRelatorioGeralOpen(true);
     } catch (error) {
-      Alertas.erro(error?.message || 'Nao foi possivel emitir o relatorio geral de partidas.');
+      Alertas.erro(error?.message || 'Nao foi possivel emitir o relatorio de partidas.');
     } finally {
       setRelatorioGeralLoading(false);
     }
@@ -536,6 +543,194 @@ const formatarDataBrasil = (dataString) => {
   const fecharRelatorioGeral = () => {
     setRelatorioGeralOpen(false);
     setRelatorioGeral(null);
+    setRelatorioGeralPdfSaving(false);
+  };
+
+  const montarHtmlRelatorioGeralPartidas = () => {
+    if (!relatorioGeral) {
+      return '<html><body><h1>Relatorio Partidas</h1></body></html>';
+    }
+
+    const linhasTimes = relatorioGeral.times.map((time, index) => `
+      <tr>
+        <td class="center">${index + 1}</td>
+        <td><strong>${escapeHtml(time.nome)}</strong></td>
+        <td class="center">${time.jogos}</td>
+        <td class="center">${time.finalizadas}</td>
+        <td class="center">${time.vitorias}</td>
+        <td class="center">${time.derrotas}</td>
+        <td class="center">${time.empates}</td>
+        <td class="center">${time.taxaVitoria}%</td>
+        <td class="center">${time.setsGanhos}</td>
+        <td class="center">${time.setsPerdidos}</td>
+        <td class="center">${time.saldoSets}</td>
+      </tr>
+    `).join('');
+
+    const linhasPartidas = relatorioGeral.jogos.map((jogo) => `
+      <tr>
+        <td>${escapeHtml(formatarDataBrasil(jogo.dataPartida))}</td>
+        <td><strong>${escapeHtml(jogo.time1Nome || 'Time 1')} x ${escapeHtml(jogo.time2Nome || 'Time 2')}</strong><span>${escapeHtml(jogo.nome || 'Partida')}</span></td>
+        <td>${escapeHtml(jogo.tipo || 'Sem tipo')}</td>
+        <td>${escapeHtml(jogo.ginasioNome || 'Local nao definido')}</td>
+        <td class="center">${escapeHtml(jogo.status)}</td>
+        <td class="center">${escapeHtml(jogo.placar)}</td>
+        <td class="center">${jogo.totalSets || 0}</td>
+        <td class="center">${jogo.diferencaSets || 0}</td>
+        <td>${escapeHtml(jogo.vencedor)}</td>
+      </tr>
+    `).join('');
+
+    const linhasTipos = relatorioGeral.resumoPorTipo.map((tipo) => `
+      <tr>
+        <td><strong>${escapeHtml(tipo.tipo)}</strong></td>
+        <td class="center">${tipo.total}</td>
+        <td class="center">${tipo.finalizadas}</td>
+        <td class="center">${tipo.agendadas}</td>
+        <td class="center">${tipo.setsDisputados}</td>
+        <td class="center">${tipo.taxaConclusao}%</td>
+      </tr>
+    `).join('');
+
+    const linhasGinasios = relatorioGeral.resumoPorGinasio.map((ginasio) => `
+      <tr>
+        <td><strong>${escapeHtml(ginasio.ginasio)}</strong></td>
+        <td class="center">${ginasio.total}</td>
+        <td class="center">${ginasio.finalizadas}</td>
+        <td class="center">${ginasio.agendadas}</td>
+      </tr>
+    `).join('');
+
+    const montarResumoJogo = (jogo) => {
+      if (!jogo) {
+        return 'Sem dados';
+      }
+
+      return `${escapeHtml(jogo.time1Nome || 'Time 1')} x ${escapeHtml(jogo.time2Nome || 'Time 2')} (${escapeHtml(jogo.placar)})`;
+    };
+
+    return `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Relatorio Partidas</title>
+          <style>
+            * { box-sizing: border-box; }
+            body { margin: 0; padding: 26px; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #fff; }
+            header { padding: 20px 22px; background: #000; color: #fff; border-bottom: 6px solid #dc2626; border-radius: 12px 12px 0 0; }
+            .eyebrow { margin: 0 0 6px; color: #f87171; font-size: 10px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
+            h1 { margin: 0; font-size: 24px; }
+            .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0; }
+            .metric { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
+            .metric span { display: block; color: #6b7280; font-size: 9px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
+            .metric strong { display: block; margin-top: 5px; font-size: 18px; }
+            .highlights { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 18px; }
+            .highlight { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
+            .highlight span { display: block; color: #6b7280; font-size: 9px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
+            .highlight strong { display: block; margin-top: 5px; font-size: 13px; }
+            .section { margin-top: 18px; }
+            .section h2 { margin: 0 0 10px; color: #dc2626; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+            table { width: 100%; border-collapse: collapse; font-size: 9px; }
+            th { background: #000; color: #fff; padding: 7px 5px; text-align: left; text-transform: uppercase; letter-spacing: 0.4px; }
+            td { border-bottom: 1px solid #e5e7eb; padding: 7px 5px; vertical-align: top; }
+            td span { display: block; margin-top: 3px; color: #6b7280; }
+            .center { text-align: center; }
+          </style>
+        </head>
+        <body>
+          <header>
+            <p class="eyebrow">VolleyStats</p>
+            <h1>Relatorio Partidas</h1>
+          </header>
+          <section class="metrics">
+            <div class="metric"><span>Total de partidas</span><strong>${relatorioGeral.resumo.totalPartidas}</strong></div>
+            <div class="metric"><span>Finalizadas</span><strong>${relatorioGeral.resumo.finalizadas}</strong></div>
+            <div class="metric"><span>Agendadas</span><strong>${relatorioGeral.resumo.agendadas}</strong></div>
+            <div class="metric"><span>Sets disputados</span><strong>${relatorioGeral.resumo.totalSetsDisputados}</strong></div>
+            <div class="metric"><span>Media sets/partida</span><strong>${relatorioGeral.resumo.mediaSetsPorPartida}</strong></div>
+            <div class="metric"><span>Tipos de partida</span><strong>${relatorioGeral.resumoPorTipo.length}</strong></div>
+            <div class="metric"><span>Locais usados</span><strong>${relatorioGeral.resumoPorGinasio.length}</strong></div>
+            <div class="metric"><span>Total de times</span><strong>${relatorioGeral.resumo.totalTimes}</strong></div>
+          </section>
+          <section class="highlights">
+            <div class="highlight"><span>Melhor time</span><strong>${escapeHtml(relatorioGeral.melhorTime?.nome || 'Sem dados')} (${relatorioGeral.melhorTime?.vitorias || 0} vitorias)</strong></div>
+            <div class="highlight"><span>Quem perdeu mais</span><strong>${escapeHtml(relatorioGeral.piorTime?.nome || 'Sem dados')} (${relatorioGeral.piorTime?.derrotas || 0} derrotas)</strong></div>
+            <div class="highlight"><span>Jogo mais longo</span><strong>${montarResumoJogo(relatorioGeral.jogoMaisLongo)}</strong></div>
+            <div class="highlight"><span>Jogo mais disputado</span><strong>${montarResumoJogo(relatorioGeral.jogoMaisDisputado)}</strong></div>
+            <div class="highlight"><span>Maior diferenca</span><strong>${montarResumoJogo(relatorioGeral.jogoMaiorDiferenca)}</strong></div>
+            <div class="highlight"><span>Tipo mais frequente</span><strong>${escapeHtml(relatorioGeral.tipoMaisFrequente?.tipo || 'Sem dados')} (${relatorioGeral.tipoMaisFrequente?.total || 0})</strong></div>
+          </section>
+          <section class="section">
+            <h2>Resumo por tipo de partida</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Tipo</th><th class="center">Total</th><th class="center">Finalizadas</th><th class="center">Agendadas</th><th class="center">Sets</th><th class="center">Conclusao</th>
+                </tr>
+              </thead>
+              <tbody>${linhasTipos || '<tr><td colspan="6">Nenhum tipo encontrado.</td></tr>'}</tbody>
+            </table>
+          </section>
+          <section class="section">
+            <h2>Resumo por local</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Local</th><th class="center">Total</th><th class="center">Finalizadas</th><th class="center">Agendadas</th>
+                </tr>
+              </thead>
+              <tbody>${linhasGinasios || '<tr><td colspan="4">Nenhum local encontrado.</td></tr>'}</tbody>
+            </table>
+          </section>
+          <section class="section">
+            <h2>Desempenho por time</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th class="center">#</th><th>Time</th><th class="center">J</th><th class="center">Final.</th><th class="center">V</th><th class="center">D</th><th class="center">E</th><th class="center">Taxa</th><th class="center">SG</th><th class="center">SP</th><th class="center">Saldo</th>
+                </tr>
+              </thead>
+              <tbody>${linhasTimes || '<tr><td colspan="11">Nenhum time encontrado.</td></tr>'}</tbody>
+            </table>
+          </section>
+          <section class="section">
+            <h2>Partidas detalhadas</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th><th>Partida</th><th>Tipo</th><th>Local</th><th class="center">Status</th><th class="center">Placar</th><th class="center">Sets</th><th class="center">Dif.</th><th>Vencedor</th>
+                </tr>
+              </thead>
+              <tbody>${linhasPartidas || '<tr><td colspan="9">Nenhuma partida encontrada.</td></tr>'}</tbody>
+            </table>
+          </section>
+        </body>
+      </html>
+    `;
+  };
+
+  const salvarRelatorioGeralPdf = async () => {
+    if (!relatorioGeral) {
+      return;
+    }
+
+    setRelatorioGeralPdfSaving(true);
+
+    try {
+      const result = await window.reportAPI.salvarPdf({
+        nomeArquivo: 'relatorio-partidas.pdf',
+        html: montarHtmlRelatorioGeralPartidas(),
+      });
+
+      if (result?.success) {
+        Alertas.sucesso('Relatorio de partidas salvo em PDF.');
+      }
+    } catch (error) {
+      Alertas.erro(error?.message || 'Nao foi possivel salvar o relatorio de partidas em PDF.');
+    } finally {
+      setRelatorioGeralPdfSaving(false);
+    }
   };
 
   const confirmarResumoFinalizacao = async (finalScore) => {
@@ -609,7 +804,7 @@ const formatarDataBrasil = (dataString) => {
             disabled={relatorioGeralLoading}
             className="bg-black hover:bg-neutral-800 disabled:bg-gray-400 text-white font-extrabold py-3 px-6 rounded-2xl shadow-lg transition-all flex items-center gap-2.5 active:scale-95 text-sm whitespace-nowrap uppercase tracking-wider"
           >
-            {relatorioGeralLoading ? 'Emitindo...' : 'Relatorio Geral'}
+            {relatorioGeralLoading ? 'Emitindo...' : 'Relatorio Partidas'}
           </button>
           <button
             onClick={abrirModalCriar}
@@ -956,9 +1151,9 @@ const formatarDataBrasil = (dataString) => {
             <div className="bg-black px-7 py-5 border-b-4 border-red-600 flex justify-between items-center gap-4">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-400">VolleyStats</p>
-                <h2 className="text-3xl font-black text-white tracking-tight uppercase">Relatorio Geral de Partidas</h2>
+                <h2 className="text-3xl font-black text-white tracking-tight uppercase">Relatorio Partidas</h2>
                 <p className="text-sm font-semibold text-gray-300">
-                  Estatisticas no mesmo padrao da planilha de scout
+                  Panorama dos jogos, tipos de confronto, locais e resultados
                 </p>
               </div>
               <button
@@ -972,70 +1167,187 @@ const formatarDataBrasil = (dataString) => {
 
             <div className="p-7 space-y-8">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <ReportMetric label="Melhor time" value={relatorioGeral.melhorTime?.nome || 'Sem dados'} featured />
-                <ReportMetric label="Vitorias" value={relatorioGeral.melhorTime?.vitorias || 0} />
-                <ReportMetric label="Melhor jogador" value={relatorioGeral.melhorJogador?.nome || 'Sem scout'} featured />
-                <ReportMetric label="Pontos do jogador" value={relatorioGeral.melhorJogador?.scout?.pontosTotais || 0} />
+                <ReportMetric label="Total de partidas" value={relatorioGeral.resumo.totalPartidas} featured />
+                <ReportMetric label="Finalizadas" value={relatorioGeral.resumo.finalizadas} />
+                <ReportMetric label="Agendadas" value={relatorioGeral.resumo.agendadas} />
+                <ReportMetric label="Sets disputados" value={relatorioGeral.resumo.totalSetsDisputados} />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <ReportMetric label="Total de partidas" value={relatorioGeral.resumo.totalPartidas} />
-                <ReportMetric label="Finalizadas" value={relatorioGeral.resumo.finalizadas} />
-                <ReportMetric label="Acoes scout" value={relatorioGeral.resumo.scout?.totalAcoes || 0} />
-                <ReportMetric label="Pontos scout" value={relatorioGeral.resumo.scout?.pontosTotais || 0} />
+                <ReportMetric label="Media sets/partida" value={relatorioGeral.resumo.mediaSetsPorPartida} />
+                <ReportMetric label="Tipos de partida" value={relatorioGeral.resumoPorTipo.length} />
+                <ReportMetric label="Locais usados" value={relatorioGeral.resumoPorGinasio.length} />
+                <ReportMetric label="Total de times" value={relatorioGeral.resumo.totalTimes || 0} />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <ReportMetric label="Saque ace/pts" value={relatorioGeral.resumo.scout?.saque?.aces || 0} />
-                <ReportMetric label="Recepcao positiva" value={formatPercent(relatorioGeral.resumo.scout?.recepcao?.positivaPct)} />
-                <ReportMetric label="Ataque eff" value={formatPercent(relatorioGeral.resumo.scout?.ataque?.eficiencia)} />
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-5">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-red-600">Melhor time</p>
+                  <p className="mt-2 text-xl font-black text-black">{relatorioGeral.melhorTime?.nome || 'Sem dados'}</p>
+                  <p className="mt-1 text-sm font-bold text-gray-600">{relatorioGeral.melhorTime?.vitorias || 0} vitorias</p>
+                </div>
+                <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-5">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-red-600">Quem perdeu mais</p>
+                  <p className="mt-2 text-xl font-black text-black">{relatorioGeral.piorTime?.nome || 'Sem dados'}</p>
+                  <p className="mt-1 text-sm font-bold text-gray-600">{relatorioGeral.piorTime?.derrotas || 0} derrotas</p>
+                </div>
+                <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-5">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-red-600">Tipo mais frequente</p>
+                  <p className="mt-2 text-xl font-black text-black">{relatorioGeral.tipoMaisFrequente?.tipo || 'Sem dados'}</p>
+                  <p className="mt-1 text-sm font-bold text-gray-600">{relatorioGeral.tipoMaisFrequente?.total || 0} partidas</p>
+                </div>
+                <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-5">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-red-600">Jogo mais longo</p>
+                  <p className="mt-2 text-xl font-black text-black">
+                    {relatorioGeral.jogoMaisLongo
+                      ? `${relatorioGeral.jogoMaisLongo.time1Nome || 'Time 1'} x ${relatorioGeral.jogoMaisLongo.time2Nome || 'Time 2'}`
+                      : 'Sem dados'}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-gray-600">
+                    {relatorioGeral.jogoMaisLongo ? `${relatorioGeral.jogoMaisLongo.placar} - ${relatorioGeral.jogoMaisLongo.totalSets} sets` : '--'}
+                  </p>
+                </div>
+                <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-5">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-red-600">Jogo mais disputado</p>
+                  <p className="mt-2 text-xl font-black text-black">
+                    {relatorioGeral.jogoMaisDisputado
+                      ? `${relatorioGeral.jogoMaisDisputado.time1Nome || 'Time 1'} x ${relatorioGeral.jogoMaisDisputado.time2Nome || 'Time 2'}`
+                      : 'Sem dados'}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-gray-600">
+                    {relatorioGeral.jogoMaisDisputado ? `${relatorioGeral.jogoMaisDisputado.placar} - diferenca ${relatorioGeral.jogoMaisDisputado.diferencaSets}` : '--'}
+                  </p>
+                </div>
+                <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-5">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-red-600">Maior diferenca</p>
+                  <p className="mt-2 text-xl font-black text-black">
+                    {relatorioGeral.jogoMaiorDiferenca
+                      ? `${relatorioGeral.jogoMaiorDiferenca.time1Nome || 'Time 1'} x ${relatorioGeral.jogoMaiorDiferenca.time2Nome || 'Time 2'}`
+                      : 'Sem dados'}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-gray-600">
+                    {relatorioGeral.jogoMaiorDiferenca ? `${relatorioGeral.jogoMaiorDiferenca.placar} - diferenca ${relatorioGeral.jogoMaiorDiferenca.diferencaSets}` : '--'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="rounded-2xl overflow-hidden border-2 border-gray-200">
+                  <div className="bg-red-600 px-6 py-4 flex items-center justify-between gap-4">
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight">Resumo por Tipo</h3>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-red-100">{relatorioGeral.resumoPorTipo.length} tipos</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[640px] bg-white">
+                      <thead>
+                        <tr className="bg-black text-white">
+                          <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-widest">Tipo</th>
+                          <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Total</th>
+                          <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Final.</th>
+                          <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Agend.</th>
+                          <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Sets</th>
+                          <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Conclusao</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {relatorioGeral.resumoPorTipo.length > 0 ? relatorioGeral.resumoPorTipo.map((tipo) => (
+                          <tr key={tipo.tipo} className="border-b border-gray-100 hover:bg-red-50/50 transition-colors">
+                            <td className="px-4 py-3 text-sm font-black text-black">{tipo.tipo}</td>
+                            <td className="px-4 py-3 text-center font-bold">{tipo.total}</td>
+                            <td className="px-4 py-3 text-center font-bold">{tipo.finalizadas}</td>
+                            <td className="px-4 py-3 text-center font-bold">{tipo.agendadas}</td>
+                            <td className="px-4 py-3 text-center font-bold">{tipo.setsDisputados}</td>
+                            <td className="px-4 py-3 text-center font-bold">{formatPercent(tipo.taxaConclusao)}</td>
+                          </tr>
+                        )) : (
+                          <tr>
+                            <td colSpan="6" className="px-4 py-10 text-center text-sm font-bold text-gray-500">
+                              Nenhum tipo encontrado.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl overflow-hidden border-2 border-gray-200">
+                  <div className="bg-black px-6 py-4 flex items-center justify-between gap-4">
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight">Resumo por Local</h3>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-red-300">{relatorioGeral.resumoPorGinasio.length} locais</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[520px] bg-white">
+                      <thead>
+                        <tr className="bg-gray-100 text-gray-700">
+                          <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-widest">Local</th>
+                          <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Total</th>
+                          <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Final.</th>
+                          <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Agend.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {relatorioGeral.resumoPorGinasio.length > 0 ? relatorioGeral.resumoPorGinasio.map((ginasio) => (
+                          <tr key={ginasio.ginasio} className="border-b border-gray-100 hover:bg-red-50/50 transition-colors">
+                            <td className="px-4 py-3 text-sm font-black text-black">{ginasio.ginasio}</td>
+                            <td className="px-4 py-3 text-center font-bold">{ginasio.total}</td>
+                            <td className="px-4 py-3 text-center font-bold">{ginasio.finalizadas}</td>
+                            <td className="px-4 py-3 text-center font-bold">{ginasio.agendadas}</td>
+                          </tr>
+                        )) : (
+                          <tr>
+                            <td colSpan="4" className="px-4 py-10 text-center text-sm font-bold text-gray-500">
+                              Nenhum local encontrado.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
 
               <div className="rounded-2xl overflow-hidden border-2 border-gray-200">
                 <div className="bg-red-600 px-6 py-4 flex items-center justify-between gap-4">
-                  <h3 className="text-xl font-black text-white uppercase tracking-tight">Scout dos Jogadores</h3>
-                  <span className="text-[11px] font-black uppercase tracking-widest text-red-100">{relatorioGeral.jogadores.length} jogadores</span>
+                  <h3 className="text-xl font-black text-white uppercase tracking-tight">Desempenho por Time</h3>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-red-100">{relatorioGeral.times.length} times</span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1100px] bg-white">
+                  <table className="w-full min-w-[960px] bg-white">
                     <thead>
                       <tr className="bg-black text-white">
-                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-widest">Jogador</th>
-                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">PTS</th>
-                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Saq Tot</th>
-                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Saq Pts</th>
-                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Saq Err</th>
-                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Rec Pos%</th>
-                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Rec Prf%</th>
-                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Atq Pts</th>
-                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Atq Err</th>
-                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Atq Eff</th>
-                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">BK Pts</th>
-                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Def +</th>
-                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Def -</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">#</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-widest">Time</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Jogos</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Final.</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">V</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">D</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">E</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Taxa</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">SG</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">SP</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Saldo</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {relatorioGeral.jogadores.length > 0 ? relatorioGeral.jogadores.map((jogador) => (
-                        <tr key={jogador.id} className="border-b border-gray-100 hover:bg-red-50/50 transition-colors">
-                          <td className="px-4 py-3 text-sm font-black text-black">#{jogador.numero || '--'} - {jogador.nome}</td>
-                          <td className="px-4 py-3 text-center font-black text-red-600">{jogador.scout?.pontosTotais || 0}</td>
-                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.saque?.total || 0}</td>
-                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.saque?.aces || 0}</td>
-                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.saque?.erros || 0}</td>
-                          <td className="px-4 py-3 text-center font-bold">{formatPercent(jogador.scout?.recepcao?.positivaPct)}</td>
-                          <td className="px-4 py-3 text-center font-bold">{formatPercent(jogador.scout?.recepcao?.perfeitaPct)}</td>
-                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.ataque?.pontos || 0}</td>
-                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.ataque?.erros || 0}</td>
-                          <td className="px-4 py-3 text-center font-bold">{formatPercent(jogador.scout?.ataque?.eficiencia)}</td>
-                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.bloqueio?.pontos || 0}</td>
-                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.defesa?.positivas || 0}</td>
-                          <td className="px-4 py-3 text-center font-bold">{jogador.scout?.defesa?.erros || 0}</td>
+                      {relatorioGeral.times.length > 0 ? relatorioGeral.times.map((time, index) => (
+                        <tr key={time.id || time.nome} className="border-b border-gray-100 hover:bg-red-50/50 transition-colors">
+                          <td className="px-4 py-3 text-center font-black text-red-600">{index + 1}</td>
+                          <td className="px-4 py-3 text-sm font-black text-black">{time.nome}</td>
+                          <td className="px-4 py-3 text-center font-bold">{time.jogos}</td>
+                          <td className="px-4 py-3 text-center font-bold">{time.finalizadas}</td>
+                          <td className="px-4 py-3 text-center font-bold">{time.vitorias}</td>
+                          <td className="px-4 py-3 text-center font-bold">{time.derrotas}</td>
+                          <td className="px-4 py-3 text-center font-bold">{time.empates}</td>
+                          <td className="px-4 py-3 text-center font-bold">{formatPercent(time.taxaVitoria)}</td>
+                          <td className="px-4 py-3 text-center font-bold">{time.setsGanhos}</td>
+                          <td className="px-4 py-3 text-center font-bold">{time.setsPerdidos}</td>
+                          <td className="px-4 py-3 text-center font-bold">{time.saldoSets}</td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan="13" className="px-4 py-10 text-center text-sm font-bold text-gray-500">
-                            Nenhum scout registrado nas partidas selecionadas.
+                          <td colSpan="11" className="px-4 py-10 text-center text-sm font-bold text-gray-500">
+                            Nenhum time encontrado nas partidas selecionadas.
                           </td>
                         </tr>
                       )}
@@ -1046,22 +1358,22 @@ const formatarDataBrasil = (dataString) => {
 
               <div className="rounded-2xl overflow-hidden border-2 border-gray-200">
                 <div className="bg-black px-6 py-4 flex items-center justify-between gap-4">
-                  <h3 className="text-xl font-black text-white uppercase tracking-tight">Pontuacao e Scout por Partida</h3>
+                  <h3 className="text-xl font-black text-white uppercase tracking-tight">Partidas Detalhadas</h3>
                   <span className="text-[11px] font-black uppercase tracking-widest text-red-300">{relatorioGeral.jogos.length} jogos</span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[980px] bg-white">
+                  <table className="w-full min-w-[1180px] bg-white">
                     <thead>
                       <tr className="bg-gray-100 text-gray-700">
                         <th className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest">Data</th>
                         <th className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest">Partida</th>
+                        <th className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest">Tipo</th>
+                        <th className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest">Local</th>
                         <th className="px-5 py-3 text-center text-[11px] font-black uppercase tracking-widest">Status</th>
                         <th className="px-5 py-3 text-center text-[11px] font-black uppercase tracking-widest">Placar</th>
+                        <th className="px-5 py-3 text-center text-[11px] font-black uppercase tracking-widest">Sets</th>
+                        <th className="px-5 py-3 text-center text-[11px] font-black uppercase tracking-widest">Dif.</th>
                         <th className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest">Vencedor</th>
-                        <th className="px-5 py-3 text-center text-[11px] font-black uppercase tracking-widest">Acoes</th>
-                        <th className="px-5 py-3 text-center text-[11px] font-black uppercase tracking-widest">Saq Pts</th>
-                        <th className="px-5 py-3 text-center text-[11px] font-black uppercase tracking-widest">Atq Pts</th>
-                        <th className="px-5 py-3 text-center text-[11px] font-black uppercase tracking-widest">BK Pts</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1072,17 +1384,17 @@ const formatarDataBrasil = (dataString) => {
                             <p className="text-sm font-black text-black">{jogo.time1Nome || 'Time 1'} x {jogo.time2Nome || 'Time 2'}</p>
                             <p className="text-xs font-bold text-gray-500">{jogo.nome || 'Partida'} • {jogo.tipo || 'Sem tipo'}</p>
                           </td>
+                          <td className="px-5 py-4 text-sm font-bold text-gray-700">{jogo.tipo || 'Sem tipo'}</td>
+                          <td className="px-5 py-4 text-sm font-bold text-gray-700">{jogo.ginasioNome || 'Local nao definido'}</td>
                           <td className="px-5 py-4 text-center">
                             <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${jogo.status === 'FINALIZADA' ? 'bg-black text-white' : 'bg-yellow-100 text-yellow-700'}`}>
                               {jogo.status}
                             </span>
                           </td>
                           <td className="px-5 py-4 text-center text-lg font-black text-red-600">{jogo.placar}</td>
+                          <td className="px-5 py-4 text-center font-bold">{jogo.totalSets || 0}</td>
+                          <td className="px-5 py-4 text-center font-bold">{jogo.diferencaSets || 0}</td>
                           <td className="px-5 py-4 text-sm font-bold text-gray-700">{jogo.vencedor}</td>
-                          <td className="px-5 py-4 text-center font-black">{jogo.scout?.totalAcoes || 0}</td>
-                          <td className="px-5 py-4 text-center font-black">{jogo.scout?.saque?.aces || 0}</td>
-                          <td className="px-5 py-4 text-center font-black">{jogo.scout?.ataque?.pontos || 0}</td>
-                          <td className="px-5 py-4 text-center font-black">{jogo.scout?.bloqueio?.pontos || 0}</td>
                         </tr>
                       )) : (
                         <tr>
@@ -1096,7 +1408,15 @@ const formatarDataBrasil = (dataString) => {
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={salvarRelatorioGeralPdf}
+                  disabled={relatorioGeralPdfSaving}
+                  className="px-6 py-3 font-black text-white bg-red-600 hover:bg-red-700 disabled:bg-red-300 rounded-lg transition-colors uppercase tracking-widest text-xs"
+                >
+                  {relatorioGeralPdfSaving ? 'Salvando...' : 'Salvar como PDF'}
+                </button>
                 <button
                   type="button"
                   onClick={fecharRelatorioGeral}

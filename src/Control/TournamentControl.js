@@ -73,6 +73,14 @@ class TournamentControl {
 
     return Tournament.deleteTournament(numericId);
   }
+
+  async emitirRelatorioPartidas(tournamentId) {
+    return Tournament.buildMatchReport(tournamentId);
+  }
+
+  async emitirRelatorioTorneio(tournamentId) {
+    return Tournament.buildTournamentReport(tournamentId);
+  }
 }
 
 const tournamentControl = TournamentControl.getInstance();

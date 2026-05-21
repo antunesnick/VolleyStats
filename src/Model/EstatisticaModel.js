@@ -1,6 +1,6 @@
 import db from '../db/db';
 
-const ACTION_NAMES = ['Saque', 'Ataque', 'Bloqueio', 'Recepcao', 'Defesa'];
+const ACTION_NAMES = ['Saque', 'Ataque', 'Bloqueio', 'Recepcao', 'Defesa', 'Erro geral'];
 
 class EstatisticaModel {
   normalizarPlacar(value) {
@@ -131,6 +131,7 @@ class EstatisticaModel {
   normalizarNomeAcao(name) {
     const actionName = String(name || '').trim();
     if (actionName.toLowerCase().startsWith('recep')) return 'Recepcao';
+    if (actionName.toLowerCase().startsWith('erro')) return 'Erro geral';
     return actionName || 'Sem tipo';
   }
 
@@ -141,24 +142,30 @@ class EstatisticaModel {
       qualidade: { A: 0, B: 0, C: 0 },
       saque: {
         total: 0,
+        qualidade: { A: 0, B: 0, C: 0 },
         aces: 0,
-        positivos: 0,
-        continuacao: 0,
+        ab: 0,
+        cx: 0,
         erros: 0,
         eficiencia: 0,
       },
       recepcao: {
         total: 0,
+        qualidade: { A: 0, B: 0, C: 0 },
         perfeita: 0,
         positiva: 0,
+        c: 0,
+        x: 0,
         erros: 0,
         positivaPct: 0,
         perfeitaPct: 0,
       },
       ataque: {
         total: 0,
+        qualidade: { A: 0, B: 0, C: 0 },
         pontos: 0,
         positivos: 0,
+        negativos: 0,
         erros: 0,
         bloqueados: 0,
         eficiencia: 0,
@@ -166,6 +173,7 @@ class EstatisticaModel {
       },
       bloqueio: {
         total: 0,
+        qualidade: { A: 0, B: 0, C: 0 },
         pontos: 0,
         positivos: 0,
         erros: 0,
@@ -173,10 +181,14 @@ class EstatisticaModel {
       },
       defesa: {
         total: 0,
+        qualidade: { A: 0, B: 0, C: 0 },
         positivas: 0,
+        negativas: 0,
         erros: 0,
         eficiencia: 0,
       },
+      errosGerais: 0,
+      vitoriaPontos: 0,
     };
   }
 
@@ -190,37 +202,49 @@ class EstatisticaModel {
 
   finalizarScout(scout) {
     const nextScout = scout || this.criarScoutVazio();
-    const calcularEficiencia = (positivos, erros, total) =>
-      total > 0 ? this.arredondarPercentual(((positivos - erros) / total) * 100) : 0;
-
-    nextScout.saque.eficiencia = calcularEficiencia(
-      nextScout.saque.aces + nextScout.saque.positivos,
-      nextScout.saque.erros,
-      nextScout.saque.total,
-    );
+    nextScout.saque.total = nextScout.saque.aces
+      + nextScout.saque.ab
+      + nextScout.saque.cx
+      + nextScout.saque.erros;
+    nextScout.saque.eficiencia = nextScout.saque.total > 0
+      ? this.arredondarPercentual(((nextScout.saque.aces + nextScout.saque.cx) / nextScout.saque.total) * 100)
+      : 0;
+    nextScout.recepcao.total = nextScout.recepcao.perfeita
+      + nextScout.recepcao.positiva
+      + nextScout.recepcao.c
+      + nextScout.recepcao.x
+      + nextScout.recepcao.erros;
     nextScout.recepcao.positivaPct = nextScout.recepcao.total > 0
       ? this.arredondarPercentual(((nextScout.recepcao.perfeita + nextScout.recepcao.positiva) / nextScout.recepcao.total) * 100)
       : 0;
     nextScout.recepcao.perfeitaPct = nextScout.recepcao.total > 0
       ? this.arredondarPercentual((nextScout.recepcao.perfeita / nextScout.recepcao.total) * 100)
       : 0;
-    nextScout.ataque.eficiencia = calcularEficiencia(
-      nextScout.ataque.pontos + nextScout.ataque.positivos,
-      nextScout.ataque.erros + nextScout.ataque.bloqueados,
-      nextScout.ataque.total,
-    );
+    nextScout.ataque.total = nextScout.ataque.pontos
+      + nextScout.ataque.positivos
+      + nextScout.ataque.negativos
+      + nextScout.ataque.bloqueados
+      + nextScout.ataque.erros;
+    nextScout.ataque.eficiencia = nextScout.ataque.total > 0
+      ? this.arredondarPercentual(((nextScout.ataque.pontos - nextScout.ataque.erros - nextScout.ataque.bloqueados) / nextScout.ataque.total) * 100)
+      : 0;
     nextScout.ataque.pontosPct = nextScout.ataque.total > 0
       ? this.arredondarPercentual((nextScout.ataque.pontos / nextScout.ataque.total) * 100)
       : 0;
-    nextScout.bloqueio.eficiencia = calcularEficiencia(
-      nextScout.bloqueio.pontos + nextScout.bloqueio.positivos,
-      nextScout.bloqueio.erros,
-      nextScout.bloqueio.total,
-    );
-    nextScout.defesa.eficiencia = calcularEficiencia(
-      nextScout.defesa.positivas,
-      nextScout.defesa.erros,
-      nextScout.defesa.total,
+    nextScout.bloqueio.eficiencia = nextScout.bloqueio.total > 0
+      ? this.arredondarPercentual((nextScout.bloqueio.pontos / nextScout.bloqueio.total) * 100)
+      : 0;
+    nextScout.defesa.total = nextScout.defesa.positivas + nextScout.defesa.negativas;
+    nextScout.defesa.eficiencia = nextScout.defesa.total > 0
+      ? this.arredondarPercentual((nextScout.defesa.positivas / nextScout.defesa.total) * 100)
+      : 0;
+    nextScout.pontosTotais = nextScout.saque.aces + nextScout.ataque.pontos + nextScout.bloqueio.pontos;
+    nextScout.vitoriaPontos = nextScout.pontosTotais - (
+      nextScout.saque.erros
+      + nextScout.recepcao.erros
+      + nextScout.ataque.bloqueados
+      + nextScout.ataque.erros
+      + nextScout.errosGerais
     );
 
     return nextScout;
@@ -232,7 +256,7 @@ class EstatisticaModel {
     }
 
     const normalizedAction = this.normalizarNomeAcao(actionName);
-    const normalizedQuality = String(quality || '').toUpperCase();
+    const normalizedQuality = String(quality || '').trim().toUpperCase();
     const isA = normalizedQuality === 'A';
     const isB = normalizedQuality === 'B';
     const isC = normalizedQuality === 'C';
@@ -243,40 +267,52 @@ class EstatisticaModel {
     }
 
     if (normalizedAction === 'Saque') {
-      scout.saque.total += 1;
-      if (isA) {
+      if (Object.prototype.hasOwnProperty.call(scout.saque.qualidade, normalizedQuality)) {
+        scout.saque.qualidade[normalizedQuality] += 1;
+      }
+      if (['ACE', 'PONTO', 'PTS'].includes(normalizedQuality) || isA) {
         scout.saque.aces += 1;
-        scout.pontosTotais += 1;
-      } else if (isB) {
-        scout.saque.positivos += 1;
-      } else if (isC) {
+      } else if (['A+B', 'AB'].includes(normalizedQuality) || isB) {
+        scout.saque.ab += 1;
+      } else if (['C+X', 'CX'].includes(normalizedQuality) || isC) {
+        scout.saque.cx += 1;
+      } else if (normalizedQuality === 'ERRO') {
         scout.saque.erros += 1;
-      } else {
-        scout.saque.continuacao += 1;
       }
       return;
     }
 
     if (normalizedAction === 'Recepcao') {
-      scout.recepcao.total += 1;
+      if (Object.prototype.hasOwnProperty.call(scout.recepcao.qualidade, normalizedQuality)) {
+        scout.recepcao.qualidade[normalizedQuality] += 1;
+      }
       if (isA) {
         scout.recepcao.perfeita += 1;
       } else if (isB) {
         scout.recepcao.positiva += 1;
       } else if (isC) {
+        scout.recepcao.c += 1;
+      } else if (normalizedQuality === 'X') {
+        scout.recepcao.x += 1;
+      } else if (normalizedQuality === 'ERRO') {
         scout.recepcao.erros += 1;
       }
       return;
     }
 
     if (normalizedAction === 'Ataque') {
-      scout.ataque.total += 1;
-      if (isA) {
+      if (Object.prototype.hasOwnProperty.call(scout.ataque.qualidade, normalizedQuality)) {
+        scout.ataque.qualidade[normalizedQuality] += 1;
+      }
+      if (['PONTO', 'PTS'].includes(normalizedQuality) || isA) {
         scout.ataque.pontos += 1;
-        scout.pontosTotais += 1;
-      } else if (isB) {
+      } else if (['+', 'POSITIVO'].includes(normalizedQuality) || isB) {
         scout.ataque.positivos += 1;
-      } else if (isC) {
+      } else if (['-', 'NEGATIVO'].includes(normalizedQuality) || isC) {
+        scout.ataque.negativos += 1;
+      } else if (['BLOQ', 'BLOQUEADO'].includes(normalizedQuality)) {
+        scout.ataque.bloqueados += 1;
+      } else if (normalizedQuality === 'ERRO') {
         scout.ataque.erros += 1;
       }
       return;
@@ -284,24 +320,33 @@ class EstatisticaModel {
 
     if (normalizedAction === 'Bloqueio') {
       scout.bloqueio.total += 1;
-      if (isA) {
+      if (Object.prototype.hasOwnProperty.call(scout.bloqueio.qualidade, normalizedQuality)) {
+        scout.bloqueio.qualidade[normalizedQuality] += 1;
+      }
+      if (['PONTO', 'PTS'].includes(normalizedQuality) || isA) {
         scout.bloqueio.pontos += 1;
-        scout.pontosTotais += 1;
-      } else if (isB) {
+      } else if (['+', 'POSITIVO'].includes(normalizedQuality) || isB) {
         scout.bloqueio.positivos += 1;
-      } else if (isC) {
+      } else if (normalizedQuality === 'ERRO' || isC) {
         scout.bloqueio.erros += 1;
       }
       return;
     }
 
     if (normalizedAction === 'Defesa') {
-      scout.defesa.total += 1;
-      if (isA || isB) {
-        scout.defesa.positivas += 1;
-      } else if (isC) {
-        scout.defesa.erros += 1;
+      if (Object.prototype.hasOwnProperty.call(scout.defesa.qualidade, normalizedQuality)) {
+        scout.defesa.qualidade[normalizedQuality] += 1;
       }
+      if (['+', 'POSITIVA'].includes(normalizedQuality) || isA || isB) {
+        scout.defesa.positivas += 1;
+      } else if (['-', 'NEGATIVA'].includes(normalizedQuality) || isC) {
+        scout.defesa.negativas += 1;
+      }
+      return;
+    }
+
+    if (normalizedAction === 'Erro geral') {
+      scout.errosGerais += 1;
     }
   }
 
@@ -541,54 +586,6 @@ class EstatisticaModel {
       ORDER BY p.dataPartida DESC, p.id DESC
     `).all(...params);
 
-    const ids = partidas.map((partida) => Number(partida.id)).filter(Boolean);
-    const scoutTotal = this.criarScoutVazio();
-    const jogadoresMap = new Map();
-    const scoutPorPartida = new Map(ids.map((id) => [id, this.criarScoutVazio()]));
-
-    if (ids.length > 0) {
-      const placeholders = ids.map(() => '?').join(', ');
-      const acoes = db.prepare(`
-        SELECT
-          A.id AS acaoId,
-          A.Ponto_Partida_id AS partidaId,
-          A.idTipoAcao AS tipoAcaoId,
-          A.Qualidade AS qualidade,
-          J.id AS jogadorId,
-          J.nome AS jogadorNome,
-          J.NumCamisa AS jogadorNumero,
-          T.Nome AS tipoAcaoNome
-        FROM Acao A
-        LEFT JOIN Jogadores J ON A.Jogador_id = J.id
-        LEFT JOIN TipoAcao T ON A.idTipoAcao = T.idTipoAcao
-        WHERE A.Ponto_Partida_id IN (${placeholders})
-        ORDER BY A.Ponto_Partida_id ASC, A.id ASC
-      `).all(...ids);
-
-      for (const row of acoes) {
-        const actionName = this.normalizarNomeAcao(row.tipoAcaoNome);
-        const quality = String(row.qualidade || '').toUpperCase();
-        const playerKey = row.jogadorId || `sem-jogador-${row.acaoId}`;
-
-        if (!jogadoresMap.has(playerKey)) {
-          jogadoresMap.set(playerKey, this.criarEstatisticaJogador(row));
-        }
-
-        const playerStats = jogadoresMap.get(playerKey);
-        playerStats.totalAcoes += 1;
-        playerStats.acoes[actionName] = (playerStats.acoes[actionName] || 0) + 1;
-        if (Object.prototype.hasOwnProperty.call(playerStats.qualidade, quality)) {
-          playerStats.qualidade[quality] += 1;
-        }
-
-        this.aplicarAcaoNoScout(playerStats.scout, actionName, quality);
-        this.aplicarAcaoNoScout(scoutTotal, actionName, quality);
-
-        const matchScout = scoutPorPartida.get(Number(row.partidaId));
-        this.aplicarAcaoNoScout(matchScout, actionName, quality);
-      }
-    }
-
     const timesMap = new Map();
     const ensureTime = (id, nome) => {
       const key = Number(id) || String(nome || 'time');
@@ -616,6 +613,8 @@ class EstatisticaModel {
       const finalizada = status === 'FINALIZADA';
       const pontosTime1 = this.normalizarPlacar(partida.pontosTime1);
       const pontosTime2 = this.normalizarPlacar(partida.pontosTime2);
+      const totalSets = finalizada ? pontosTime1 + pontosTime2 : 0;
+      const diferencaSets = finalizada ? Math.abs(pontosTime1 - pontosTime2) : 0;
       const time1 = ensureTime(partida.time1, partida.time1Nome);
       const time2 = ensureTime(partida.time2, partida.time2Nome);
 
@@ -647,6 +646,8 @@ class EstatisticaModel {
         status,
         pontosTime1,
         pontosTime2,
+        totalSets,
+        diferencaSets,
         placar: finalizada ? `${pontosTime1} x ${pontosTime2}` : '--',
         vencedor: finalizada
           ? pontosTime1 > pontosTime2
@@ -655,7 +656,6 @@ class EstatisticaModel {
               ? partida.time2Nome
               : 'Empate'
           : 'Pendente',
-        scout: this.finalizarScout(scoutPorPartida.get(Number(partida.id)) || this.criarScoutVazio()),
       };
     });
 
@@ -672,27 +672,120 @@ class EstatisticaModel {
       || String(a.nome).localeCompare(String(b.nome), 'pt-BR', { sensitivity: 'base' })
     ));
 
-    const jogadores = Array.from(jogadoresMap.values()).map((jogador) => ({
-      ...jogador,
-      scout: this.finalizarScout(jogador.scout),
-    })).sort((a, b) => (
-      b.scout.pontosTotais - a.scout.pontosTotais
-      || b.totalAcoes - a.totalAcoes
+    const rankingDerrotas = [...times].sort((a, b) => (
+      b.derrotas - a.derrotas
+      || a.taxaVitoria - b.taxaVitoria
       || String(a.nome).localeCompare(String(b.nome), 'pt-BR', { sensitivity: 'base' })
     ));
 
+    const jogosFinalizados = jogos.filter((jogo) => jogo.status === 'FINALIZADA');
+    const totalSetsDisputados = jogosFinalizados.reduce((total, jogo) => total + jogo.totalSets, 0);
+    const resumoPorTipoMap = new Map();
+    const resumoPorGinasioMap = new Map();
+
+    for (const jogo of jogos) {
+      const tipo = jogo.tipo || 'Sem tipo';
+      const ginasio = jogo.ginasioNome || 'Local nao definido';
+
+      if (!resumoPorTipoMap.has(tipo)) {
+        resumoPorTipoMap.set(tipo, {
+          tipo,
+          total: 0,
+          finalizadas: 0,
+          agendadas: 0,
+          setsDisputados: 0,
+        });
+      }
+
+      if (!resumoPorGinasioMap.has(ginasio)) {
+        resumoPorGinasioMap.set(ginasio, {
+          ginasio,
+          total: 0,
+          finalizadas: 0,
+          agendadas: 0,
+        });
+      }
+
+      const resumoTipo = resumoPorTipoMap.get(tipo);
+      const resumoGinasio = resumoPorGinasioMap.get(ginasio);
+      resumoTipo.total += 1;
+      resumoGinasio.total += 1;
+
+      if (jogo.status === 'FINALIZADA') {
+        resumoTipo.finalizadas += 1;
+        resumoTipo.setsDisputados += jogo.totalSets;
+        resumoGinasio.finalizadas += 1;
+      } else {
+        resumoTipo.agendadas += 1;
+        resumoGinasio.agendadas += 1;
+      }
+    }
+
+    const resumoPorTipo = Array.from(resumoPorTipoMap.values())
+      .map((tipo) => ({
+        ...tipo,
+        taxaConclusao: tipo.total > 0
+          ? this.arredondarPercentual((tipo.finalizadas / tipo.total) * 100)
+          : 0,
+      }))
+      .sort((a, b) => (
+        b.total - a.total
+        || b.finalizadas - a.finalizadas
+        || String(a.tipo).localeCompare(String(b.tipo), 'pt-BR', { sensitivity: 'base' })
+      ));
+
+    const resumoPorGinasio = Array.from(resumoPorGinasioMap.values())
+      .sort((a, b) => (
+        b.total - a.total
+        || b.finalizadas - a.finalizadas
+        || String(a.ginasio).localeCompare(String(b.ginasio), 'pt-BR', { sensitivity: 'base' })
+      ));
+
+    const jogoMaiorDiferenca = [...jogosFinalizados]
+      .sort((a, b) => (
+        b.diferencaSets - a.diferencaSets
+        || b.totalSets - a.totalSets
+        || String(a.dataPartida).localeCompare(String(b.dataPartida))
+      ))[0] || null;
+
+    const jogoMaisDisputado = [...jogosFinalizados]
+      .filter((jogo) => jogo.diferencaSets > 0)
+      .sort((a, b) => (
+        a.diferencaSets - b.diferencaSets
+        || b.totalSets - a.totalSets
+        || String(a.dataPartida).localeCompare(String(b.dataPartida))
+      ))[0] || null;
+
+    const jogoMaisLongo = [...jogosFinalizados]
+      .sort((a, b) => (
+        b.totalSets - a.totalSets
+        || a.diferencaSets - b.diferencaSets
+        || String(a.dataPartida).localeCompare(String(b.dataPartida))
+      ))[0] || null;
+
     return {
       resumo: {
+        totalTimes: times.length,
         totalPartidas: jogos.length,
-        finalizadas: jogos.filter((jogo) => jogo.status === 'FINALIZADA').length,
+        finalizadas: jogosFinalizados.length,
         agendadas: jogos.filter((jogo) => jogo.status !== 'FINALIZADA').length,
-        scout: this.finalizarScout(scoutTotal),
+        totalSetsDisputados,
+        mediaSetsPorPartida: jogosFinalizados.length > 0
+          ? this.arredondarPercentual(totalSetsDisputados / jogosFinalizados.length)
+          : 0,
       },
       melhorTime: times[0] || null,
-      melhorJogador: jogadores[0] || null,
+      piorTime: rankingDerrotas[0] || null,
+      tipoMaisFrequente: resumoPorTipo[0] || null,
+      ginasioMaisUsado: resumoPorGinasio[0] || null,
+      jogoMaiorDiferenca,
+      jogoMaisDisputado,
+      jogoMaisLongo,
       times,
+      rankingDerrotas,
+      resumoPorTipo,
+      resumoPorGinasio,
       jogos,
-      jogadores,
     };
   }
 

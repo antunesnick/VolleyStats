@@ -45,17 +45,27 @@ const ScoutResumo = ({ scout }) => {
       </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
         <ScoutCard label="Pontos totais" value={data.pontosTotais || 0} tone="red" />
-        <ScoutCard label="Saque ace/pts" value={data.saque?.aces || 0} />
+        <ScoutCard label="V-P" value={data.vitoriaPontos || 0} tone="red" />
+        <ScoutCard label="Saque total" value={data.saque?.total || 0} />
+        <ScoutCard label="Saque pontos" value={data.saque?.aces || 0} />
         <ScoutCard label="Saque erro" value={data.saque?.erros || 0} />
         <ScoutCard label="Saque eff" value={formatPercent(data.saque?.eficiencia)} />
+        <ScoutCard label="Recepcao total" value={data.recepcao?.total || 0} />
+        <ScoutCard label="Recepcao erro" value={data.recepcao?.erros || 0} />
         <ScoutCard label="Recepcao positiva" value={formatPercent(data.recepcao?.positivaPct)} />
         <ScoutCard label="Recepcao perfeita" value={formatPercent(data.recepcao?.perfeitaPct)} />
+        <ScoutCard label="Ataque total" value={data.ataque?.total || 0} />
+        <ScoutCard label="Ataque erro" value={data.ataque?.erros || 0} />
+        <ScoutCard label="Ataque bloqueado" value={data.ataque?.bloqueados || 0} />
         <ScoutCard label="Ataque pontos" value={data.ataque?.pontos || 0} tone="red" />
+        <ScoutCard label="Ataque pts%" value={formatPercent(data.ataque?.pontosPct)} />
         <ScoutCard label="Ataque eff" value={formatPercent(data.ataque?.eficiencia)} />
         <ScoutCard label="Bloqueio pontos" value={data.bloqueio?.pontos || 0} />
+        <ScoutCard label="Defesa total" value={data.defesa?.total || 0} />
         <ScoutCard label="Defesa +" value={data.defesa?.positivas || 0} />
-        <ScoutCard label="Defesa -" value={data.defesa?.erros || 0} />
-        <ScoutCard label="Acoes totais" value={data.totalAcoes || 0} />
+        <ScoutCard label="Defesa -" value={data.defesa?.negativas || 0} />
+        <ScoutCard label="Defesa eff" value={formatPercent(data.defesa?.eficiencia)} />
+        <ScoutCard label="Erro geral" value={data.errosGerais || 0} />
       </div>
     </div>
   );
@@ -304,24 +314,38 @@ const EstatisticaView = ({
         <td><strong>#${escapeHtml(jogador.numero || '--')} - ${escapeHtml(jogador.nome)}</strong></td>
         <td class="center">${jogador.totalAcoes || 0}</td>
         <td class="center emph">${jogador.scout?.pontosTotais || 0}</td>
+        <td class="center emph">${jogador.scout?.vitoriaPontos || 0}</td>
         <td class="center">${jogador.qualidade?.A || 0}</td>
         <td class="center">${jogador.qualidade?.B || 0}</td>
         <td class="center">${jogador.qualidade?.C || 0}</td>
         <td class="center">${jogador.scout?.saque?.total || 0}</td>
         <td class="center">${jogador.scout?.saque?.aces || 0}</td>
+        <td class="center">${jogador.scout?.saque?.ab || 0}</td>
+        <td class="center">${jogador.scout?.saque?.cx || 0}</td>
         <td class="center">${jogador.scout?.saque?.erros || 0}</td>
         <td class="center">${formatPercent(jogador.scout?.saque?.eficiencia)}</td>
         <td class="center">${jogador.scout?.recepcao?.total || 0}</td>
+        <td class="center">${jogador.scout?.recepcao?.perfeita || 0}</td>
+        <td class="center">${jogador.scout?.recepcao?.positiva || 0}</td>
+        <td class="center">${jogador.scout?.recepcao?.c || 0}</td>
+        <td class="center">${jogador.scout?.recepcao?.x || 0}</td>
+        <td class="center">${jogador.scout?.recepcao?.erros || 0}</td>
         <td class="center">${formatPercent(jogador.scout?.recepcao?.positivaPct)}</td>
         <td class="center">${formatPercent(jogador.scout?.recepcao?.perfeitaPct)}</td>
-        <td class="center">${jogador.scout?.recepcao?.erros || 0}</td>
         <td class="center">${jogador.scout?.ataque?.total || 0}</td>
         <td class="center">${jogador.scout?.ataque?.pontos || 0}</td>
+        <td class="center">${jogador.scout?.ataque?.positivos || 0}</td>
+        <td class="center">${jogador.scout?.ataque?.negativos || 0}</td>
+        <td class="center">${jogador.scout?.ataque?.bloqueados || 0}</td>
         <td class="center">${jogador.scout?.ataque?.erros || 0}</td>
+        <td class="center">${formatPercent(jogador.scout?.ataque?.pontosPct)}</td>
         <td class="center">${formatPercent(jogador.scout?.ataque?.eficiencia)}</td>
         <td class="center">${jogador.scout?.bloqueio?.pontos || 0}</td>
+        <td class="center">${jogador.scout?.defesa?.total || 0}</td>
         <td class="center">${jogador.scout?.defesa?.positivas || 0}</td>
-        <td class="center">${jogador.scout?.defesa?.erros || 0}</td>
+        <td class="center">${jogador.scout?.defesa?.negativas || 0}</td>
+        <td class="center">${formatPercent(jogador.scout?.defesa?.eficiencia)}</td>
+        <td class="center">${jogador.scout?.errosGerais || 0}</td>
       </tr>
     `).join('');
 
@@ -383,11 +407,12 @@ const EstatisticaView = ({
 
           <section class="metrics">
             <div class="metric featured"><span>Resultado</span><strong>${resultadoPartida.home} x ${resultadoPartida.away}</strong></div>
-            <div class="metric"><span>Acoes</span><strong>${statistics.totals.acoes}</strong></div>
             <div class="metric"><span>Pontos scout</span><strong>${scout.pontosTotais || 0}</strong></div>
-            <div class="metric"><span>Jogadores</span><strong>${statistics.jogadores.length}</strong></div>
-            <div class="metric"><span>Saque ace/pts</span><strong>${scout.saque?.aces || 0}</strong></div>
+            <div class="metric"><span>V-P</span><strong>${scout.vitoriaPontos || 0}</strong></div>
+            <div class="metric"><span>Saque total</span><strong>${scout.saque?.total || 0}</strong></div>
+            <div class="metric"><span>Saque pontos</span><strong>${scout.saque?.aces || 0}</strong></div>
             <div class="metric"><span>Recepcao positiva</span><strong>${formatPercent(scout.recepcao?.positivaPct)}</strong></div>
+            <div class="metric"><span>Ataque pontos</span><strong>${scout.ataque?.pontos || 0}</strong></div>
             <div class="metric"><span>Ataque eff</span><strong>${formatPercent(scout.ataque?.eficiencia)}</strong></div>
             <div class="metric"><span>Defesa +</span><strong>${scout.defesa?.positivas || 0}</strong></div>
           </section>
@@ -400,27 +425,41 @@ const EstatisticaView = ({
                   <th>Jogador</th>
                   <th class="center">Acoes</th>
                   <th class="center">PTS</th>
+                  <th class="center">V-P</th>
                   <th class="center">A</th>
                   <th class="center">B</th>
                   <th class="center">C</th>
                   <th class="center">Saq Tot</th>
                   <th class="center">Saq Pts</th>
+                  <th class="center">Saq A+B</th>
+                  <th class="center">Saq C+X</th>
                   <th class="center">Saq Err</th>
                   <th class="center">Saq Eff</th>
                   <th class="center">Rec Tot</th>
+                  <th class="center">Rec A</th>
+                  <th class="center">Rec B</th>
+                  <th class="center">Rec C</th>
+                  <th class="center">Rec X</th>
+                  <th class="center">Rec Err</th>
                   <th class="center">Rec Pos%</th>
                   <th class="center">Rec Prf%</th>
-                  <th class="center">Rec Err</th>
                   <th class="center">Atq Tot</th>
                   <th class="center">Atq Pts</th>
+                  <th class="center">Atq +</th>
+                  <th class="center">Atq -</th>
+                  <th class="center">Atq Bloq</th>
                   <th class="center">Atq Err</th>
+                  <th class="center">Atq Pts%</th>
                   <th class="center">Atq Eff</th>
                   <th class="center">BK Pts</th>
+                  <th class="center">Def Tot</th>
                   <th class="center">Def +</th>
                   <th class="center">Def -</th>
+                  <th class="center">Def Eff</th>
+                  <th class="center">Erro Geral</th>
                 </tr>
               </thead>
-              <tbody>${linhasJogadores || '<tr><td colspan="21">Nenhum scout registrado.</td></tr>'}</tbody>
+              <tbody>${linhasJogadores || '<tr><td colspan="36">Nenhum scout registrado.</td></tr>'}</tbody>
             </table>
           </section>
 
@@ -605,36 +644,58 @@ const EstatisticaView = ({
             </div>
 
             <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
-              <table className="w-full min-w-[1320px] text-left">
+              <table className="w-full min-w-[2040px] text-left">
                 <thead className="bg-black text-white">
                   <tr>
-                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest">Jogador</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Acoes</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">PTS</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">A</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">B</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">C</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Saq Tot</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Saq Pts</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Saq Err</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Saq Eff</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Rec Tot</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Rec Pos%</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Rec Prf%</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Rec Err</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Atq Tot</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Atq Pts</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Atq Err</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Atq Eff</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">BK Pts</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Def +</th>
-                    <th className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Def -</th>
+                    <th rowSpan="2" className="px-4 py-3 text-[10px] font-black uppercase tracking-widest">Jogador</th>
+                    <th rowSpan="2" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Acoes</th>
+                    <th rowSpan="2" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">PTS</th>
+                    <th rowSpan="2" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">V-P</th>
+                    <th colSpan="3" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Geral</th>
+                    <th colSpan="6" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Saque</th>
+                    <th colSpan="8" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Recepcao</th>
+                    <th colSpan="8" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Ataque</th>
+                    <th colSpan="1" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Bloqueio</th>
+                    <th colSpan="4" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Defesa</th>
+                    <th rowSpan="2" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Erro geral</th>
+                  </tr>
+                  <tr className="bg-neutral-900">
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">A</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">B</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">C</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Tot</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Pts</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">A+B</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">C+X</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Err</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Eff</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Tot</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">A</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">B</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">C</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">X</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Err</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Pos%</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Prf%</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Tot</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Pts</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">+</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">-</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Bloq</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Err</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Pts%</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Eff</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Pts</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Tot</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">+</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">-</th>
+                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Eff</th>
                   </tr>
                 </thead>
                 <tbody>
                   {jogadoresFiltrados.length === 0 ? (
                     <tr>
-                      <td colSpan="21" className="px-4 py-10 text-center text-sm font-bold text-gray-500">
+                      <td colSpan="36" className="px-4 py-10 text-center text-sm font-bold text-gray-500">
                         Nenhum jogador encontrado.
                       </td>
                     </tr>
@@ -643,24 +704,38 @@ const EstatisticaView = ({
                       <td className="px-4 py-3 font-black text-gray-900">#{jogador.numero || '--'} - {jogador.nome}</td>
                       <td className="px-3 py-3 text-center">{jogador.totalAcoes}</td>
                       <td className="px-3 py-3 text-center font-black text-red-600">{jogador.scout?.pontosTotais || 0}</td>
+                      <td className="px-3 py-3 text-center font-black text-red-600">{jogador.scout?.vitoriaPontos || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.qualidade?.A || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.qualidade?.B || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.qualidade?.C || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.saque?.total || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.saque?.aces || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.saque?.ab || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.saque?.cx || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.saque?.erros || 0}</td>
                       <td className="px-3 py-3 text-center">{formatPercent(jogador.scout?.saque?.eficiencia)}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.recepcao?.total || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.recepcao?.perfeita || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.recepcao?.positiva || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.recepcao?.c || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.recepcao?.x || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.recepcao?.erros || 0}</td>
                       <td className="px-3 py-3 text-center">{formatPercent(jogador.scout?.recepcao?.positivaPct)}</td>
                       <td className="px-3 py-3 text-center">{formatPercent(jogador.scout?.recepcao?.perfeitaPct)}</td>
-                      <td className="px-3 py-3 text-center">{jogador.scout?.recepcao?.erros || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.ataque?.total || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.ataque?.pontos || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.ataque?.positivos || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.ataque?.negativos || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.ataque?.bloqueados || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.ataque?.erros || 0}</td>
+                      <td className="px-3 py-3 text-center">{formatPercent(jogador.scout?.ataque?.pontosPct)}</td>
                       <td className="px-3 py-3 text-center">{formatPercent(jogador.scout?.ataque?.eficiencia)}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.bloqueio?.pontos || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.defesa?.total || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.defesa?.positivas || 0}</td>
-                      <td className="px-3 py-3 text-center">{jogador.scout?.defesa?.erros || 0}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.defesa?.negativas || 0}</td>
+                      <td className="px-3 py-3 text-center">{formatPercent(jogador.scout?.defesa?.eficiencia)}</td>
+                      <td className="px-3 py-3 text-center">{jogador.scout?.errosGerais || 0}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -739,7 +814,7 @@ const EstatisticaView = ({
                           <td className="px-4 py-3">{formatPercent(jogador.scout?.ataque?.eficiencia)}</td>
                           <td className="px-4 py-3">{jogador.scout?.bloqueio?.pontos || 0}</td>
                           <td className="px-4 py-3">{jogador.scout?.defesa?.positivas || 0}</td>
-                          <td className="px-4 py-3">{jogador.scout?.defesa?.erros || 0}</td>
+                          <td className="px-4 py-3">{jogador.scout?.defesa?.negativas || 0}</td>
                         </tr>
                       </tbody>
                     </table>
