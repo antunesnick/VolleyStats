@@ -61,12 +61,13 @@ const ReportMetric = ({ label, value, featured = false }) => (
   </div>
 );
 
-const GerenciarPartidas = ({ tournamentId = null, onMatchesUpdated }) => {
+const GerenciarPartidas = ({ tournamentId = null, onMatchesUpdated, isEmbedded = false }) => {
   const [partidas, setPartidas] = useState([]);
   const [toasts, setToasts] = useState([]);
 
   const [timesCadastrados, setTimesCadastrados] = useState([]);
   const [ginasiosCadastrados, setGinasiosCadastrados] = useState([]);
+  const [torneiosCadastrados, setTorneiosCadastrados] = useState([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFinalizarModalOpen, setIsFinalizarModalOpen] = useState(false);
@@ -82,6 +83,11 @@ const GerenciarPartidas = ({ tournamentId = null, onMatchesUpdated }) => {
   const [relatorioGeral, setRelatorioGeral] = useState(null);
   const [relatorioGeralLoading, setRelatorioGeralLoading] = useState(false);
   const [relatorioGeralPdfSaving, setRelatorioGeralPdfSaving] = useState(false);
+  const [relatorioFiltros, setRelatorioFiltros] = useState({
+    torneioId: tournamentId || '',
+    dataPartida: '',
+    timeId: '',
+  });
 
   const [filtros, setFiltros] = useState({
     dataPartida: '',
@@ -152,8 +158,14 @@ const GerenciarPartidas = ({ tournamentId = null, onMatchesUpdated }) => {
   };
 
   useEffect(() => {
-    if(tournamentId)
-      carregarTudo();
+    carregarTudo();
+  }, [tournamentId]);
+
+  useEffect(() => {
+    setRelatorioFiltros((current) => ({
+      ...current,
+      torneioId: tournamentId || current.torneioId || '',
+    }));
   }, [tournamentId]);
 
   useEffect(() => {
@@ -213,9 +225,13 @@ const formatarDataBrasil = (dataString) => {
       ];
 
       const dadosGinasios = await window.ElectronAPI.listarGinasios();
+      const dadosTorneios = typeof window.tournamentAPI?.list === 'function'
+        ? await window.tournamentAPI.list()
+        : [];
 
       setTimesCadastrados(dadosTimes || mockTimes);
       setGinasiosCadastrados(dadosGinasios);
+      setTorneiosCadastrados(dadosTorneios || []);
 
     } catch (error) {
       console.error("Erro na integração visual:", error);
@@ -521,11 +537,46 @@ const formatarDataBrasil = (dataString) => {
     setIsResumoFinalizacaoOpen(true);
   };
 
-  const abrirRelatorioGeral = () => {
+  const handleRelatorioFiltroChange = (event) => {
+    const { name, value } = event.target;
+    setRelatorioFiltros((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const montarFiltrosRelatorio = (filtros = relatorioFiltros) => ({
+    torneioId: tournamentId || filtros.torneioId || '',
+    dataPartida: filtros.dataPartida || '',
+    timeId: filtros.timeId || '',
+  });
+
+  const getResumoFiltrosRelatorio = (relatorio = relatorioGeral) => {
+    const filtrosAplicados = relatorio?.filtrosAplicados || {};
+
+    return [
+      `Torneio: ${filtrosAplicados.torneioNome || 'Todos'}`,
+      `Data da partida: ${filtrosAplicados.dataPartida ? formatarDataBrasil(filtrosAplicados.dataPartida) : 'Todas'}`,
+      `Time: ${filtrosAplicados.timeNome || 'Todos'}`,
+    ].join(' | ');
+  };
+
+  const limparFiltrosRelatorio = () => {
+    const filtrosLimpos = {
+      torneioId: tournamentId || '',
+      dataPartida: '',
+      timeId: '',
+    };
+    setRelatorioFiltros(filtrosLimpos);
+    abrirRelatorioGeral(filtrosLimpos);
+  };
+
+  const abrirRelatorioGeral = (filtros = relatorioFiltros) => {
+    const filtrosRelatorio = filtros?.target ? relatorioFiltros : filtros;
     setRelatorioGeralLoading(true);
 
     try {
-      const result = EstatisticaControl.carregarRelatorioGeralPartidas(tournamentId);
+      const result = EstatisticaControl.carregarRelatorioGeralPartidas(montarFiltrosRelatorio(filtrosRelatorio));
       if (result.erro) {
         Alertas.erro(result.erro);
         return;
@@ -570,6 +621,7 @@ const formatarDataBrasil = (dataString) => {
     const linhasPartidas = relatorioGeral.jogos.map((jogo) => `
       <tr>
         <td>${escapeHtml(formatarDataBrasil(jogo.dataPartida))}</td>
+        <td>${escapeHtml(jogo.torneioNome || 'Sem torneio')}</td>
         <td><strong>${escapeHtml(jogo.time1Nome || 'Time 1')} x ${escapeHtml(jogo.time2Nome || 'Time 2')}</strong><span>${escapeHtml(jogo.nome || 'Partida')}</span></td>
         <td>${escapeHtml(jogo.tipo || 'Sem tipo')}</td>
         <td>${escapeHtml(jogo.ginasioNome || 'Local nao definido')}</td>
@@ -621,6 +673,7 @@ const formatarDataBrasil = (dataString) => {
             header { padding: 20px 22px; background: #000; color: #fff; border-bottom: 6px solid #dc2626; border-radius: 12px 12px 0 0; }
             .eyebrow { margin: 0 0 6px; color: #f87171; font-size: 10px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
             h1 { margin: 0; font-size: 24px; }
+            .sub { margin-top: 8px; color: #d1d5db; font-size: 12px; font-weight: 700; }
             .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0; }
             .metric { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
             .metric span { display: block; color: #6b7280; font-size: 9px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
@@ -642,6 +695,7 @@ const formatarDataBrasil = (dataString) => {
           <header>
             <p class="eyebrow">VolleyStats</p>
             <h1>Relatorio Partidas</h1>
+            <div class="sub">${escapeHtml(getResumoFiltrosRelatorio(relatorioGeral))}</div>
           </header>
           <section class="metrics">
             <div class="metric"><span>Total de partidas</span><strong>${relatorioGeral.resumo.totalPartidas}</strong></div>
@@ -699,10 +753,10 @@ const formatarDataBrasil = (dataString) => {
             <table>
               <thead>
                 <tr>
-                  <th>Data</th><th>Partida</th><th>Tipo</th><th>Local</th><th class="center">Status</th><th class="center">Placar</th><th class="center">Sets</th><th class="center">Dif.</th><th>Vencedor</th>
+                  <th>Data</th><th>Torneio</th><th>Partida</th><th>Tipo</th><th>Local</th><th class="center">Status</th><th class="center">Placar</th><th class="center">Sets</th><th class="center">Dif.</th><th>Vencedor</th>
                 </tr>
               </thead>
-              <tbody>${linhasPartidas || '<tr><td colspan="9">Nenhuma partida encontrada.</td></tr>'}</tbody>
+              <tbody>${linhasPartidas || '<tr><td colspan="10">Nenhuma partida encontrada.</td></tr>'}</tbody>
             </table>
           </section>
         </body>
@@ -799,13 +853,15 @@ const formatarDataBrasil = (dataString) => {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={abrirRelatorioGeral}
-            disabled={relatorioGeralLoading}
-            className="bg-black hover:bg-neutral-800 disabled:bg-gray-400 text-white font-extrabold py-3 px-6 rounded-2xl shadow-lg transition-all flex items-center gap-2.5 active:scale-95 text-sm whitespace-nowrap uppercase tracking-wider"
-          >
-            {relatorioGeralLoading ? 'Emitindo...' : 'Relatorio Partidas'}
-          </button>
+          {!isEmbedded && (
+            <button
+              onClick={() => abrirRelatorioGeral()}
+              disabled={relatorioGeralLoading}
+              className="bg-black hover:bg-neutral-800 disabled:bg-gray-400 text-white font-extrabold py-3 px-6 rounded-2xl shadow-lg transition-all flex items-center gap-2.5 active:scale-95 text-sm whitespace-nowrap uppercase tracking-wider"
+            >
+              {relatorioGeralLoading ? 'Emitindo...' : 'Relatorio Partidas'}
+            </button>
+          )}
           <button
             onClick={abrirModalCriar}
             className="bg-red-600 hover:bg-red-700 text-white font-extrabold py-3 px-8 rounded-2xl shadow-lg transition-all transform hover:scale-105 flex items-center gap-2.5 active:scale-95 text-base whitespace-nowrap"
@@ -1153,7 +1209,7 @@ const formatarDataBrasil = (dataString) => {
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-400">VolleyStats</p>
                 <h2 className="text-3xl font-black text-white tracking-tight uppercase">Relatorio Partidas</h2>
                 <p className="text-sm font-semibold text-gray-300">
-                  Panorama dos jogos, tipos de confronto, locais e resultados
+                  {getResumoFiltrosRelatorio(relatorioGeral)}
                 </p>
               </div>
               <button
@@ -1166,6 +1222,81 @@ const formatarDataBrasil = (dataString) => {
             </div>
 
             <div className="p-7 space-y-8">
+              <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-5">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-widest text-red-600">Filtros do Relatorio</p>
+                    <h3 className="text-xl font-black uppercase tracking-tight text-black">Filtrar partidas</h3>
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">
+                    Por torneio, data da partida e time
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Torneio</label>
+                    <select
+                      name="torneioId"
+                      value={tournamentId || relatorioFiltros.torneioId}
+                      onChange={handleRelatorioFiltroChange}
+                      disabled={Boolean(tournamentId)}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100 disabled:bg-gray-100 disabled:text-gray-500"
+                    >
+                      <option value="">Todos os torneios</option>
+                      {torneiosCadastrados.map((torneio) => (
+                        <option key={torneio.id} value={torneio.id}>{torneio.name || torneio.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Data da Partida</label>
+                    <input
+                      type="date"
+                      name="dataPartida"
+                      value={relatorioFiltros.dataPartida}
+                      onChange={handleRelatorioFiltroChange}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Time</label>
+                    <select
+                      name="timeId"
+                      value={relatorioFiltros.timeId}
+                      onChange={handleRelatorioFiltroChange}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    >
+                      <option value="">Todos os times</option>
+                      {timesCadastrados.map((time) => (
+                        <option key={time.id} value={time.id}>{time.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => abrirRelatorioGeral(relatorioFiltros)}
+                      disabled={relatorioGeralLoading}
+                      className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-colors hover:bg-red-700 disabled:bg-red-300"
+                    >
+                      {relatorioGeralLoading ? 'Filtrando...' : 'Aplicar'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={limparFiltrosRelatorio}
+                      disabled={relatorioGeralLoading}
+                      className="flex-1 rounded-xl bg-black px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-colors hover:bg-neutral-800 disabled:bg-gray-400"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <ReportMetric label="Total de partidas" value={relatorioGeral.resumo.totalPartidas} featured />
                 <ReportMetric label="Finalizadas" value={relatorioGeral.resumo.finalizadas} />
@@ -1362,10 +1493,11 @@ const formatarDataBrasil = (dataString) => {
                   <span className="text-[11px] font-black uppercase tracking-widest text-red-300">{relatorioGeral.jogos.length} jogos</span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1180px] bg-white">
+                  <table className="w-full min-w-[1300px] bg-white">
                     <thead>
                       <tr className="bg-gray-100 text-gray-700">
                         <th className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest">Data</th>
+                        <th className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest">Torneio</th>
                         <th className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest">Partida</th>
                         <th className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest">Tipo</th>
                         <th className="px-5 py-3 text-left text-[11px] font-black uppercase tracking-widest">Local</th>
@@ -1380,6 +1512,7 @@ const formatarDataBrasil = (dataString) => {
                       {relatorioGeral.jogos.length > 0 ? relatorioGeral.jogos.map((jogo) => (
                         <tr key={jogo.id} className="border-b border-gray-100 hover:bg-red-50/50 transition-colors">
                           <td className="px-5 py-4 text-sm font-bold text-gray-700">{formatarDataBrasil(jogo.dataPartida)}</td>
+                          <td className="px-5 py-4 text-sm font-bold text-gray-700">{jogo.torneioNome || 'Sem torneio'}</td>
                           <td className="px-5 py-4">
                             <p className="text-sm font-black text-black">{jogo.time1Nome || 'Time 1'} x {jogo.time2Nome || 'Time 2'}</p>
                             <p className="text-xs font-bold text-gray-500">{jogo.nome || 'Partida'} • {jogo.tipo || 'Sem tipo'}</p>
@@ -1398,7 +1531,7 @@ const formatarDataBrasil = (dataString) => {
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan="9" className="px-5 py-10 text-center text-sm font-bold text-gray-500">
+                          <td colSpan="10" className="px-5 py-10 text-center text-sm font-bold text-gray-500">
                             Nenhuma partida encontrada.
                           </td>
                         </tr>

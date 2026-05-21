@@ -49,7 +49,8 @@ window.excelAPI = {
 window.reportAPI = {
     salvarPdf: (payload) => ipcRenderer.invoke('relatorio:salvarPdf', payload),
     torneioPartidas: (tournamentId) => ipcRenderer.invoke('relatorio:torneioPartidas', tournamentId),
-    torneioRelatorio: (tournamentId) => ipcRenderer.invoke('relatorio:torneio', tournamentId),
+    torneioRelatorio: (tournamentId, filtros) => ipcRenderer.invoke('relatorio:torneio', tournamentId, filtros),
+    torneiosGeral: () => ipcRenderer.invoke('relatorio:torneiosGeral'),
     ginasioRelatorio: (ginasioId) => ipcRenderer.invoke('relatorio:ginasio', ginasioId),
-    categoriasRelatorio: () => ipcRenderer.invoke('relatorio:categorias')
+    categoriasRelatorio: (filtros) => ipcRenderer.invoke('relatorio:categorias', filtros)
 };

@@ -180,16 +180,20 @@ app.whenReady().then(() => {
     return TournamentControl.emitirRelatorioPartidas(tournamentId);
   });
 
-  ipcMain.handle('relatorio:torneio', async (_event, tournamentId) => {
-    return TournamentControl.emitirRelatorioTorneio(tournamentId);
+  ipcMain.handle('relatorio:torneio', async (_event, tournamentId, filtros = {}) => {
+    return TournamentControl.emitirRelatorioTorneio(tournamentId, filtros);
+  });
+
+  ipcMain.handle('relatorio:torneiosGeral', async () => {
+    return TournamentControl.emitirRelatorioGeralTorneios();
   });
 
   ipcMain.handle('relatorio:ginasio', async (_event, ginasioId) => {
     return GinasioControl.relatorioGinasio(ginasioId);
   });
 
-  ipcMain.handle('relatorio:categorias', async () => {
-    return CategoriaControl.getInstance().relatorioGeralCategorias();
+  ipcMain.handle('relatorio:categorias', async (_event, filtros = {}) => {
+    return CategoriaControl.getInstance().relatorioGeralCategorias(filtros);
   });
   
   ipcMain.handle('excel:importar', async () => {

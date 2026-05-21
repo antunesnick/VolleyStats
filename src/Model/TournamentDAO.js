@@ -54,6 +54,76 @@ class TournamentDAO {
         return rows;
     }
 
+    getGeneralTournamentMatchRows() {
+        const stmt = this.db.prepare(`
+            SELECT
+                tr.id AS torneioId,
+                tr.nome AS torneioNome,
+                tr.tipo AS torneioTipo,
+                tr.inicio AS torneioInicio,
+                tr.termino AS torneioTermino,
+                p.id AS partidaId,
+                p.nome AS partidaNome,
+                p.dataPartida,
+                p.status,
+                p.pontosTime1,
+                p.pontosTime2,
+                p.tipo AS partidaTipo,
+                p.time1 AS time1Id,
+                p.time2 AS time2Id,
+                t1.nome AS time1Nome,
+                t2.nome AS time2Nome,
+                g.nome AS ginasioNome
+            FROM Torneios tr
+            LEFT JOIN Partidas p ON p.torneio_id = tr.id
+            LEFT JOIN Times t1 ON t1.id = p.time1
+            LEFT JOIN Times t2 ON t2.id = p.time2
+            LEFT JOIN Ginasios g ON g.id = p.ginasio_id
+            ORDER BY tr.inicio DESC, tr.id DESC, p.dataPartida DESC, p.id DESC
+        `);
+
+        return stmt.all();
+    }
+
+    getMainTeamPlayerRankingAcrossTournaments(teamId) {
+        const stmt = this.db.prepare(`
+            SELECT
+                j.id,
+                j.nome,
+                j.numCamisa,
+                p.nome AS posicaoNome,
+                COUNT(a.id) AS totalAcoes,
+                SUM(CASE WHEN a.Qualidade = 'A' THEN 1 ELSE 0 END) AS acoesA,
+                SUM(CASE WHEN a.Qualidade = 'B' THEN 1 ELSE 0 END) AS acoesB,
+                SUM(CASE WHEN a.Qualidade = 'C' THEN 1 ELSE 0 END) AS acoesC,
+                COUNT(DISTINCT pa.torneio_id) AS torneios,
+                COUNT(DISTINCT pa.id) AS partidas,
+                SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'saq%' THEN 1 ELSE 0 END) AS saques,
+                SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'ata%' THEN 1 ELSE 0 END) AS ataques,
+                SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'bloq%' THEN 1 ELSE 0 END) AS bloqueios,
+                SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'recep%' THEN 1 ELSE 0 END) AS recepcoes,
+                SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'def%' THEN 1 ELSE 0 END) AS defesas
+            FROM Acao a
+            INNER JOIN Jogadores j ON j.id = a.Jogador_id
+            LEFT JOIN Posicoes p ON p.id = j.posicao_id
+            LEFT JOIN TipoAcao ta ON ta.idTipoAcao = a.idTipoAcao
+            INNER JOIN Partidas pa ON pa.id = a.Ponto_Partida_id
+            LEFT JOIN TimesPartida tp ON tp.Partida_id = pa.id
+                                    AND tp.Jogadores_id = j.id
+                                    AND tp.Times_id = ?
+            WHERE tp.Times_id = ?
+               OR (
+                    tp.Times_id IS NULL
+                    AND (pa.time1 = ? OR pa.time2 = ?)
+               )
+            GROUP BY j.id, j.nome, j.numCamisa, p.nome
+            ORDER BY acoesA DESC, totalAcoes DESC, torneios DESC, j.nome ASC
+            LIMIT 10
+        `);
+
+        return stmt.all(teamId, teamId, teamId, teamId);
+    }
+
     getMatchReportRows(tournamentId) {
         const stmt = this.db.prepare(`
             SELECT
@@ -65,6 +135,8 @@ class TournamentDAO {
                 p.pontosTime2,
                 p.tipo,
                 p.fase,
+                p.time1 AS time1Id,
+                p.time2 AS time2Id,
                 t1.nome AS time1Nome,
                 t2.nome AS time2Nome,
                 g.nome AS ginasioNome
@@ -79,7 +151,9 @@ class TournamentDAO {
         return stmt.all(tournamentId);
     }
 
-    getBestPlayerByTournamentId(tournamentId) {
+    getBestPlayerByTournamentId(tournamentId, matchIds = []) {
+        const ids = (matchIds || []).map(Number).filter(Boolean);
+        const matchFilter = ids.length > 0 ? `AND p.id IN (${ids.map(() => '?').join(',')})` : '';
         const stmt = this.db.prepare(`
             SELECT
                 j.id,
@@ -97,15 +171,18 @@ class TournamentDAO {
             LEFT JOIN TipoAcao ta ON ta.idTipoAcao = a.idTipoAcao
             INNER JOIN Partidas p ON p.id = a.Ponto_Partida_id
             WHERE p.torneio_id = ?
+            ${matchFilter}
             GROUP BY j.id, j.nome, j.numCamisa
             ORDER BY acoesA DESC, totalAcoes DESC, j.nome ASC
             LIMIT 1
         `);
 
-        return stmt.get(tournamentId) || null;
+        return stmt.get(tournamentId, ...ids) || null;
     }
 
-    getPlayerRankingByTournamentId(tournamentId) {
+    getPlayerRankingByTournamentId(tournamentId, matchIds = []) {
+        const ids = (matchIds || []).map(Number).filter(Boolean);
+        const matchFilter = ids.length > 0 ? `AND pa.id IN (${ids.map(() => '?').join(',')})` : '';
         const stmt = this.db.prepare(`
             SELECT
                 j.id,
@@ -127,15 +204,18 @@ class TournamentDAO {
             LEFT JOIN TipoAcao ta ON ta.idTipoAcao = a.idTipoAcao
             INNER JOIN Partidas pa ON pa.id = a.Ponto_Partida_id
             WHERE pa.torneio_id = ?
+            ${matchFilter}
             GROUP BY j.id, j.nome, j.numCamisa, p.nome
             ORDER BY acoesA DESC, totalAcoes DESC, j.nome ASC
             LIMIT 10
         `);
 
-        return stmt.all(tournamentId);
+        return stmt.all(tournamentId, ...ids);
     }
 
-    getActionSummaryByTournamentId(tournamentId) {
+    getActionSummaryByTournamentId(tournamentId, matchIds = []) {
+        const ids = (matchIds || []).map(Number).filter(Boolean);
+        const matchFilter = ids.length > 0 ? `AND p.id IN (${ids.map(() => '?').join(',')})` : '';
         const stmt = this.db.prepare(`
             SELECT
                 COALESCE(ta.Nome, 'Outros') AS tipoAcaoNome,
@@ -145,14 +225,17 @@ class TournamentDAO {
             LEFT JOIN TipoAcao ta ON ta.idTipoAcao = a.idTipoAcao
             INNER JOIN Partidas p ON p.id = a.Ponto_Partida_id
             WHERE p.torneio_id = ?
+            ${matchFilter}
             GROUP BY ta.Nome, a.Qualidade
             ORDER BY total DESC
         `);
 
-        return stmt.all(tournamentId);
+        return stmt.all(tournamentId, ...ids);
     }
 
-    getGymSummaryByTournamentId(tournamentId) {
+    getGymSummaryByTournamentId(tournamentId, matchIds = []) {
+        const ids = (matchIds || []).map(Number).filter(Boolean);
+        const matchFilter = ids.length > 0 ? `AND p.id IN (${ids.map(() => '?').join(',')})` : '';
         const stmt = this.db.prepare(`
             SELECT
                 COALESCE(g.nome, 'Local nao definido') AS nome,
@@ -163,11 +246,12 @@ class TournamentDAO {
             FROM Partidas p
             LEFT JOIN Ginasios g ON g.id = p.ginasio_id
             WHERE p.torneio_id = ?
+            ${matchFilter}
             GROUP BY g.id, g.nome, g.cidade, g.estado
             ORDER BY partidas DESC, nome ASC
         `);
 
-        return stmt.all(tournamentId);
+        return stmt.all(tournamentId, ...ids);
     }
 }
 

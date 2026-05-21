@@ -33,6 +33,11 @@ const GerenciarCategorias = () => {
   const [isRelatorioOpen, setIsRelatorioOpen] = useState(false);
   const [isRelatorioLoading, setIsRelatorioLoading] = useState(false);
   const [isPdfSaving, setIsPdfSaving] = useState(false);
+  const [relatorioFiltros, setRelatorioFiltros] = useState({
+    timeId: '',
+    posicaoId: '',
+    torneioId: '',
+  });
 
   const [novaCategoria, setNovaCategoria] = useState({
     nome: '',
@@ -178,6 +183,8 @@ const GerenciarCategorias = () => {
 
     const resumo = relatorioCategorias.resumo || {};
     const destaques = relatorioCategorias.destaques || {};
+    const filtros = relatorioCategorias.filtrosAplicados || {};
+    const resumoFiltros = `Filtros: Time: ${filtros.timeNome || 'Todos'} | Posicao: ${filtros.posicaoNome || 'Todas'} | Torneio: ${filtros.torneioNome || 'Todos'}`;
     const linhasCategorias = (relatorioCategorias.categorias || []).map((categoria) => `
       <tr>
         <td><strong>${escapeHtml(categoria.nome)}</strong><span>#ID ${escapeHtml(categoria.id)}</span></td>
@@ -219,7 +226,7 @@ const GerenciarCategorias = () => {
           <header>
             <p class="eyebrow">Relatorio Geral</p>
             <h1>Categorias</h1>
-            <div class="meta">Gerado com dados cadastrados no banco de dados</div>
+            <div class="meta">${escapeHtml(resumoFiltros)}</div>
           </header>
 
           <section class="metrics">
@@ -259,7 +266,27 @@ const GerenciarCategorias = () => {
     `;
   };
 
-  const handleEmitirRelatorio = async () => {
+  const handleRelatorioFiltroChange = (event) => {
+    const { name, value } = event.target;
+    setRelatorioFiltros((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleLimparFiltrosRelatorio = () => {
+    const filtrosLimpos = { timeId: '', posicaoId: '', torneioId: '' };
+    setRelatorioFiltros(filtrosLimpos);
+    handleEmitirRelatorio(filtrosLimpos);
+  };
+
+  const getResumoFiltrosRelatorio = () => {
+    const filtros = relatorioCategorias?.filtrosAplicados || {};
+    return `Filtros: Time: ${filtros.timeNome || 'Todos'} | Posicao: ${filtros.posicaoNome || 'Todas'} | Torneio: ${filtros.torneioNome || 'Todos'}`;
+  };
+
+  const handleEmitirRelatorio = async (filtros = relatorioFiltros) => {
+    const filtrosRelatorio = filtros?.target ? relatorioFiltros : filtros;
     setIsRelatorioLoading(true);
 
     try {
@@ -267,7 +294,7 @@ const GerenciarCategorias = () => {
         throw new Error('Relatorio indisponivel.');
       }
 
-      const relatorio = await window.reportAPI.categoriasRelatorio();
+      const relatorio = await window.reportAPI.categoriasRelatorio(filtrosRelatorio);
       setRelatorioCategorias(relatorio);
       setIsRelatorioOpen(true);
     } catch (e) {
@@ -529,6 +556,7 @@ const GerenciarCategorias = () => {
               <div>
                 <p className="text-[11px] font-black uppercase tracking-widest text-red-300">Relatorio Geral</p>
                 <h2 className="text-3xl font-black text-white tracking-wide uppercase">Categorias</h2>
+                <p className="mt-1 text-sm font-semibold text-gray-300">{getResumoFiltrosRelatorio()}</p>
               </div>
               <button onClick={() => setIsRelatorioOpen(false)} className="text-gray-400 hover:text-red-500 transition-colors">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -538,6 +566,84 @@ const GerenciarCategorias = () => {
             </div>
 
             <div className="p-6 overflow-y-auto">
+              <div className="mb-6 rounded-2xl border-2 border-gray-200 bg-gray-50 p-5">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-widest text-red-600">Filtros do Relatorio</p>
+                    <h3 className="text-xl font-black uppercase tracking-tight text-black">Filtrar categorias</h3>
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">
+                    Por time, posicao e torneio
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Time</label>
+                    <select
+                      name="timeId"
+                      value={relatorioFiltros.timeId}
+                      onChange={handleRelatorioFiltroChange}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    >
+                      <option value="">Todos os times</option>
+                      {(relatorioCategorias.opcoes?.times || []).map((time) => (
+                        <option key={time.id} value={time.id}>{time.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Posicao</label>
+                    <select
+                      name="posicaoId"
+                      value={relatorioFiltros.posicaoId}
+                      onChange={handleRelatorioFiltroChange}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    >
+                      <option value="">Todas as posicoes</option>
+                      {(relatorioCategorias.opcoes?.posicoes || []).map((posicao) => (
+                        <option key={posicao.id} value={posicao.id}>{posicao.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Torneio</label>
+                    <select
+                      name="torneioId"
+                      value={relatorioFiltros.torneioId}
+                      onChange={handleRelatorioFiltroChange}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    >
+                      <option value="">Todos os torneios</option>
+                      {(relatorioCategorias.opcoes?.torneios || []).map((torneio) => (
+                        <option key={torneio.id} value={torneio.id}>{torneio.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleEmitirRelatorio(relatorioFiltros)}
+                      disabled={isRelatorioLoading}
+                      className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-colors hover:bg-red-700 disabled:bg-red-300"
+                    >
+                      {isRelatorioLoading ? 'Filtrando...' : 'Aplicar'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLimparFiltrosRelatorio}
+                      disabled={isRelatorioLoading}
+                      className="flex-1 rounded-xl bg-black px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-colors hover:bg-neutral-800 disabled:bg-gray-400"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                 <ReportMetric label="Categorias" value={relatorioCategorias.resumo?.totalCategorias || 0} featured />
                 <ReportMetric label="Jogadores" value={relatorioCategorias.resumo?.totalJogadores || 0} />

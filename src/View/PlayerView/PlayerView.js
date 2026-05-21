@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Settings, Trash2, Pencil, ChevronRight, Plus, Search, Trophy } from "lucide-react";
+import { FileText, Settings, Trash2, Pencil, ChevronRight, Plus, Search, Trophy } from "lucide-react";
 import * as Style from "./PleayerStyles"; 
 import PlayerControl from "../../Control/PlayerControl"; 
 import PositionControl from "../../Control/PositionControl"; 
@@ -26,7 +26,7 @@ const PlayerAvatar = ({ player }) => {
   return <Style.PlayerInitial>{iniciais}</Style.PlayerInitial>;
 };
 
-export function PlayerView() {
+export function PlayerView({ onOpenMatchReport, matchReportLoading = false }) {
   const [players, setPlayers] = useState([]); 
   const [isEditing, setIsEditing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -147,6 +147,16 @@ export function PlayerView() {
           <Trophy size={16} />
           Ranking
         </Style.ManageButton>
+        {typeof onOpenMatchReport === "function" && (
+          <Style.ManageButton
+            type="button"
+            onClick={onOpenMatchReport}
+            disabled={matchReportLoading}
+          >
+            <FileText size={16} />
+            {matchReportLoading ? "Emitindo..." : "Relatorio Partidas"}
+          </Style.ManageButton>
+        )}
         <Style.ManageButton
           $isEditing={isEditing}
           onClick={() => setIsEditing(!isEditing)}
