@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import EstatisticaControl from '../../Control/EstatisticaControl';
+import SubstituicaoControl from '../../Control/SubstituicaoControl';
 import { Alertas } from '../../utils/Alertas';
 
 const TAB_ITEMS = [
@@ -110,6 +111,7 @@ const EstatisticaView = ({
   const [draftAction, setDraftAction] = useState(null);
   const [statistics, setStatistics] = useState(initialState.statistics);
   const [statisticsError, setStatisticsError] = useState(initialState.statisticsError);
+  const [substituicoesPorSet, setSubstituicoesPorSet] = useState({});
   const [playerSearch, setPlayerSearch] = useState('');
   const [playerSearchMode, setPlayerSearchMode] = useState('nome');
   const [pdfSaving, setPdfSaving] = useState(false);
@@ -133,9 +135,30 @@ const EstatisticaView = ({
     return String(jogador.nome || '').toLowerCase().includes(termo);
   });
 
+  const carregarSubstituicoesDosSets = (sets = []) => {
+    if (!partidaId) {
+      return {};
+    }
+
+    try {
+      const control = SubstituicaoControl.getInstance();
+      return (sets || []).reduce((acc, setScore) => {
+        const numSet = Number(setScore.numSet);
+        if (numSet) {
+          acc[numSet] = control.buscarSubstituicoesDoSet(partidaId, numSet);
+        }
+        return acc;
+      }, {});
+    } catch (error) {
+      console.error('Erro ao carregar substituicoes:', error);
+      return {};
+    }
+  };
+
   useEffect(() => {
     if (!open) {
       initializedOpenRef.current = false;
+      setSubstituicoesPorSet({});
       return;
     }
 
@@ -156,6 +179,7 @@ const EstatisticaView = ({
 
       setActiveTab(readOnly ? 'geral' : resumoOnly ? 'sets' : resetState.activeTab);
       setDraftSets(resumoState.draftSets);
+      setSubstituicoesPorSet(carregarSubstituicoesDosSets(resumoState.draftSets));
       setEditOptions(actionOptions);
       setEditingAction(null);
       setDraftAction(null);
@@ -196,6 +220,7 @@ const EstatisticaView = ({
       const nextState = EstatisticaControl.salvarSets(partidaId, draftSets);
       setStatistics(nextState.statistics);
       setDraftSets(nextState.draftSets);
+      setSubstituicoesPorSet(carregarSubstituicoesDosSets(nextState.draftSets));
       setStatisticsError(nextState.statisticsError);
       onStatisticsChange?.();
       return nextState;
@@ -276,25 +301,6 @@ const EstatisticaView = ({
     }
 
     const nextState = EstatisticaControl.excluirAcao(partidaId, acao.id);
-
-    if (nextState.statisticsError) {
-      setStatisticsError(nextState.statisticsError);
-      return;
-    }
-
-    setStatistics(nextState.statistics);
-    setDraftSets(nextState.draftSets);
-    setStatisticsError('');
-    onStatisticsChange?.();
-  };
-
-  const handleDeleteSet = async (numSet) => {
-    const confirmed = await Alertas.confirmacao(`Deseja excluir o Set ${numSet}?`);
-    if (!confirmed) {
-      return;
-    }
-
-    const nextState = EstatisticaControl.excluirSet(partidaId, numSet);
 
     if (nextState.statisticsError) {
       setStatisticsError(nextState.statisticsError);
@@ -887,6 +893,7 @@ const EstatisticaView = ({
                   const setStats = statistics.sets.find((item) => Number(item.numSet) === Number(setScore.numSet));
                   const homeScore = getScoreNumber(setScore.home);
                   const awayScore = getScoreNumber(setScore.away);
+                  const substituicoesSet = substituicoesPorSet[Number(setScore.numSet)] || [];
                   const winner = homeScore > awayScore
                     ? homeLabel
                     : awayScore > homeScore
@@ -903,15 +910,6 @@ const EstatisticaView = ({
                         <div className="flex flex-wrap items-center gap-3">
                           <StatCard label="Pontos" value={setStats?.pontos || 0} />
                           {(!resumoOnly || readOnly) && <StatCard label="Acoes" value={setStats?.acoes || 0} />}
-                          {!resumoOnly && !readOnly && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteSet(setScore.numSet)}
-                              className="rounded-full bg-red-500 px-5 py-3 text-[11px] font-black uppercase tracking-widest text-white hover:bg-red-600 transition-colors"
-                            >
-                              Excluir set
-                            </button>
-                          )}
                         </div>
                       </div>
 
@@ -943,6 +941,52 @@ const EstatisticaView = ({
                             className="w-full text-center text-4xl font-black text-gray-900 placeholder:text-gray-300 bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100 disabled:bg-gray-50 disabled:text-gray-500"
                           />
                         </div>
+                      </div>
+
+                      <div className="mt-5 rounded-2xl border border-gray-100 bg-white p-4">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                            Substituicoes do Set {setScore.numSet}
+                          </p>
+                          <span className="rounded-full bg-gray-100 px-3 py-1 text-[10px] font-black text-gray-600">
+                            {substituicoesSet.length}
+                          </span>
+                        </div>
+
+                        {substituicoesSet.length === 0 ? (
+                          <p className="rounded-xl bg-gray-50 px-4 py-3 text-sm font-medium text-gray-500">
+                            Nenhuma substituicao registrada neste set.
+                          </p>
+                        ) : (
+                          <div className="grid gap-2 md:grid-cols-2">
+                            {substituicoesSet.map((substituicao, index) => (
+                              <div key={substituicao.id || `${setScore.numSet}-${index}`} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                                <div className="mb-2 flex items-center justify-between gap-3">
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                    Troca {index + 1}
+                                  </span>
+                                  <span className="rounded-md bg-white px-2 py-1 text-xs font-black text-gray-900">
+                                    {substituicao.pontoTime1 ?? 0} x {substituicao.pontoTime2 ?? 0}
+                                  </span>
+                                </div>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                  <div className="rounded-lg bg-red-50 px-3 py-2">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-red-500">Saiu</p>
+                                    <p className="truncate text-xs font-black text-gray-900">
+                                      #{String(substituicao.jogadorSaiNumero ?? '--').padStart(2, '0')} {substituicao.jogadorSaiNome || 'Jogador'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg bg-emerald-50 px-3 py-2">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Entrou</p>
+                                    <p className="truncate text-xs font-black text-gray-900">
+                                      #{String(substituicao.jogadorEntraNumero ?? '--').padStart(2, '0')} {substituicao.jogadorEntraNome || 'Jogador'}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
