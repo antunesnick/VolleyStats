@@ -36,6 +36,7 @@ const createWindow = () => {
     height: 1020,
     minWidth: 1280,
     minHeight: 800,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       nodeIntegration: true,     
