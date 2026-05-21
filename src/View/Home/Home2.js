@@ -81,6 +81,27 @@ const formatDateBR = (value) => {
   return `${day}/${month}/${year}`;
 };
 
+const formatDateTimeBR = (value) => {
+  if (!value) return '--/--/---- --:--';
+
+  const normalizedValue = String(value).includes('T')
+    ? String(value)
+    : String(value).replace(' ', 'T');
+  const date = new Date(normalizedValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 const escapeHtml = (value) => String(value ?? '')
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
@@ -139,6 +160,10 @@ const Home = () => {
   const [dadosExcel, setDadosExcel] = useState([]);
   const [nomeArquivoExcel, setNomeArquivoExcel] = useState('');
   const [isReadingExcel, setIsReadingExcel] = useState(false);
+  const [historicoExcelOpen, setHistoricoExcelOpen] = useState(false);
+  const [historicoExcel, setHistoricoExcel] = useState([]);
+  const [historicoExcelLoading, setHistoricoExcelLoading] = useState(false);
+  const [historicoExcelReverting, setHistoricoExcelReverting] = useState(null);
   
   const showToast = (type, text) => {
     showToastMessage(setToasts, type, text);
@@ -168,7 +193,7 @@ const Home = () => {
 const handleConfirmarImportacao = async () => {
     setIsSubmitting(true);
     try {
-      const result = await window.excelAPI.salvarDados(dadosExcel);
+      const result = await window.excelAPI.salvarDados(dadosExcel, nomeArquivoExcel);
       if (result.success) {
         showToast('success', 'Dados importados com sucesso!');
         setModalExcelOpen(false);
@@ -183,6 +208,59 @@ const handleConfirmarImportacao = async () => {
       showToast('error', 'Falha ao salvar no banco de dados.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const carregarHistoricoExcel = async () => {
+    setHistoricoExcelLoading(true);
+
+    try {
+      const result = await window.excelAPI.listarHistorico();
+      if (result?.success) {
+        setHistoricoExcel(result.data || []);
+      } else {
+        showToast('error', result?.error || 'Nao foi possivel carregar o historico de importacoes.');
+        setHistoricoExcel([]);
+      }
+    } catch (error) {
+      showToast('error', error.message || 'Nao foi possivel carregar o historico de importacoes.');
+      setHistoricoExcel([]);
+    } finally {
+      setHistoricoExcelLoading(false);
+    }
+  };
+
+  const abrirHistoricoExcel = async () => {
+    setHistoricoExcelOpen(true);
+    await carregarHistoricoExcel();
+  };
+
+  const fecharHistoricoExcel = () => {
+    setHistoricoExcelOpen(false);
+    setHistoricoExcelReverting(null);
+  };
+
+  const reverterImportacaoExcel = async (id) => {
+    const confirmed = window.confirm('Deseja reverter esta importacao? As acoes importadas desse arquivo serao removidas.');
+
+    if (!confirmed) {
+      return;
+    }
+
+    setHistoricoExcelReverting(id);
+
+    try {
+      const result = await window.excelAPI.reverter(id);
+      if (result?.success) {
+        showToast('success', 'Importacao revertida com sucesso.');
+        await carregarHistoricoExcel();
+      } else {
+        showToast('error', result?.error || 'Nao foi possivel reverter a importacao.');
+      }
+    } catch (error) {
+      showToast('error', error.message || 'Nao foi possivel reverter a importacao.');
+    } finally {
+      setHistoricoExcelReverting(null);
     }
   };
 
@@ -768,6 +846,18 @@ const handleConfirmarImportacao = async () => {
             ) : (
               'Importar'
             )}
+          </button>
+          <button
+            type="button"
+            onClick={abrirHistoricoExcel}
+            disabled={historicoExcelLoading}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest border transition-all ${
+              historicoExcelLoading
+                ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-wait'
+                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {historicoExcelLoading ? 'Carregando...' : 'Historico'}
           </button>
           <button className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
             Exportar
@@ -1608,6 +1698,85 @@ const handleConfirmarImportacao = async () => {
           </div>
         </div>
       )}
+
+    {historicoExcelOpen && (
+      <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
+        <div className="w-full max-w-3xl bg-white rounded-2xl overflow-hidden shadow-2xl border border-zinc-200 flex flex-col max-h-[85vh]">
+          <div className="px-7 pt-6 pb-5 border-b border-zinc-100 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-2xl text-zinc-900 font-black uppercase tracking-tighter">Historico de Importacoes</h2>
+              <p className="text-sm font-semibold text-zinc-400 mt-2">Arquivos Excel importados no sistema.</p>
+            </div>
+            <button
+              type="button"
+              onClick={carregarHistoricoExcel}
+              disabled={historicoExcelLoading}
+              className="px-4 py-2 rounded-full border border-zinc-200 bg-white hover:bg-zinc-50 disabled:bg-zinc-100 disabled:text-zinc-400 text-zinc-700 text-[11px] font-black uppercase tracking-widest"
+            >
+              {historicoExcelLoading ? 'Atualizando...' : 'Atualizar'}
+            </button>
+          </div>
+
+          <div className="p-7 overflow-auto flex-1">
+            {historicoExcelLoading ? (
+              <div className="rounded-xl border border-dashed border-zinc-200 p-8 text-center text-sm font-bold text-zinc-400">
+                Carregando historico...
+              </div>
+            ) : historicoExcel.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-zinc-200 p-8 text-center">
+                <p className="text-lg font-black text-zinc-900 uppercase tracking-tight">Nenhuma importacao encontrada</p>
+                <p className="text-sm font-semibold text-zinc-400 mt-2">Quando um Excel for importado, ele aparecera aqui.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-zinc-200">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-black text-white">
+                    <tr>
+                      <th className="px-5 py-4 text-[11px] font-black uppercase tracking-widest">Arquivo</th>
+                      <th className="px-5 py-4 text-[11px] font-black uppercase tracking-widest">Data</th>
+                      <th className="px-5 py-4 text-[11px] font-black uppercase tracking-widest text-right">Acao</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historicoExcel.map((item) => (
+                      <tr key={item.id} className="border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50">
+                        <td className="px-5 py-4">
+                          <p className="text-sm font-black text-zinc-900">{item.nomeArquivo || 'Arquivo sem nome'}</p>
+                          <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Importacao #{item.id}</p>
+                        </td>
+                        <td className="px-5 py-4 text-sm font-bold text-zinc-600">
+                          {formatDateTimeBR(item.dataImportacao)}
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => reverterImportacaoExcel(item.id)}
+                            disabled={historicoExcelReverting === item.id}
+                            className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-[11px] font-black uppercase tracking-widest"
+                          >
+                            {historicoExcelReverting === item.id ? 'Revertendo...' : 'Reverter'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="p-5 border-t border-zinc-100 flex justify-end">
+            <button
+              type="button"
+              onClick={fecharHistoricoExcel}
+              className="px-6 py-2 rounded-lg border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-700 text-[11px] font-black uppercase tracking-widest"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {modalExcelOpen && (
     <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
