@@ -39,20 +39,65 @@ class Categoria{
         }
     }
 
-    async buscarRelatorioGeral(){
+    async buscarRelatorioGeral(filtros = {}){
         try {
+            const timeId = filtros.timeId ? Number(filtros.timeId) : null;
+            const posicaoId = filtros.posicaoId ? Number(filtros.posicaoId) : null;
+            const torneioId = filtros.torneioId ? Number(filtros.torneioId) : null;
+            const whereJogadores = [];
+            const paramsJogadores = [];
+
+            if (timeId) {
+                whereJogadores.push('tp.Times_id = ?');
+                paramsJogadores.push(timeId);
+            }
+
+            if (posicaoId) {
+                whereJogadores.push('j.posicao_id = ?');
+                paramsJogadores.push(posicaoId);
+            }
+
+            if (torneioId) {
+                whereJogadores.push('pa.torneio_id = ?');
+                paramsJogadores.push(torneioId);
+            }
+
+            const whereSql = whereJogadores.length > 0 ? `WHERE ${whereJogadores.join(' AND ')}` : '';
             const categorias = db.prepare(`
                 SELECT
                     c.id,
                     c.nome,
                     c.idadeMin,
                     c.idadeMax,
-                    COUNT(j.id) AS totalJogadores
+                    COUNT(fj.id) AS totalJogadores
                 FROM Categorias c
-                LEFT JOIN Jogadores j ON j.categoria_id = c.id
+                LEFT JOIN (
+                    SELECT DISTINCT
+                        j.id,
+                        j.categoria_id
+                    FROM Jogadores j
+                    LEFT JOIN TimesPartida tp ON tp.Jogadores_id = j.id
+                    LEFT JOIN Partidas pa ON pa.id = tp.Partida_id
+                    ${whereSql}
+                ) fj ON fj.categoria_id = c.id
                 GROUP BY c.id
                 ORDER BY c.idadeMin ASC, c.nome ASC
-            `).all();
+            `).all(...paramsJogadores);
+
+            const filtrosAplicados = {
+                timeId,
+                timeNome: timeId ? db.prepare('SELECT nome FROM Times WHERE id = ?').get(timeId)?.nome || null : null,
+                posicaoId,
+                posicaoNome: posicaoId ? db.prepare('SELECT nome FROM Posicoes WHERE id = ?').get(posicaoId)?.nome || null : null,
+                torneioId,
+                torneioNome: torneioId ? db.prepare('SELECT nome FROM Torneios WHERE id = ?').get(torneioId)?.nome || null : null,
+            };
+
+            const opcoes = {
+                times: db.prepare('SELECT id, nome FROM Times ORDER BY nome ASC').all(),
+                posicoes: db.prepare('SELECT id, nome FROM Posicoes ORDER BY nome ASC').all(),
+                torneios: db.prepare('SELECT id, nome FROM Torneios ORDER BY nome ASC').all(),
+            };
 
             const totalCategorias = categorias.length;
             const totalJogadores = categorias.reduce((acc, categoria) => acc + (Number(categoria.totalJogadores) || 0), 0);
@@ -98,6 +143,8 @@ class Categoria{
                     maiorFaixaEtaria,
                     menorFaixaEtaria,
                 },
+                filtrosAplicados,
+                opcoes,
                 categorias: amplitudes,
             };
         } catch (e) {

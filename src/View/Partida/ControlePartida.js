@@ -37,10 +37,10 @@
       <button
         type="button"
         onClick={() => !isVisitor && onClick && onClick(player)}
-        className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 shadow-sm flex flex-col items-center justify-center transition-all ${
+        className={`h-14 w-14 rounded-full border-2 flex flex-col items-center justify-center transition-all duration-200 ${
           isVisitor 
-            ? 'border-orange-200 bg-orange-50 cursor-default pointer-events-none opacity-60' 
-            : 'border-gray-200 bg-white hover:border-red-500 hover:shadow-md cursor-pointer'
+            ? 'border-orange-200 bg-orange-50/95 text-orange-600 shadow-[0_8px_22px_rgba(251,146,60,0.18)] cursor-default pointer-events-none' 
+            : 'border-slate-200 bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:-translate-y-0.5 hover:border-red-500 hover:shadow-[0_14px_28px_rgba(220,38,38,0.18)] cursor-pointer'
         }`}
       >
         <span className={`text-[11px] font-black ${isVisitor ? 'text-orange-600' : 'text-gray-900'}`}>
@@ -53,34 +53,26 @@
     );
 
     return (
-      <div className="relative w-full max-w-[500px] mx-auto scale-95 sm:scale-100 transition-transform">
-        <svg viewBox="0 0 400 460" className="w-full h-[460px] drop-shadow-xl">
-          {/* Fundo da quadra com estilo mais clean */}
-          <rect x="20" y="20" width="360" height="420" fill="#ffffff" stroke="#e2e8f0" strokeWidth="3" rx="4" />
-          <rect x="20" y="20" width="360" height="420" fill="#f8fafc" stroke="none" rx="4" />
+      <div className="relative mx-auto w-full max-w-[430px] px-2">
+        <div className="relative aspect-[9/10] w-full overflow-hidden rounded-2xl border-2 border-slate-200 bg-gradient-to-b from-slate-50 via-white to-slate-50 shadow-2xl">
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(148,163,184,0.10)_1px,transparent_1px),linear-gradient(0deg,rgba(148,163,184,0.10)_1px,transparent_1px)] bg-[size:48px_48px] opacity-45" />
+          <div className="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 bg-slate-900 shadow-sm" />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[165%] rounded-full border border-slate-200 bg-white px-4 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 shadow-sm">
+            REDE
+          </div>
 
-          {/* Rede */}
-          <line x1="15" y1="230" x2="385" y2="230" stroke="#1e293b" strokeWidth="4" />
-          <text x="200" y="225" textAnchor="middle" className="text-[10px] font-black tracking-[0.2em] fill-gray-400">REDE</text>
-
-          {/* Linhas de ataque */}
-          <line x1="20" y1="140" x2="380" y2="140" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="6 4" />
-          <line x1="20" y1="320" x2="380" y2="320" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="6 4" />
-        </svg>
-
-        <div className="absolute inset-0">
-          <div className="absolute left-0 right-0 top-[10%] flex justify-around items-center px-8">
+          <div className="absolute inset-x-6 top-[11%] flex items-center justify-around gap-3">
             {visitorBackPlayers.map((_, index) => <PlayerSpot key={`visitor-back-${index}`} isVisitor={true} />)}
           </div>
-          <div className="absolute left-0 right-0 top-[28%] flex justify-around items-center px-8">
+          <div className="absolute inset-x-6 top-[30%] flex items-center justify-around gap-3">
             {visitorFrontPlayers.map((_, index) => <PlayerSpot key={`visitor-front-${index}`} isVisitor={true} />)}
           </div>
-          <div className="absolute left-0 right-0 top-[54%] flex justify-around items-center px-8">
+          <div className="absolute inset-x-6 top-[58%] flex items-center justify-around gap-3">
             {frontPlayers.map((player, index) => (
               <PlayerSpot key={`home-front-${index}`} player={player} position={index + 1} onClick={onPlayerClick} />
             ))}
           </div>
-          <div className="absolute left-0 right-0 top-[76%] flex justify-around items-center px-8">
+          <div className="absolute inset-x-6 top-[79%] flex items-center justify-around gap-3">
             {backPlayers.map((player, index) => (
               <PlayerSpot key={`home-back-${index}`} player={player} position={config.front + index + 1} onClick={onPlayerClick} />
             ))}
@@ -257,6 +249,29 @@
 
     const currentSetRef = useRef(currentSet);
     useEffect(() => { currentSetRef.current = currentSet; }, [currentSet]);
+
+    useEffect(() => {
+      const body = document.body;
+      const html = document.documentElement;
+      const previousStyles = {
+        bodyOverflow: body.style.overflow,
+        htmlOverflow: html.style.overflow,
+        bodyHeight: body.style.height,
+        htmlHeight: html.style.height,
+      };
+
+      body.style.overflow = 'hidden';
+      html.style.overflow = 'hidden';
+      body.style.height = '100vh';
+      html.style.height = '100vh';
+
+      return () => {
+        body.style.overflow = previousStyles.bodyOverflow;
+        html.style.overflow = previousStyles.htmlOverflow;
+        body.style.height = previousStyles.bodyHeight;
+        html.style.height = previousStyles.htmlHeight;
+      };
+    }, []);
 
    const carregarDadosDoSet = (numSet) => {
   try {
@@ -658,7 +673,7 @@ useEffect(() => { scoreRef.current = score; }, [score]);
     return (
 
       
-      <div className="relative h-screen w-full bg-white overflow-hidden font-['Inter',sans-serif]">
+      <div className="fixed inset-0 z-[5000] h-screen w-screen bg-white overflow-hidden font-['Inter',sans-serif]">
        {estaDigitando && (
         <div className="fixed bottom-8 left-8 z-[10000] pointer-events-none transition-all">
           <div className="bg-slate-900 text-white px-6 py-5 rounded-3xl shadow-2xl border border-slate-700 flex flex-col items-start animate-in slide-in-from-bottom-6 fade-in duration-200">
@@ -724,18 +739,7 @@ useEffect(() => { scoreRef.current = score; }, [score]);
               <button
               type="button"
               onClick={() => setShowHelpModal(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                background: '#1e293b',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '10px',
-                padding: '10px 14px',
-                cursor: 'pointer',
-                fontWeight: 600
-              }}
+              className="bg-[#1e293b] px-4 py-2 rounded-full text-white shadow-sm hover:bg-slate-700 transition-all text-[11px] font-black uppercase tracking-widest flex items-center gap-2"
             >
               <HelpCircle size={18} />
               Help

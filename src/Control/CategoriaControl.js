@@ -28,9 +28,9 @@ class CategoriaControl {
         }
     }
 
-    async relatorioGeralCategorias() {
+    async relatorioGeralCategorias(filtros = {}) {
         try {
-            return await new Categoria().buscarRelatorioGeral();
+            return await new Categoria().buscarRelatorioGeral(filtros);
         } catch (e) {
             throw e;
         }

@@ -556,12 +556,38 @@ class EstatisticaModel {
     return this.montarEstatisticasPorLinhas(sql.all(Number(partidaId)), partidaScore);
   }
 
-  montarRelatorioGeralPartidas(tournamentId = null) {
+  montarRelatorioGeralPartidas(filtros = null) {
     this.garantirColunasPlacarSet();
 
-    const hasTournament = tournamentId !== null && tournamentId !== undefined && tournamentId !== '';
-    const params = hasTournament ? [Number(tournamentId)] : [];
-    const where = hasTournament ? 'WHERE p.torneio_id = ?' : '';
+    const filtrosNormalizados = typeof filtros === 'object' && filtros !== null
+      ? filtros
+      : { torneioId: filtros };
+
+    const torneioId = filtrosNormalizados.torneioId ?? filtrosNormalizados.tournamentId;
+    const dataPartida = String(filtrosNormalizados.dataPartida || '').trim();
+    const timeId = filtrosNormalizados.timeId ?? filtrosNormalizados.time;
+    const hasTournament = torneioId !== null && torneioId !== undefined && torneioId !== '';
+    const hasDataPartida = dataPartida !== '';
+    const hasTime = timeId !== null && timeId !== undefined && timeId !== '';
+    const whereParts = [];
+    const params = [];
+
+    if (hasTournament) {
+      whereParts.push('p.torneio_id = ?');
+      params.push(Number(torneioId));
+    }
+
+    if (hasDataPartida) {
+      whereParts.push('p.dataPartida = ?');
+      params.push(dataPartida);
+    }
+
+    if (hasTime) {
+      whereParts.push('(p.time1 = ? OR p.time2 = ?)');
+      params.push(Number(timeId), Number(timeId));
+    }
+
+    const where = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
 
     const partidas = db.prepare(`
       SELECT
@@ -575,16 +601,25 @@ class EstatisticaModel {
         p.time1,
         p.time2,
         p.torneio_id,
+        tr.nome AS torneioNome,
         t1.nome AS time1Nome,
         t2.nome AS time2Nome,
         g.nome AS ginasioNome
       FROM Partidas p
+      LEFT JOIN Torneios tr ON tr.id = p.torneio_id
       LEFT JOIN Times t1 ON t1.id = p.time1
       LEFT JOIN Times t2 ON t2.id = p.time2
       LEFT JOIN Ginasios g ON g.id = p.ginasio_id
       ${where}
       ORDER BY p.dataPartida DESC, p.id DESC
     `).all(...params);
+
+    const torneioFiltro = hasTournament
+      ? db.prepare('SELECT id, nome FROM Torneios WHERE id = ?').get(Number(torneioId))
+      : null;
+    const timeFiltro = hasTime
+      ? db.prepare('SELECT id, nome FROM Times WHERE id = ?').get(Number(timeId))
+      : null;
 
     const timesMap = new Map();
     const ensureTime = (id, nome) => {
@@ -764,6 +799,13 @@ class EstatisticaModel {
       ))[0] || null;
 
     return {
+      filtrosAplicados: {
+        torneioId: hasTournament ? Number(torneioId) : null,
+        torneioNome: torneioFiltro?.nome || null,
+        dataPartida: hasDataPartida ? dataPartida : '',
+        timeId: hasTime ? Number(timeId) : null,
+        timeNome: timeFiltro?.nome || null,
+      },
       resumo: {
         totalTimes: times.length,
         totalPartidas: jogos.length,
@@ -1004,7 +1046,7 @@ export const buscarEstatisticasPartida = (partidaId) =>
   estatisticaModel.buscarEstatisticasPartida(partidaId);
 export const salvarPontuacaoSets = (partidaId, sets = []) =>
   estatisticaModel.salvarPontuacaoSets(partidaId, sets);
-export const buscarRelatorioGeralPartidas = (tournamentId = null) =>
-  estatisticaModel.montarRelatorioGeralPartidas(tournamentId);
+export const buscarRelatorioGeralPartidas = (filtros = null) =>
+  estatisticaModel.montarRelatorioGeralPartidas(filtros);
 
 export default EstatisticaModel;

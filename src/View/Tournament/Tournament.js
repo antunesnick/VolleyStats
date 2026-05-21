@@ -371,6 +371,11 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
   const [matchReportOpen, setMatchReportOpen] = useState(false);
   const [matchReportLoading, setMatchReportLoading] = useState(false);
   const [matchReportPdfSaving, setMatchReportPdfSaving] = useState(false);
+  const [matchReportFilters, setMatchReportFilters] = useState({
+    timeId: '',
+    fase: '',
+    dataPartida: '',
+  });
 
   const showToast = (type, text) => {
     showToastMessage(setToasts, type, text);
@@ -596,7 +601,27 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 
-  const openMatchReport = async () => {
+  const getMatchReportFilterSummary = (report = matchReport) => {
+    const filtros = report?.filtrosAplicados || {};
+    return `Filtros: Time: ${filtros.timeNome || 'Todos'} | Fase: ${filtros.fase || 'Todas'} | Data: ${filtros.dataPartida ? formatDateBR(filtros.dataPartida) : 'Todas'}`;
+  };
+
+  const handleMatchReportFilterChange = (event) => {
+    const { name, value } = event.target;
+    setMatchReportFilters((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const clearMatchReportFilters = () => {
+    const filtrosLimpos = { timeId: '', fase: '', dataPartida: '' };
+    setMatchReportFilters(filtrosLimpos);
+    openMatchReport(filtrosLimpos);
+  };
+
+  const openMatchReport = async (filters = matchReportFilters) => {
+    const filtrosRelatorio = filters?.target ? matchReportFilters : filters;
     if (!tournament) {
       return;
     }
@@ -604,7 +629,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     setMatchReportLoading(true);
 
     try {
-      const report = await window.reportAPI.torneioRelatorio(tournament.id);
+      const report = await window.reportAPI.torneioRelatorio(tournament.id, filtrosRelatorio);
       setMatchReport(report);
       setMatchReportOpen(true);
     } catch (error) {
@@ -713,6 +738,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
             <p class="eyebrow">VolleyStats</p>
             <h1>Relatorio do Torneio</h1>
             <div class="sub">${escapeHtml(matchReport.torneio.nome)} | ${escapeHtml(matchReport.torneio.tipoNome || 'Formato nao informado')} | ${escapeHtml(formatDateBR(matchReport.torneio.inicio))} ate ${escapeHtml(formatDateBR(matchReport.torneio.termino))}</div>
+            <div class="sub">${escapeHtml(getMatchReportFilterSummary(matchReport))}</div>
           </header>
           <section class="metrics">
             <div class="metric featured"><span>Lider</span><strong>${escapeHtml(matchReport.destaques?.lider?.nome || 'Sem dados')}</strong></div>
@@ -813,9 +839,10 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
 
         <div className="flex items-center gap-4">
           <button
+            type="button"
             onClick={openMatchReport}
-            disabled={matchReportLoading}
-            className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all"
+            disabled={matchReportLoading || !tournament}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-full font-black text-[13px] uppercase tracking-widest bg-white border border-gray-200 text-gray-700 hover:border-[#DC2626] hover:text-[#DC2626] hover:bg-red-50 transition-all disabled:cursor-not-allowed disabled:opacity-60"
           >
             {matchReportLoading ? 'Emitindo...' : 'Relatorio do Torneio'}
           </button>
@@ -916,27 +943,11 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
                 </div>
               )}
 
-              {viewMode === 'standings' && <StandingsTable standings={standings} />}
+              {viewMode === 'standings' && <StandingsBoard standings={standings} />}
 
               {viewMode === 'bracket' && (
                 <BracketView rounds={bracketRounds} teams={tournamentTeams} />
               )}
-            </section>
-            <section className="space-y-8">
-              <div className="flex items-center justify-between border-b border-gray-100 pb-6">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tighter italic">Desempenho</h2>
-                  <div className="h-px w-24 bg-[#3B82F6] opacity-30 mt-2" />
-                  <span className="text-[12px] font-black text-gray-300 mt-2 uppercase tracking-[0.2em]">Selected Squad Performance</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard label="Avg. Hits / Match" value="12.4" trend="+15%" color="#000000" />
-                <StatCard label="Pass Accuracy" value="88%" trend="+2%" color="#3B82F6" />
-                <StatCard label="Service Errors" value="4.2" trend="-8%" color="#EF4444" />
-                <StatCard label="Win Probability" value="76%" trend="+5%" color="#DC2626" />
-              </div>
             </section>
           </>
         )}
@@ -950,7 +961,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-400">VolleyStats</p>
                 <h2 className="text-3xl font-black text-white tracking-tight uppercase">Relatorio do Torneio</h2>
                 <p className="text-sm font-semibold text-gray-300">
-                  {matchReport.torneio.nome} • melhor jogador, melhor time e pontuacao dos jogos
+                  {matchReport.torneio.nome} - {getMatchReportFilterSummary(matchReport)}
                 </p>
               </div>
               <button
@@ -963,6 +974,80 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
             </div>
 
             <div className="p-7 space-y-8">
+              <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-5">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-widest text-red-600">Filtros do Relatorio</p>
+                    <h3 className="text-xl font-black uppercase tracking-tight text-black">Filtrar torneio</h3>
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">
+                    Por time, fase e data das partidas
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Time</label>
+                    <select
+                      name="timeId"
+                      value={matchReportFilters.timeId}
+                      onChange={handleMatchReportFilterChange}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    >
+                      <option value="">Todos os times</option>
+                      {(matchReport.opcoes?.times || []).map((time) => (
+                        <option key={time.id} value={time.id}>{time.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Fase</label>
+                    <select
+                      name="fase"
+                      value={matchReportFilters.fase}
+                      onChange={handleMatchReportFilterChange}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    >
+                      <option value="">Todas as fases</option>
+                      {(matchReport.opcoes?.fases || []).map((fase) => (
+                        <option key={fase} value={fase}>{fase}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-gray-600">Data da Partida</label>
+                    <input
+                      type="date"
+                      name="dataPartida"
+                      value={matchReportFilters.dataPartida}
+                      onChange={handleMatchReportFilterChange}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white p-3 text-sm font-bold text-black outline-none transition-all focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    />
+                  </div>
+
+                  <div className="flex items-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => openMatchReport(matchReportFilters)}
+                      disabled={matchReportLoading}
+                      className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-colors hover:bg-red-700 disabled:bg-red-300"
+                    >
+                      {matchReportLoading ? 'Filtrando...' : 'Aplicar'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearMatchReportFilters}
+                      disabled={matchReportLoading}
+                      className="flex-1 rounded-xl bg-black px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-colors hover:bg-neutral-800 disabled:bg-gray-400"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <ReportMetric label="Lider" value={matchReport.destaques?.lider?.nome || 'Sem dados'} featured />
                 <ReportMetric label="Pontos do lider" value={matchReport.destaques?.lider?.pontosClassificacao || 0} />
@@ -1434,6 +1519,86 @@ const TrophyIcon = ({ className }) => (
     />
   </svg>
 );
+
+const StandingsBoard = ({ standings = [] }) => {
+  if (!standings.length) {
+    return (
+      <div className="text-center py-12 text-gray-400">
+        <p className="font-black uppercase tracking-widest text-sm">
+          Adicione partidas finalizadas para visualizar a classificacao
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border-2 border-gray-100 bg-white shadow-sm">
+      <div className="bg-linear-to-r from-[#DC2626] to-[#B91C1C] px-6 py-5">
+        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-white">Classificacao Geral</h3>
+      </div>
+
+      <div className="overflow-x-auto bg-white p-6">
+        <div className="min-w-[760px]">
+          <div className="grid grid-cols-[56px_minmax(260px,1fr)_78px_78px_78px_90px] gap-2 pb-2">
+            <div />
+            <div />
+            {['P', 'J', 'V', 'S.S'].map((label) => (
+              <div key={label} className="flex h-11 items-center justify-center rounded-md border border-gray-100 bg-gray-50 text-sm font-black uppercase tracking-widest text-gray-600">
+                {label}
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-2">
+            {standings.map((stat, index) => {
+              const isQualified = index < 4;
+              const setBalance = stat.setsWon - stat.setsLost;
+
+              return (
+                <div
+                  key={stat.teamId}
+                  className="grid grid-cols-[56px_minmax(260px,1fr)_78px_78px_78px_90px] gap-2"
+                >
+                  <div className={`flex h-12 items-center justify-center rounded-md text-base font-black ${isQualified ? 'bg-[#DC2626] text-white' : 'border border-gray-100 bg-gray-50 text-gray-500'}`}>
+                    {index + 1}º
+                  </div>
+                  <div className="flex h-12 items-center rounded-md border border-gray-100 bg-white px-4 text-sm font-black uppercase tracking-tight text-black shadow-sm">
+                    {stat.teamName}
+                  </div>
+                  <div className="flex h-12 items-center justify-center rounded-md border border-gray-100 bg-white text-lg font-black text-black shadow-sm">
+                    {stat.points}
+                  </div>
+                  <div className="flex h-12 items-center justify-center rounded-md border border-gray-100 bg-white text-lg font-black text-black shadow-sm">
+                    {String(stat.played).padStart(2, '0')}
+                  </div>
+                  <div className="flex h-12 items-center justify-center rounded-md border border-gray-100 bg-white text-lg font-black text-black shadow-sm">
+                    {String(stat.won).padStart(2, '0')}
+                  </div>
+                  <div className={`flex h-12 items-center justify-center rounded-md border border-gray-100 bg-white text-lg font-black shadow-sm ${setBalance < 0 ? 'text-[#DC2626]' : 'text-black'}`}>
+                    {setBalance}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-6 space-y-3 text-xs font-bold text-gray-500">
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              <span>P - Pontos</span>
+              <span>J - Jogos</span>
+              <span>V - Vitorias</span>
+              <span>S.S - Saldo de Sets</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-5 w-5 rounded-sm bg-[#DC2626]" />
+              <span>Classificado para a proxima fase</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const StandingsTable = ({ standings = [] }) => {
   if (!standings.length) {

@@ -114,10 +114,10 @@ class EstatisticaControl {
     }
   }
 
-  carregarRelatorioGeralPartidas(tournamentId = null) {
+  carregarRelatorioGeralPartidas(filtros = null) {
     try {
       return {
-        relatorio: this.estatisticaModel.montarRelatorioGeralPartidas(tournamentId),
+        relatorio: this.estatisticaModel.montarRelatorioGeralPartidas(filtros),
         erro: "",
       };
     } catch (error) {
