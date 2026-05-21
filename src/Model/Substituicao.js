@@ -45,10 +45,22 @@ class Substituicao extends Evento {
         }
 
         return db.prepare(`
-            SELECT id, JogadorEntra, JogadorSai
-            FROM Substituicao
-            WHERE Ponto_Partida_id = ? AND Ponto_NumSet = ?
-            ORDER BY id ASC
+            SELECT
+                s.id,
+                s.Ponto_pontoTime1 AS pontoTime1,
+                s.Ponto_pontoTime2 AS pontoTime2,
+                s.Ponto_NumSet AS numSet,
+                s.JogadorEntra,
+                s.JogadorSai,
+                jogadorEntra.nome AS jogadorEntraNome,
+                jogadorEntra.numCamisa AS jogadorEntraNumero,
+                jogadorSai.nome AS jogadorSaiNome,
+                jogadorSai.numCamisa AS jogadorSaiNumero
+            FROM Substituicao s
+            LEFT JOIN Jogadores jogadorEntra ON jogadorEntra.id = s.JogadorEntra
+            LEFT JOIN Jogadores jogadorSai ON jogadorSai.id = s.JogadorSai
+            WHERE s.Ponto_Partida_id = ? AND s.Ponto_NumSet = ?
+            ORDER BY s.id ASC
         `).all(Number(partidaId), Number(numSet));
     }
 

@@ -120,6 +120,7 @@
     });
     const [currentSet, setCurrentSet] = useState(1);
     const [pontosDoSet, setPontosDoSet] = useState([]);
+    const [substituicoesDoSet, setSubstituicoesDoSet] = useState([]);
     const [showSubstituicao, setShowSubstituicao] = useState(false);
     const [showFinalizarPartida, setShowFinalizarPartida] = useState(false);
     const [editandoEncerramento, setEditandoEncerramento] = useState(false);
@@ -264,6 +265,11 @@
     setScore({ home: placar.home, away: placar.away });
     const pontos = control.buscarPontosPorSet(parseInt(partida.id), parseInt(numSet));
     setPontosDoSet(pontos);
+    const substituicoes = SubstituicaoControl.getInstance().buscarSubstituicoesDoSet(
+      parseInt(partida.id),
+      parseInt(numSet)
+    );
+    setSubstituicoesDoSet(substituicoes);
   } catch (error) {
     console.error('Erro ao carregar dados do set:', error.message);
     alert(`Erro ao carregar set ${numSet}: ${error.message}`); // ← temporário para diagnóstico
@@ -594,6 +600,8 @@ useEffect(() => { scoreRef.current = score; }, [score]);
           visible: true
         });
 
+        carregarDadosDoSet(currentSet);
+
         setFeed((current) => [
           {
             id: Date.now(),
@@ -734,6 +742,59 @@ useEffect(() => { scoreRef.current = score; }, [score]);
             </button>
             </div>
 
+            {/* Log de Substituicoes */}
+            <div className="hidden xl:flex absolute left-4 top-36 bottom-36 z-[45] w-[230px] flex-col rounded-xl border border-gray-100 bg-white/95 shadow-xl backdrop-blur-sm">
+              <div className="border-b border-gray-100 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Substituicoes</p>
+                    <h3 className="mt-1 text-base font-black text-gray-900">Set {currentSet}</h3>
+                  </div>
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-black text-gray-600">
+                    {substituicoesDoSet.length}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-auto p-3">
+                {substituicoesDoSet.length === 0 ? (
+                  <div className="flex h-full min-h-[140px] items-center justify-center rounded-lg border-2 border-dashed border-gray-200 p-4 text-center text-xs font-medium text-gray-400">
+                    Nenhuma substituicao registrada neste set.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {substituicoesDoSet.map((substituicao, index) => (
+                      <div key={substituicao.id || index} className="rounded-lg border border-gray-100 bg-gray-50 p-2.5 shadow-sm">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                            Troca {index + 1}
+                          </span>
+                          <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-black text-gray-900">
+                            {substituicao.pontoTime1 ?? 0} x {substituicao.pontoTime2 ?? 0}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="rounded-md bg-red-50 px-2.5 py-1.5">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-red-500">Saiu</p>
+                            <p className="truncate text-xs font-black text-gray-900">
+                              #{String(substituicao.jogadorSaiNumero ?? '--').padStart(2, '0')} {substituicao.jogadorSaiNome || 'Jogador'}
+                            </p>
+                          </div>
+
+                          <div className="rounded-md bg-emerald-50 px-2.5 py-1.5">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Entrou</p>
+                            <p className="truncate text-xs font-black text-gray-900">
+                              #{String(substituicao.jogadorEntraNumero ?? '--').padStart(2, '0')} {substituicao.jogadorEntraNome || 'Jogador'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* The Court */}
             <div className="relative z-10 w-full mt-10">
