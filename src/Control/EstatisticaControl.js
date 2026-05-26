@@ -80,6 +80,74 @@ class EstatisticaControl {
     }, { home: 0, away: 0 });
   }
 
+  validarPontuacaoPartida(draftSets = []) {
+    if (!Array.isArray(draftSets) || draftSets.length === 0) {
+      throw new Error("Informe ao menos 3 sets para encerrar a partida.");
+    }
+
+    if (draftSets.length > 5) {
+      throw new Error("Uma partida de volei pode ter no maximo 5 sets.");
+    }
+
+    const setsOrdenados = [...draftSets].sort((a, b) => Number(a.numSet) - Number(b.numSet));
+    let setsHome = 0;
+    let setsAway = 0;
+
+    for (let index = 0; index < setsOrdenados.length; index += 1) {
+      const setScore = setsOrdenados[index];
+      const numeroSetEsperado = index + 1;
+      const numeroSet = Number(setScore.numSet);
+      const home = Number(setScore.home);
+      const away = Number(setScore.away);
+
+      if (numeroSet !== numeroSetEsperado) {
+        throw new Error("Os sets devem estar em ordem, sem pular nenhum set.");
+      }
+
+      if (!Number.isInteger(home) || !Number.isInteger(away) || home < 0 || away < 0) {
+        throw new Error(`Pontuacao invalida no Set ${numeroSet}. Use apenas numeros inteiros positivos.`);
+      }
+
+      if (home === away) {
+        throw new Error(`O Set ${numeroSet} nao pode terminar empatado.`);
+      }
+
+      const pontosVencedor = Math.max(home, away);
+      const pontosPerdedor = Math.min(home, away);
+      const pontosMinimos = numeroSet === 3 || numeroSet === 5 ? 15 : 25;
+
+      if (pontosVencedor < pontosMinimos) {
+        throw new Error(`O Set ${numeroSet} precisa terminar com pelo menos ${pontosMinimos} pontos para o vencedor.`);
+      }
+
+      if (pontosVencedor - pontosPerdedor < 2) {
+        throw new Error(`O Set ${numeroSet} precisa ter diferenca minima de 2 pontos.`);
+      }
+
+      if (home > away) {
+        setsHome += 1;
+      } else {
+        setsAway += 1;
+      }
+
+      if ((setsHome === 3 || setsAway === 3) && index < setsOrdenados.length - 1) {
+        throw new Error("A partida deve encerrar assim que um time vence 3 sets.");
+      }
+    }
+
+    if (setsHome !== 3 && setsAway !== 3) {
+      throw new Error("Para encerrar a partida, um dos times precisa vencer 3 sets.");
+    }
+
+    return {
+      isValid: true,
+      resultado: {
+        home: setsHome,
+        away: setsAway,
+      },
+    };
+  }
+
   obterResultadoPartida(statistics, draftSets) {
     const resultadoPartida = statistics?.resultadoPartida;
     const hasResultadoPartida = resultadoPartida

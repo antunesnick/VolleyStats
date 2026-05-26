@@ -289,12 +289,23 @@ const EstatisticaView = ({
   };
 
   const handleConfirm = () => {
+    let validacaoResultado;
+
+    try {
+      validacaoResultado = EstatisticaControl.validarPontuacaoPartida(draftSets);
+    } catch (error) {
+      setStatisticsError(error?.message || 'Pontuacao da partida invalida.');
+      setActiveTab('sets');
+      return;
+    }
+
     const savedState = handleSaveSets();
+    if (savedState.statisticsError) {
+      return;
+    }
 
     if (typeof onConfirm === 'function') {
-      const finalScore = useDraftSetsAsResult && savedState.draftSets.length > 0
-        ? EstatisticaControl.calcularResultadoSets(savedState.draftSets)
-        : EstatisticaControl.obterResultadoPartida(savedState.statistics, savedState.draftSets);
+      const finalScore = validacaoResultado.resultado;
 
       confirmedRef.current = true;
       rollbackSnapshotRef.current = null;
