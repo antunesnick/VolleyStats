@@ -256,10 +256,20 @@ class EstatisticaControl {
 
   excluirSet(partidaId, numSet) {
     try {
+      const setNumber = Number(numSet);
+      const statisticsAtual = this.estatisticaModel.buscarEstatisticasPartida(partidaId);
+      const ultimoSet = (statisticsAtual?.sets || []).reduce((maiorSet, setStats) => {
+        return Math.max(maiorSet, Number(setStats.numSet) || 0);
+      }, 0);
+
+      if (!ultimoSet || setNumber !== ultimoSet) {
+        throw new Error("Somente o ultimo set pode ser excluido.");
+      }
+
       const transaction = db.transaction((idPartida, setNumber) => {
         return this.estatisticaModel.excluirSet(idPartida, setNumber);
       });
-      const statistics = transaction(partidaId, numSet);
+      const statistics = transaction(partidaId, setNumber);
 
       return {
         statistics,

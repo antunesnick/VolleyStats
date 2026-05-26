@@ -227,7 +227,7 @@ const EstatisticaView = ({
     } catch (error) {
       console.error('Erro ao salvar sets:', error);
       setStatisticsError('Nao foi possivel salvar a pontuacao dos sets.');
-      return { statistics, draftSets };
+      return { statistics, draftSets, statisticsError: 'Nao foi possivel salvar a pontuacao dos sets.' };
     }
   };
 
@@ -248,6 +248,44 @@ const EstatisticaView = ({
     });
     setActiveTab('sets');
     setStatisticsError('');
+  };
+
+  const handleDeleteSet = async (setScore) => {
+    const setNumber = Number(setScore?.numSet);
+    const ultimoSet = draftSets.reduce((max, currentSet) => {
+      return Math.max(max, Number(currentSet.numSet) || 0);
+    }, 0);
+
+    if (!setNumber || setNumber !== ultimoSet) {
+      setStatisticsError('Somente o ultimo set pode ser excluido.');
+      return;
+    }
+
+    const confirmed = await Alertas.confirmacao(
+      `Deseja excluir o Set ${setNumber}? Apenas o ultimo set pode ser removido.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const savedState = handleSaveSets();
+    if (savedState.statisticsError) {
+      return;
+    }
+
+    const nextState = EstatisticaControl.excluirSet(partidaId, setNumber);
+
+    if (nextState.statisticsError) {
+      setStatisticsError(nextState.statisticsError);
+      return;
+    }
+
+    setStatistics(nextState.statistics);
+    setDraftSets(nextState.draftSets);
+    setSubstituicoesPorSet(carregarSubstituicoesDosSets(nextState.draftSets));
+    setStatisticsError('');
+    onStatisticsChange?.();
   };
 
   const handleConfirm = () => {
@@ -899,6 +937,10 @@ const EstatisticaView = ({
                     : awayScore > homeScore
                       ? awayLabel
                       : 'Empate';
+                  const ultimoSet = draftSets.reduce((max, currentSet) => {
+                    return Math.max(max, Number(currentSet.numSet) || 0);
+                  }, 0);
+                  const isUltimoSet = Number(setScore.numSet) === ultimoSet;
 
                   return (
                     <div key={setScore.numSet} className="rounded-3xl border border-gray-100 bg-gray-50 p-5">
@@ -908,6 +950,15 @@ const EstatisticaView = ({
                           <h3 className="text-xl font-black text-gray-900">Vencedor: {winner}</h3>
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
+                          {!readOnly && isUltimoSet && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSet(setScore)}
+                              className="rounded-full bg-red-500 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white hover:bg-red-600 transition-colors"
+                            >
+                              Excluir set
+                            </button>
+                          )}
                           <StatCard label="Pontos" value={setStats?.pontos || 0} />
                           {(!resumoOnly || readOnly) && <StatCard label="Acoes" value={setStats?.acoes || 0} />}
                         </div>
