@@ -181,15 +181,6 @@ class Substituicao extends Evento {
     }
 
     static registrarSubstituicao({ pontoTime1 = 0, pontoTime2 = 0, partidaId, jogadorEntra, jogadorSai, numSet = 1 }, database = db) {
-        const validacao = Substituicao.validarSubstituicao({ partidaId, jogadorEntra, jogadorSai, numSet });
-
-        if (!validacao.permissaoSubstituir) {
-            return {
-                success: false,
-                message: validacao.validacoes.mensagens[0],
-            };
-        }
-
         database.prepare('INSERT OR IGNORE INTO "Set" (NumSet, Partida_id) VALUES (?, ?)')
             .run(Number(numSet), Number(partidaId));
 

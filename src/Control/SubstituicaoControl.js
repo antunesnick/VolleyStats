@@ -38,6 +38,15 @@ class SubstituicaoControl {
   }
 
   registrarSubstituicao({ pontoTime1 = 0, pontoTime2 = 0, partidaId, jogadorEntra, jogadorSai, numSet = 1 }) {
+    const validacao = this.validarSubstituicao({ partidaId, jogadorEntra, jogadorSai, numSet });
+
+    if (!validacao.permissaoSubstituir) {
+      return {
+        success: false,
+        message: validacao.validacoes.mensagens[0],
+      };
+    }
+
     const transaction = db.transaction((dadosSubstituicao) => {
       return Substituicao.registrarSubstituicao(dadosSubstituicao, db);
     });

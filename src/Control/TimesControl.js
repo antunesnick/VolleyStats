@@ -51,6 +51,16 @@ class TimesControl {
             data.cidade
         );
 
+        const erroValidacao = newTime.validarCamposObrigatorios();
+        if (erroValidacao) {
+            throw new Error(erroValidacao);
+        }
+
+        const erroDuplicado = newTime.validarNomeDuplicado();
+        if (erroDuplicado) {
+            throw new Error(erroDuplicado);
+        }
+
         const insertTransaction = db.transaction((timeObj) => {
             return timeObj.criarTime();
         });
@@ -72,6 +82,16 @@ class TimesControl {
             caminhoImagem,
             data.cidade
         );
+
+        const erroValidacao = timeToUpdate.validarCamposObrigatorios();
+        if (erroValidacao) {
+            throw new Error(erroValidacao);
+        }
+
+        const erroDuplicado = timeToUpdate.validarNomeDuplicado(data.id);
+        if (erroDuplicado) {
+            throw new Error(erroDuplicado);
+        }
 
         const updateTransaction = db.transaction((timeObj) => {
             return timeObj.editarTime(timeObj.id);

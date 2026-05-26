@@ -6,7 +6,6 @@
    import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, Trash2,RefreshCw, MapPin, AlertCircle, CheckCircle,HelpCircle,X} from 'lucide-react';
   import { useHotkeys } from 'react-hotkeys-hook';
   import EstatisticaView from './EstatisticaView';
-  import TimesPartida from '../../Model/TimesPartida';
   import HelpScoutModal from './HelpModal';
  
   const VolleyballCourt = ({ players, formation, onPlayerClick }) => {
@@ -106,9 +105,10 @@
     const [isEscalacaoLoaded, setIsEscalacaoLoaded] = useState(false);
     const [showEscalacao, setShowEscalacao] = useState(false);
     const [escalaMsg, setEscalaMsg] = useState(null);
+    const timesPartidaControl = TimesPartidaControl.getInstance();
     const timesPartidaRef = useRef({
-      home: new TimesPartida(partida?.time1, partida?.id),
-      away: new TimesPartida(partida?.time2, partida?.id)
+      home: timesPartidaControl.criarTimesPartida(partida?.time1, partida?.id),
+      away: timesPartidaControl.criarTimesPartida(partida?.time2, partida?.id)
     });
     const [currentSet, setCurrentSet] = useState(1);
     const [pontosDoSet, setPontosDoSet] = useState([]);
@@ -376,7 +376,7 @@
             const initialBench = savedEscalacao
               .filter((player) => Number(player.linha) === 0)
               .map(hydratePlayer);
-            const homeTime = new TimesPartida(partida?.time1, partida?.id);
+            const homeTime = timesPartidaControl.criarTimesPartida(partida?.time1, partida?.id);
 
             initialLine.forEach((player) => homeTime.adicionarJogadorLinha(player));
             initialBench.forEach((player) => homeTime.adicionarJogadorBanco(player));
@@ -399,8 +399,8 @@
 
     useEffect(() => {
       if (partida?.id) {
-        timesPartidaRef.current.home = new TimesPartida(partida?.time1, partida?.id);
-        timesPartidaRef.current.away = new TimesPartida(partida?.time2, partida?.id);
+        timesPartidaRef.current.home = timesPartidaControl.criarTimesPartida(partida?.time1, partida?.id);
+        timesPartidaRef.current.away = timesPartidaControl.criarTimesPartida(partida?.time2, partida?.id);
       }
     }, [partida?.id, partida?.time1, partida?.time2]);
 
@@ -409,7 +409,7 @@
 
       const initialLine = players.slice(0, 6);
       const initialBench = players.slice(6, 14);
-      const homeTime = new TimesPartida(partida?.time1, partida?.id);
+      const homeTime = timesPartidaControl.criarTimesPartida(partida?.time1, partida?.id);
 
       initialLine.forEach((player) => homeTime.adicionarJogadorLinha(player));
       initialBench.forEach((player) => homeTime.adicionarJogadorBanco(player));

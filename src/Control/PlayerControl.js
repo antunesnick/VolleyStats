@@ -48,6 +48,10 @@ class PlayerControl {
             caminhoDaFoto,
             data.categoria_id ? Number(data.categoria_id) : null
         );
+
+        if (!newPlayer.validarCPF(newPlayer.cpf)) {
+            throw new Error("CPF inválido. Por favor, insira um CPF válido.");
+        }
         
         const insertTransaction = db.transaction((playerObj) => {
             return playerObj.insertPlayer(db);
@@ -72,6 +76,10 @@ class PlayerControl {
             caminhoDaFoto,
             data.categoria_id ? Number(data.categoria_id) : null
         );    
+
+        if (!playerToUpdate.validarCPF(playerToUpdate.cpf)) {
+            throw new Error("CPF inválido. Por favor, insira um CPF válido.");
+        }
         
         const updateTransaction = db.transaction((playerObj) => {
             playerObj.updatePlayer(db);

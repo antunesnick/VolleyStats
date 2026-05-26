@@ -65,16 +65,6 @@ class GinasioModel {
 	}
 
 	criarGinasio() {
-		const erroValidacao = this.validarCamposObrigatorios();
-		if (erroValidacao) {
-			throw new Error(erroValidacao);
-		}
-
-		const erroDuplicado = this.validarNomeCidadeDuplicados();
-		if (erroDuplicado) {
-			throw new Error(erroDuplicado);
-		}
-
 		try {
 			const sql = db.prepare(
 				"INSERT INTO Ginasios (nome, estado, cidade, endereco) VALUES (?, ?, ?, ?)"
@@ -101,16 +91,6 @@ class GinasioModel {
 	}
 
 	editarGinasio(id = this.id) {
-		const erroValidacao = this.validarCamposObrigatorios();
-		if (erroValidacao) {
-			throw new Error(erroValidacao);
-		}
-
-		const erroDuplicado = this.validarNomeCidadeDuplicados(id);
-		if (erroDuplicado) {
-			throw new Error(erroDuplicado);
-		}
-
 		try {
 			const sql = db.prepare(
 				"UPDATE Ginasios SET nome = ?, estado = ?, cidade = ?, endereco = ? WHERE id = ?"

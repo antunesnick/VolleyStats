@@ -17,10 +17,6 @@ class Categoria{
     }
 
     async criarCategoria(){
-        const erro = this.validarIdade(this.idadeMin, this.idadeMax);
-        if(erro){
-            throw new Error(erro);
-        }
         try {
             const sql = db.prepare('INSERT INTO Categorias (nome, idadeMin, idadeMax) VALUES (?, ?, ?)');
             const info = sql.run(this.nome, this.idadeMin, this.idadeMax);
@@ -153,10 +149,6 @@ class Categoria{
     }
 
     async editarCategoria(id){
-        const erro = this.validarIdade(this.idadeMin, this.idadeMax);
-        if(erro){
-            throw new Error(erro);
-        }
         try {
             const sql = db.prepare('UPDATE Categorias SET nome = ?, idadeMin = ?, idadeMax = ? WHERE id = ?');
             sql.run(this.nome, this.idadeMin, this.idadeMax, id);

@@ -13,11 +13,17 @@ class TimesPartidaControl {
   }
 
   async salvarEscalacao({ timesId, partidaId, jogadores = [] }) {
+    TimesPartida.validarEscalacao({ timesId, partidaId, jogadores });
+
     const transaction = db.transaction((dadosEscalacao) => {
       return TimesPartida.salvarEscalacao(dadosEscalacao, db);
     });
 
     return transaction({ timesId, partidaId, jogadores });
+  }
+
+  criarTimesPartida(time, partida) {
+    return new TimesPartida(time, partida);
   }
 
   async findEscalacaoByPartidaId(partidaId, timesId = null) {

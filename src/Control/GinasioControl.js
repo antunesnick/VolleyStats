@@ -21,6 +21,16 @@ class GinasioControl {
 			dados.endereco
 		);
 
+		const erroValidacao = ginasio.validarCamposObrigatorios();
+		if (erroValidacao) {
+			throw new Error(erroValidacao);
+		}
+
+		const erroDuplicado = ginasio.validarNomeCidadeDuplicados();
+		if (erroDuplicado) {
+			throw new Error(erroDuplicado);
+		}
+
 		const insertTransaction = db.transaction((ginasioObj) => {
 			return ginasioObj.criarGinasio();
 		});
@@ -50,6 +60,16 @@ class GinasioControl {
 			dados.cidade,
 			dados.endereco
 		);
+
+		const erroValidacao = ginasio.validarCamposObrigatorios();
+		if (erroValidacao) {
+			throw new Error(erroValidacao);
+		}
+
+		const erroDuplicado = ginasio.validarNomeCidadeDuplicados(id);
+		if (erroDuplicado) {
+			throw new Error(erroDuplicado);
+		}
 
 		const updateTransaction = db.transaction((ginasioObj) => {
 			return ginasioObj.editarGinasio(id);

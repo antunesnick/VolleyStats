@@ -13,6 +13,10 @@ class CategoriaControl {
     async cadastrarDados(dados) {
         try {
             const categoria = new Categoria(dados.nome, dados.idadeMin, dados.idadeMax);
+            const erro = categoria.validarIdade(categoria.idadeMin, categoria.idadeMax);
+            if (erro) {
+                throw new Error(erro);
+            }
             const id = await categoria.criarCategoria();
             return id;
         } catch (e) {
@@ -39,6 +43,10 @@ class CategoriaControl {
     async editarCategoria(id, dados) {
         try {
             const categoria = new Categoria(dados.nome, dados.idadeMin, dados.idadeMax);
+            const erro = categoria.validarIdade(categoria.idadeMin, categoria.idadeMax);
+            if (erro) {
+                throw new Error(erro);
+            }
             await categoria.editarCategoria(id);
         } catch (e) {
             throw e;

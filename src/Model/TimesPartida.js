@@ -105,8 +105,6 @@ class TimesPartida {
     }
 
     static salvarEscalacao({ timesId, partidaId, jogadores = [] }, db) {
-        TimesPartida.validarEscalacao({ timesId, partidaId, jogadores });
-
         const deleteStmt = db.prepare('DELETE FROM TimesPartida WHERE Times_id = ? AND Partida_id = ?');
         const insertStmt = db.prepare(
             'INSERT OR REPLACE INTO TimesPartida (Times_id, Partida_id, Jogadores_id, linha) VALUES (?, ?, ?, ?)'

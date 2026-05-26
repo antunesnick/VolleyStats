@@ -57,7 +57,7 @@ class Player {
     this.categoriaId = categoriaId; 
   }
 
-    #validarCPF(cpfString) {
+    validarCPF(cpfString) {
       if (!cpfString) return true;
       return cpf.isValid(cpfString);
     }
@@ -80,9 +80,6 @@ class Player {
   }
 
   insertPlayer(db) {
-    if (!this.#validarCPF(this.cpf)) {
-      throw new Error("CPF inválido. Por favor, insira um CPF válido.");
-    }
     try {
       // Inserindo também a categoria_id
       const sql = db.prepare('INSERT INTO Jogadores (cpf, nome, dataNasc, numCamisa, rg, altura, posicao_id, foto, categoria_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
@@ -103,9 +100,6 @@ class Player {
   }
 
   updatePlayer(db) {
-    if (!this.#validarCPF(this.cpf)) {
-      throw new Error("CPF inválido. Por favor, insira um CPF válido.");
-    }
     try {
       // Atualizando também a categoria_id
       const sql = db.prepare('UPDATE Jogadores SET cpf = ?, nome = ?, dataNasc = ?, numCamisa = ?, rg = ?, altura = ?, posicao_id = ?, foto = ?, categoria_id = ? WHERE id = ?');

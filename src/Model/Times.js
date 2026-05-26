@@ -59,16 +59,6 @@ class Times {
 	}
 
 	criarTime() {
-		const erroValidacao = this.validarCamposObrigatorios();
-		if (erroValidacao) {
-			throw new Error(erroValidacao);
-		}
-
-		const erroDuplicado = this.validarNomeDuplicado();
-		if (erroDuplicado) {
-			throw new Error(erroDuplicado);
-		}
-
 		try {
 			const sql = db.prepare(
 				"INSERT INTO Times (nome, imagem, cidade) VALUES (?, ?, ?)"
@@ -85,16 +75,6 @@ class Times {
 	}
 
 	editarTime(id = this.id) {
-		const erroValidacao = this.validarCamposObrigatorios();
-		if (erroValidacao) {
-			throw new Error(erroValidacao);
-		}
-
-		const erroDuplicado = this.validarNomeDuplicado(id);
-		if (erroDuplicado) {
-			throw new Error(erroDuplicado);
-		}
-
 		try {
 			const sql = db.prepare(
 				"UPDATE Times SET nome = ?, imagem = ?, cidade = ? WHERE id = ?"
