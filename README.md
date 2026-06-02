@@ -19,7 +19,3 @@ Para visualizar o funcionamento completo da aplicação, acesse o vídeo demonst
 
 ### 📹 Vídeo de apresentação
 [Google Drive](https://drive.google.com/file/d/1D0EP3ulAN6xcHqAhYvVOz4ahUleRwE-P/view?usp=sharing)
-
----
-
-Desenvolvido por **Pedro Passos** e equipe.
