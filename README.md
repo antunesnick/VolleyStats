@@ -6,16 +6,27 @@ O projeto foi desenvolvido como parte das atividades acadêmicas da disciplina, 
 
 ## ✨ Principais funcionalidades
 
-- Cadastro e gerenciamento de equipes;
-- Cadastro de jogadores;
-- Registro de partidas;
-- Controle de estatísticas individuais e coletivas;
-- Consulta de informações de desempenho;
-- Interface intuitiva para acompanhamento dos dados.
+* Cadastro e gerenciamento de equipes;
+* Cadastro de jogadores;
+* Registro de partidas;
+* Controle de estatísticas individuais e coletivas;
+* Consulta de informações de desempenho;
+* Interface intuitiva para acompanhamento dos dados.
+
+## 👥 Integrantes da Equipe
+
+| Nome                         | RA        |
+| ---------------------------- | --------- |
+| Arthur Guarizi Gasparim      | 102418284 |
+| Daniel Rodrigues Ortiz       | 102418772 |
+| Jose Vitor Vernize Martos    | 102418578 |
+| Nickolas Antunes Almeida     | 102419957 |
+| Pedro Victor da Silva Passos | 102410178 |
 
 ## 🎥 Demonstração
 
-Para visualizar o funcionamento completo da aplicação, acesse o vídeo demonstrativo disponível no link abaixo:
+Para visualizar o funcionamento completo da aplicação, acesse o vídeo demonstrativo
 
-### 📹 Vídeo de apresentação
-[Google Drive](https://drive.google.com/file/d/1D0EP3ulAN6xcHqAhYvVOz4ahUleRwE-P/view?usp=sharing)
+## 🎯 Objetivo do Projeto
+
+O VolleyStats foi criado para facilitar o acompanhamento e a análise de dados estatísticos em partidas de voleibol, permitindo que equipes, treinadores e organizadores tenham acesso a informações relevantes para avaliação de desempenho e tomada de decisões.
