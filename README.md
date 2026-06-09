@@ -25,7 +25,7 @@ O projeto foi desenvolvido como parte das atividades acadêmicas da disciplina, 
 
 ## 🎥 Demonstração
 
-Para visualizar o funcionamento completo da aplicação, acesse o vídeo demonstrativo
+Para visualizar o funcionamento completo da aplicação, acesse o [vídeo demonstrativo](https://vimeo.com/1199614751?share=copy&fl=sv&fe=ci)
 
 ## 🎯 Objetivo do Projeto
 
