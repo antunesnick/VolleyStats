@@ -1,5 +1,5 @@
 # 🏐 VolleyStats
-# PROJETO LIDERADO E GERIDO POR NICKOLAS ANTUNES ALMEIDA.
+**PROJETO LIDERADO E GERIDO POR NICKOLAS ANTUNES ALMEIDA.**
 
 O **VolleyStats** é uma aplicação desenvolvida com o objetivo de auxiliar no gerenciamento e análise de estatísticas de partidas de voleibol. A plataforma permite o registro de informações relevantes dos jogos, oferecendo uma visão organizada do desempenho de equipes e atletas.
 
