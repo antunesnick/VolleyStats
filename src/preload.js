@@ -1,6 +1,16 @@
 // ATENÇÃO: Como tiramos o contextIsolation, não usamos mais o contextBridge!
 const { ipcRenderer } = require("electron");
 
+// O renderer acessa o SQLite direto (nodeIntegration ligado), entao precisa
+// saber onde ficam os dados ANTES de qualquer Control importar src/db/db.js.
+// O preload roda antes do bundle do React, e por isso este e o unico ponto
+// onde da para definir a variavel a tempo.
+try {
+  process.env.VOLLEYSTATS_DATA_DIR = ipcRenderer.sendSync('app:getDataDir');
+} catch (error) {
+  console.error('Nao foi possivel obter o diretorio de dados do processo principal:', error);
+}
+
 // Injetamos direto no objeto window do navegador
 window.ElectronAPI = {
     salvarCategoria: (dados) => ipcRenderer.invoke('salvar-categoria', dados),

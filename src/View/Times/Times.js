@@ -2,6 +2,14 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TimesControl from "../../Control/TimesControl";
 import { Alertas } from "../../utils/Alertas";
+import {
+  blocoMetricas,
+  blocoTabela,
+  escapeHtml,
+  montarDocumento,
+  nomeArquivoRelatorio,
+  salvarRelatorioPdf,
+} from "../../utils/relatorioPdf";
 
 const initialFormData = {
   nome: "",
@@ -252,16 +260,11 @@ const Times = () => {
     setIsSavingPdf(false);
   };
 
-  const escapeHtml = (value) => String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 
   const montarHtmlRelatorioTime = () => {
     const time = relatorioTime.time;
     const resumo = relatorioTime.resumo;
+
     const linhasHistorico = relatorioTime.historico.map((partida) => `
       <tr>
         <td>${escapeHtml(formatarDataBrasil(partida.dataPartida))}</td>
@@ -278,198 +281,44 @@ const Times = () => {
           </span>
         </td>
       </tr>
-    `).join("");
+    `);
 
-    return `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Relatorio do Time - ${escapeHtml(time.nome)}</title>
-          <style>
-            * { box-sizing: border-box; }
-            body {
-              margin: 0;
-              padding: 32px;
-              font-family: Arial, Helvetica, sans-serif;
-              color: #111827;
-              background: #ffffff;
-            }
-            header {
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-              gap: 24px;
-              padding: 22px 24px;
-              color: #ffffff;
-              background: #000000;
-              border-bottom: 6px solid #dc2626;
-              border-radius: 14px 14px 0 0;
-            }
-            .eyebrow {
-              margin: 0 0 6px;
-              color: #f87171;
-              font-size: 11px;
-              font-weight: 900;
-              letter-spacing: 2px;
-              text-transform: uppercase;
-            }
-            h1 {
-              margin: 0;
-              font-size: 30px;
-              line-height: 1;
-              text-transform: uppercase;
-            }
-            .city {
-              margin-top: 8px;
-              color: #d1d5db;
-              font-size: 13px;
-              font-weight: 700;
-            }
-            .avatar {
-              width: 72px;
-              height: 72px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              flex: 0 0 auto;
-              border-radius: 12px;
-              background: #dc2626;
-              color: #ffffff;
-              font-size: 32px;
-              font-weight: 900;
-            }
-            .metrics {
-              display: grid;
-              grid-template-columns: repeat(4, 1fr);
-              gap: 12px;
-              margin: 22px 0;
-            }
-            .metric {
-              border: 1px solid #e5e7eb;
-              border-radius: 12px;
-              padding: 16px;
-              background: #ffffff;
-            }
-            .metric.featured {
-              color: #ffffff;
-              background: #000000;
-              border-color: #000000;
-            }
-            .metric span {
-              display: block;
-              color: #6b7280;
-              font-size: 10px;
-              font-weight: 900;
-              letter-spacing: 1.4px;
-              text-transform: uppercase;
-            }
-            .metric.featured span { color: #f87171; }
-            .metric strong {
-              display: block;
-              margin-top: 8px;
-              font-size: 28px;
-              font-weight: 900;
-            }
-            .table-title {
-              margin: 26px 0 0;
-              padding: 14px 18px;
-              background: #dc2626;
-              color: #ffffff;
-              font-size: 18px;
-              font-weight: 900;
-              text-transform: uppercase;
-              border-radius: 12px 12px 0 0;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              border: 1px solid #e5e7eb;
-            }
-            th {
-              padding: 11px;
-              background: #000000;
-              color: #ffffff;
-              font-size: 10px;
-              letter-spacing: 1px;
-              text-align: left;
-              text-transform: uppercase;
-            }
-            td {
-              padding: 12px 11px;
-              border-bottom: 1px solid #f3f4f6;
-              font-size: 12px;
-              vertical-align: top;
-            }
-            td span {
-              display: block;
-              margin-top: 4px;
-              color: #6b7280;
-              font-size: 10px;
-              font-weight: 700;
-            }
-            .center { text-align: center; }
-            .tag {
-              display: inline-block;
-              min-width: 78px;
-              margin: 0;
-              padding: 5px 8px;
-              border-radius: 999px;
-              color: #ffffff;
-              font-size: 9px;
-              font-weight: 900;
-              letter-spacing: 1px;
-              text-transform: uppercase;
-            }
-            .tag.win { background: #dc2626; }
-            .tag.loss { background: #000000; }
-            .tag.pending { background: #e5e7eb; color: #374151; }
-          </style>
-        </head>
-        <body>
-          <header>
-            <div>
-              <p class="eyebrow">Relatorio do Time</p>
-              <h1>${escapeHtml(time.nome)}</h1>
-              <div class="city">${escapeHtml(time.cidade || "Cidade nao informada")}</div>
-            </div>
-            <div class="avatar">${escapeHtml(String(time.nome || "T").slice(0, 1).toUpperCase())}</div>
-          </header>
-
-          <section class="metrics">
-            <div class="metric featured"><span>Taxa de vitoria</span><strong>${resumo.taxaVitoria}%</strong></div>
-            <div class="metric"><span>Vitorias</span><strong>${resumo.vitorias}</strong></div>
-            <div class="metric"><span>Derrotas</span><strong>${resumo.derrotas}</strong></div>
-            <div class="metric"><span>Jogos finalizados</span><strong>${resumo.finalizadas}</strong></div>
-            <div class="metric"><span>Total de jogos</span><strong>${resumo.totalPartidas}</strong></div>
-            <div class="metric"><span>Agendadas</span><strong>${resumo.agendadas}</strong></div>
-            <div class="metric"><span>Sets ganhos</span><strong>${resumo.setsGanhos}</strong></div>
-            <div class="metric"><span>Saldo de sets</span><strong>${resumo.saldoSets}</strong></div>
-          </section>
-
-          <h2 class="table-title">Historico de Partidas</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Partida</th>
-                <th>Adversario</th>
-                <th>Torneio</th>
-                <th class="center">Placar</th>
-                <th class="center">Resultado</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${linhasHistorico || '<tr><td colspan="6" class="center">Este time ainda nao possui partidas cadastradas.</td></tr>'}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
+    return montarDocumento({
+      titulo: time.nome,
+      eyebrow: "Relatorio do Time",
+      subtitulo: time.cidade || "Cidade nao informada",
+      aside: `<div class="avatar">${escapeHtml(String(time.nome || "T").slice(0, 1).toUpperCase())}</div>`,
+      corpo: `
+        ${blocoMetricas([
+          { rotulo: "Taxa de vitoria", valor: `${resumo.taxaVitoria}%`, destaque: true },
+          { rotulo: "Vitorias", valor: resumo.vitorias },
+          { rotulo: "Derrotas", valor: resumo.derrotas },
+          { rotulo: "Jogos finalizados", valor: resumo.finalizadas },
+          { rotulo: "Total de jogos", valor: resumo.totalPartidas },
+          { rotulo: "Agendadas", valor: resumo.agendadas },
+          { rotulo: "Sets ganhos", valor: resumo.setsGanhos },
+          { rotulo: "Saldo de sets", valor: resumo.saldoSets },
+        ])}
+        ${blocoTabela({
+          titulo: "Historico de Partidas",
+          colunas: [
+            "Data",
+            "Partida",
+            "Adversario",
+            "Torneio",
+            { rotulo: "Placar", center: true },
+            { rotulo: "Resultado", center: true },
+          ],
+          linhas: linhasHistorico,
+          vazio: "Este time ainda nao possui partidas cadastradas.",
+        })}
+      `,
+    });
   };
 
   const montarHtmlRelatorioGeralTimes = () => {
     const resumo = relatorioGeral.resumo;
+
     const linhasTimes = relatorioGeral.times
       .sort((a, b) => b.vitorias - a.vitorias || b.saldoSets - a.saldoSets || String(a.nome).localeCompare(String(b.nome), "pt-BR", { sensitivity: "base" }))
       .map((time, index) => `
@@ -484,7 +333,8 @@ const Times = () => {
           <td class="center">${time.setsPerdidos}</td>
           <td class="center">${time.saldoSets}</td>
         </tr>
-      `).join("");
+      `);
+
     const linhasJogos = relatorioGeral.jogos.map((jogo) => `
       <tr>
         <td>${escapeHtml(formatarDataBrasil(jogo.dataPartida))}</td>
@@ -494,73 +344,53 @@ const Times = () => {
         <td class="center">${escapeHtml(jogo.placar)}</td>
         <td class="center">${escapeHtml(jogo.vencedor)}</td>
       </tr>
-    `).join("");
+    `);
 
-    return `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Relatorio Geral de Times</title>
-          <style>
-            * { box-sizing: border-box; }
-            body { margin: 0; padding: 30px; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #fff; }
-            header { padding: 22px 24px; color: #fff; background: #000; border-bottom: 6px solid #dc2626; border-radius: 14px 14px 0 0; }
-            .eyebrow { margin: 0 0 6px; color: #f87171; font-size: 11px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
-            h1 { margin: 0; font-size: 30px; line-height: 1; text-transform: uppercase; }
-            .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
-            .metric { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; background: #fff; }
-            .metric.featured { color: #fff; background: #000; border-color: #000; }
-            .metric span { display: block; color: #6b7280; font-size: 10px; font-weight: 900; letter-spacing: 1.4px; text-transform: uppercase; }
-            .metric.featured span { color: #f87171; }
-            .metric strong { display: block; margin-top: 8px; font-size: 28px; font-weight: 900; }
-            .table-title { margin: 26px 0 0; padding: 14px 18px; background: #dc2626; color: #fff; font-size: 18px; font-weight: 900; text-transform: uppercase; border-radius: 12px 12px 0 0; }
-            table { width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; }
-            th { padding: 10px; background: #000; color: #fff; font-size: 10px; letter-spacing: 1px; text-align: left; text-transform: uppercase; }
-            td { padding: 10px; border-bottom: 1px solid #f3f4f6; font-size: 12px; vertical-align: top; }
-            td span { display: block; margin-top: 4px; color: #6b7280; font-size: 10px; font-weight: 700; }
-            .center { text-align: center; }
-          </style>
-        </head>
-        <body>
-          <header>
-            <p class="eyebrow">VolleyStats</p>
-            <h1>Relatorio Geral de Times</h1>
-          </header>
-
-          <section class="metrics">
-            <div class="metric featured"><span>Quem ganhou mais</span><strong>${escapeHtml(relatorioGeral.rankingVitorias[0]?.nome || "Sem dados")}</strong></div>
-            <div class="metric"><span>Vitorias do lider</span><strong>${relatorioGeral.rankingVitorias[0]?.vitorias || 0}</strong></div>
-            <div class="metric"><span>Quem perdeu mais</span><strong>${escapeHtml(relatorioGeral.rankingDerrotas[0]?.nome || "Sem dados")}</strong></div>
-            <div class="metric"><span>Derrotas</span><strong>${relatorioGeral.rankingDerrotas[0]?.derrotas || 0}</strong></div>
-            <div class="metric"><span>Total de times</span><strong>${resumo.totalTimes}</strong></div>
-            <div class="metric"><span>Total de jogos</span><strong>${resumo.totalJogos}</strong></div>
-            <div class="metric"><span>Finalizados</span><strong>${resumo.jogosFinalizados}</strong></div>
-            <div class="metric"><span>Agendados</span><strong>${resumo.jogosAgendados}</strong></div>
-          </section>
-
-          <h2 class="table-title">Classificacao por vitorias</h2>
-          <table>
-            <thead>
-              <tr>
-                <th class="center">#</th><th>Time</th><th class="center">V</th><th class="center">D</th><th class="center">J</th><th class="center">Taxa</th><th class="center">SG</th><th class="center">SP</th><th class="center">Saldo</th>
-              </tr>
-            </thead>
-            <tbody>${linhasTimes || '<tr><td colspan="9" class="center">Nenhum time encontrado.</td></tr>'}</tbody>
-          </table>
-
-          <h2 class="table-title">Pontuacao de cada jogo</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th><th>Jogo</th><th>Torneio</th><th>Local</th><th class="center">Placar</th><th class="center">Vencedor</th>
-              </tr>
-            </thead>
-            <tbody>${linhasJogos || '<tr><td colspan="6" class="center">Nenhum jogo encontrado.</td></tr>'}</tbody>
-          </table>
-        </body>
-      </html>
-    `;
+    return montarDocumento({
+      titulo: "Relatorio Geral de Times",
+      eyebrow: "VolleyStats",
+      corpo: `
+        ${blocoMetricas([
+          { rotulo: "Quem ganhou mais", valor: relatorioGeral.rankingVitorias[0]?.nome || "Sem dados", destaque: true },
+          { rotulo: "Vitorias do lider", valor: relatorioGeral.rankingVitorias[0]?.vitorias || 0 },
+          { rotulo: "Quem perdeu mais", valor: relatorioGeral.rankingDerrotas[0]?.nome || "Sem dados" },
+          { rotulo: "Derrotas", valor: relatorioGeral.rankingDerrotas[0]?.derrotas || 0 },
+          { rotulo: "Total de times", valor: resumo.totalTimes },
+          { rotulo: "Total de jogos", valor: resumo.totalJogos },
+          { rotulo: "Finalizados", valor: resumo.jogosFinalizados },
+          { rotulo: "Agendados", valor: resumo.jogosAgendados },
+        ])}
+        ${blocoTabela({
+          titulo: "Classificacao por vitorias",
+          colunas: [
+            { rotulo: "#", center: true },
+            "Time",
+            { rotulo: "V", center: true },
+            { rotulo: "D", center: true },
+            { rotulo: "J", center: true },
+            { rotulo: "Taxa", center: true },
+            { rotulo: "SG", center: true },
+            { rotulo: "SP", center: true },
+            { rotulo: "Saldo", center: true },
+          ],
+          linhas: linhasTimes,
+          vazio: "Nenhum time encontrado.",
+        })}
+        ${blocoTabela({
+          titulo: "Pontuacao de cada jogo",
+          colunas: [
+            "Data",
+            "Jogo",
+            "Torneio",
+            "Local",
+            { rotulo: "Placar", center: true },
+            { rotulo: "Vencedor", center: true },
+          ],
+          linhas: linhasJogos,
+          vazio: "Nenhum jogo encontrado.",
+        })}
+      `,
+    });
   };
 
   const handleSalvarRelatorioPdf = async () => {
@@ -571,12 +401,8 @@ const Times = () => {
     setIsSavingPdf(true);
 
     try {
-      const nomeTime = String(relatorioTime.time?.nome || "time")
-        .trim()
-        .replace(/\s+/g, "-")
-        .toLowerCase();
-      const result = await window.reportAPI.salvarPdf({
-        nomeArquivo: `relatorio-time-${nomeTime}.pdf`,
+      const result = await salvarRelatorioPdf({
+        nomeArquivo: nomeArquivoRelatorio("relatorio", "time", relatorioTime.time?.nome),
         html: montarHtmlRelatorioTime(),
       });
 
@@ -598,8 +424,8 @@ const Times = () => {
     setIsSavingPdf(true);
 
     try {
-      const result = await window.reportAPI.salvarPdf({
-        nomeArquivo: "relatorio-geral-times.pdf",
+      const result = await salvarRelatorioPdf({
+        nomeArquivo: nomeArquivoRelatorio("relatorio", "geral", "times"),
         html: montarHtmlRelatorioGeralTimes(),
       });
 

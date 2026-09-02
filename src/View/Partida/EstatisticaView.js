@@ -2,6 +2,20 @@ import React, { useEffect, useRef, useState } from 'react';
 import EstatisticaControl from '../../Control/EstatisticaControl';
 import SubstituicaoControl from '../../Control/SubstituicaoControl';
 import { Alertas } from '../../utils/Alertas';
+import {
+  ESCALA,
+  QUALIDADE_PARA_TECLA,
+  TIPO_ACAO_PARA_FUNDAMENTO,
+  descrever,
+} from '../../Model/Qualidade';
+import {
+  blocoMetricas,
+  blocoTabela,
+  escapeHtml,
+  montarDocumento,
+  nomeArquivoRelatorio,
+  salvarRelatorioPdf,
+} from '../../utils/relatorioPdf';
 
 const TAB_ITEMS = [
   { id: 'geral', label: 'Geral' },
@@ -82,12 +96,6 @@ const getScoreInputValue = (value) => {
 
 const getScoreNumber = (value) => Number(value) || 0;
 
-const escapeHtml = (value) => String(value ?? '')
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#039;');
 
 const EstatisticaView = ({
   open,
@@ -368,11 +376,11 @@ const EstatisticaView = ({
       <tr>
         <td><strong>#${escapeHtml(jogador.numero || '--')} - ${escapeHtml(jogador.nome)}</strong></td>
         <td class="center">${jogador.totalAcoes || 0}</td>
+        <td class="center emph">${jogador.pontos || 0}</td>
+        <td class="center">${jogador.pontosCedidos || 0}</td>
         <td class="center emph">${jogador.scout?.pontosTotais || 0}</td>
         <td class="center emph">${jogador.scout?.vitoriaPontos || 0}</td>
-        <td class="center">${jogador.qualidade?.A || 0}</td>
-        <td class="center">${jogador.qualidade?.B || 0}</td>
-        <td class="center">${jogador.qualidade?.C || 0}</td>
+        ${ESCALA.map((simbolo) => `<td class="center">${jogador.qualidade?.[simbolo] || 0}</td>`).join('')}
         <td class="center">${jogador.scout?.saque?.total || 0}</td>
         <td class="center">${jogador.scout?.saque?.aces || 0}</td>
         <td class="center">${jogador.scout?.saque?.ab || 0}</td>
@@ -402,7 +410,7 @@ const EstatisticaView = ({
         <td class="center">${formatPercent(jogador.scout?.defesa?.eficiencia)}</td>
         <td class="center">${jogador.scout?.errosGerais || 0}</td>
       </tr>
-    `).join('');
+    `);
 
     const linhasSets = draftSets.map((setScore) => {
       const homeScore = getScoreNumber(setScore.home);
@@ -420,120 +428,60 @@ const EstatisticaView = ({
           <td>${escapeHtml(vencedor)}</td>
         </tr>
       `;
-    }).join('');
+    });
 
-    return `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Relatorio da Partida - ${escapeHtml(matchInfo?.name || 'Partida')}</title>
-          <style>
-            * { box-sizing: border-box; }
-            body { margin: 0; padding: 26px; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #fff; }
-            header { padding: 20px 22px; background: #000; color: #fff; border-bottom: 6px solid #dc2626; border-radius: 12px 12px 0 0; }
-            .eyebrow { margin: 0 0 6px; color: #f87171; font-size: 10px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
-            h1 { margin: 0; font-size: 24px; }
-            .sub { margin-top: 6px; color: #d1d5db; font-size: 12px; }
-            .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0; }
-            .metric { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
-            .metric span { display: block; color: #6b7280; font-size: 9px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
-            .metric strong { display: block; margin-top: 5px; font-size: 20px; }
-            .metric.featured { background: #fef2f2; border-color: #fecaca; }
-            .section { margin-top: 18px; }
-            .section h2 { margin: 0 0 10px; color: #dc2626; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
-            table { width: 100%; border-collapse: collapse; font-size: 10px; }
-            th { background: #000; color: #fff; padding: 8px 6px; text-align: left; text-transform: uppercase; letter-spacing: 0.6px; }
-            td { border-bottom: 1px solid #e5e7eb; padding: 8px 6px; vertical-align: top; }
-            .center { text-align: center; }
-            .emph { color: #dc2626; font-weight: 900; }
-            .sets { max-width: 420px; }
-          </style>
-        </head>
-        <body>
-          <header>
-            <p class="eyebrow">VolleyStats</p>
-            <h1>Relatorio da Partida</h1>
-            <div class="sub">
-              ${escapeHtml(matchInfo?.name || 'Partida')} | ${escapeHtml(matchInfo?.date || '')} | ${escapeHtml(matchInfo?.gymnasium || '')}<br />
-              ${escapeHtml(homeLabel)} x ${escapeHtml(awayLabel)}
-            </div>
-          </header>
-
-          <section class="metrics">
-            <div class="metric featured"><span>Resultado</span><strong>${resultadoPartida.home} x ${resultadoPartida.away}</strong></div>
-            <div class="metric"><span>Pontos scout</span><strong>${scout.pontosTotais || 0}</strong></div>
-            <div class="metric"><span>V-P</span><strong>${scout.vitoriaPontos || 0}</strong></div>
-            <div class="metric"><span>Saque total</span><strong>${scout.saque?.total || 0}</strong></div>
-            <div class="metric"><span>Saque pontos</span><strong>${scout.saque?.aces || 0}</strong></div>
-            <div class="metric"><span>Recepcao positiva</span><strong>${formatPercent(scout.recepcao?.positivaPct)}</strong></div>
-            <div class="metric"><span>Ataque pontos</span><strong>${scout.ataque?.pontos || 0}</strong></div>
-            <div class="metric"><span>Ataque eff</span><strong>${formatPercent(scout.ataque?.eficiencia)}</strong></div>
-            <div class="metric"><span>Defesa +</span><strong>${scout.defesa?.positivas || 0}</strong></div>
-          </section>
-
-          <section class="section">
-            <h2>Scout detalhado por jogador</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Jogador</th>
-                  <th class="center">Acoes</th>
-                  <th class="center">PTS</th>
-                  <th class="center">V-P</th>
-                  <th class="center">A</th>
-                  <th class="center">B</th>
-                  <th class="center">C</th>
-                  <th class="center">Saq Tot</th>
-                  <th class="center">Saq Pts</th>
-                  <th class="center">Saq A+B</th>
-                  <th class="center">Saq C+X</th>
-                  <th class="center">Saq Err</th>
-                  <th class="center">Saq Eff</th>
-                  <th class="center">Rec Tot</th>
-                  <th class="center">Rec A</th>
-                  <th class="center">Rec B</th>
-                  <th class="center">Rec C</th>
-                  <th class="center">Rec X</th>
-                  <th class="center">Rec Err</th>
-                  <th class="center">Rec Pos%</th>
-                  <th class="center">Rec Prf%</th>
-                  <th class="center">Atq Tot</th>
-                  <th class="center">Atq Pts</th>
-                  <th class="center">Atq +</th>
-                  <th class="center">Atq -</th>
-                  <th class="center">Atq Bloq</th>
-                  <th class="center">Atq Err</th>
-                  <th class="center">Atq Pts%</th>
-                  <th class="center">Atq Eff</th>
-                  <th class="center">BK Pts</th>
-                  <th class="center">Def Tot</th>
-                  <th class="center">Def +</th>
-                  <th class="center">Def -</th>
-                  <th class="center">Def Eff</th>
-                  <th class="center">Erro Geral</th>
-                </tr>
-              </thead>
-              <tbody>${linhasJogadores || '<tr><td colspan="36">Nenhum scout registrado.</td></tr>'}</tbody>
-            </table>
-          </section>
-
-          <section class="section sets">
-            <h2>Sets</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th class="center">Set</th>
-                  <th class="center">Placar</th>
-                  <th>Vencedor</th>
-                </tr>
-              </thead>
-              <tbody>${linhasSets || '<tr><td colspan="3">Nenhum set registrado.</td></tr>'}</tbody>
-            </table>
-          </section>
-        </body>
-      </html>
-    `;
+    return montarDocumento({
+      titulo: 'Relatorio da Partida',
+      eyebrow: 'VolleyStats',
+      subtitulo: [
+        `${matchInfo?.name || 'Partida'} | ${matchInfo?.date || ''} | ${matchInfo?.gymnasium || ''}`,
+        `${homeLabel} x ${awayLabel}`,
+      ],
+      corpo: `
+        ${blocoMetricas([
+          { rotulo: 'Resultado', valor: `${resultadoPartida.home} x ${resultadoPartida.away}`, destaque: true },
+          { rotulo: 'Pontos scout', valor: scout.pontosTotais || 0 },
+          { rotulo: 'V-P', valor: scout.vitoriaPontos || 0 },
+          { rotulo: 'Saque total', valor: scout.saque?.total || 0 },
+          { rotulo: 'Saque pontos', valor: scout.saque?.aces || 0 },
+          { rotulo: 'Recepcao positiva', valor: formatPercent(scout.recepcao?.positivaPct) },
+          { rotulo: 'Ataque pontos', valor: scout.ataque?.pontos || 0 },
+          { rotulo: 'Ataque eff', valor: formatPercent(scout.ataque?.eficiencia) },
+          { rotulo: 'Defesa +', valor: scout.defesa?.positivas || 0 },
+        ])}
+        ${blocoTabela({
+          titulo: 'Scout detalhado por jogador',
+          compacta: true,
+          colunas: [
+            'Jogador',
+            ...['Acoes', 'Pontos', 'Cedidos', 'PTS', 'V-P'].map((rotulo) => ({ rotulo, center: true })),
+            // A escala de qualidade crua, na ordem das teclas 1..6.
+            ...ESCALA.map((simbolo) => ({ rotulo: simbolo, center: true })),
+            ...[
+              'Saq Tot', 'Saq Pts', 'Saq A+B', 'Saq C+X', 'Saq Err', 'Saq Eff',
+              'Rec Tot', 'Rec A', 'Rec B', 'Rec C', 'Rec X', 'Rec Err', 'Rec Pos%', 'Rec Prf%',
+              'Atq Tot', 'Atq Pts', 'Atq +', 'Atq -', 'Atq Bloq', 'Atq Err', 'Atq Pts%', 'Atq Eff',
+              'BK Pts',
+              'Def Tot', 'Def +', 'Def -', 'Def Eff',
+              'Erro Geral',
+            ].map((rotulo) => ({ rotulo, center: true })),
+          ],
+          linhas: linhasJogadores,
+          vazio: 'Nenhum scout registrado.',
+        })}
+        ${blocoTabela({
+          titulo: 'Sets',
+          estreita: true,
+          colunas: [
+            { rotulo: 'Set', center: true },
+            { rotulo: 'Placar', center: true },
+            'Vencedor',
+          ],
+          linhas: linhasSets,
+          vazio: 'Nenhum set registrado.',
+        })}
+      `,
+    });
   };
 
   const handleSavePdf = async () => {
@@ -544,12 +492,8 @@ const EstatisticaView = ({
 
     setPdfSaving(true);
     try {
-      const nomeSeguro = String(matchInfo?.name || 'partida')
-        .trim()
-        .replace(/\s+/g, '-')
-        .toLowerCase();
-      const result = await window.reportAPI.salvarPdf({
-        nomeArquivo: `relatorio-partida-${nomeSeguro}.pdf`,
+      const result = await salvarRelatorioPdf({
+        nomeArquivo: nomeArquivoRelatorio('relatorio', 'partida', matchInfo?.name),
         html: montarHtmlRelatorioPartida(),
       });
 
@@ -699,14 +643,28 @@ const EstatisticaView = ({
             </div>
 
             <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
-              <table className="w-full min-w-[2040px] text-left">
+              <table className="w-full min-w-[2220px] text-left">
                 <thead className="bg-black text-white">
                   <tr>
                     <th rowSpan="2" className="px-4 py-3 text-[10px] font-black uppercase tracking-widest">Jogador</th>
                     <th rowSpan="2" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Acoes</th>
-                    <th rowSpan="2" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">PTS</th>
+                    <th
+                      rowSpan="2"
+                      className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20"
+                      title="Pontos do rally atribuidos ao atleta (autor da ultima acao do ponto)"
+                    >
+                      Pontos
+                    </th>
+                    <th
+                      rowSpan="2"
+                      className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest"
+                      title="Rallies perdidos cuja ultima acao foi do atleta"
+                    >
+                      Cedidos
+                    </th>
+                    <th rowSpan="2" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">PTS</th>
                     <th rowSpan="2" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">V-P</th>
-                    <th colSpan="3" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Geral</th>
+                    <th colSpan="6" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Geral</th>
                     <th colSpan="6" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Saque</th>
                     <th colSpan="8" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Recepcao</th>
                     <th colSpan="8" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Ataque</th>
@@ -715,9 +673,15 @@ const EstatisticaView = ({
                     <th rowSpan="2" className="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest border-l border-white/20">Erro geral</th>
                   </tr>
                   <tr className="bg-neutral-900">
-                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">A</th>
-                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">B</th>
-                    <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">C</th>
+                    {ESCALA.map((simbolo) => (
+                      <th
+                        key={simbolo}
+                        className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest"
+                        title={`Tecla ${QUALIDADE_PARA_TECLA[simbolo]} no scout`}
+                      >
+                        {simbolo}
+                      </th>
+                    ))}
                     <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Tot</th>
                     <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Pts</th>
                     <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">A+B</th>
@@ -750,7 +714,7 @@ const EstatisticaView = ({
                 <tbody>
                   {jogadoresFiltrados.length === 0 ? (
                     <tr>
-                      <td colSpan="36" className="px-4 py-10 text-center text-sm font-bold text-gray-500">
+                      <td colSpan="40" className="px-4 py-10 text-center text-sm font-bold text-gray-500">
                         Nenhum jogador encontrado.
                       </td>
                     </tr>
@@ -758,11 +722,13 @@ const EstatisticaView = ({
                     <tr key={`resumo-${jogador.id}`} className="border-b border-gray-100 text-sm font-bold text-gray-700 hover:bg-red-50/50">
                       <td className="px-4 py-3 font-black text-gray-900">#{jogador.numero || '--'} - {jogador.nome}</td>
                       <td className="px-3 py-3 text-center">{jogador.totalAcoes}</td>
-                      <td className="px-3 py-3 text-center font-black text-red-600">{jogador.scout?.pontosTotais || 0}</td>
+                      <td className="px-3 py-3 text-center font-black text-emerald-600 border-l border-gray-100">{jogador.pontos || 0}</td>
+                      <td className="px-3 py-3 text-center font-black text-orange-500">{jogador.pontosCedidos || 0}</td>
+                      <td className="px-3 py-3 text-center font-black text-red-600 border-l border-gray-100">{jogador.scout?.pontosTotais || 0}</td>
                       <td className="px-3 py-3 text-center font-black text-red-600">{jogador.scout?.vitoriaPontos || 0}</td>
-                      <td className="px-3 py-3 text-center">{jogador.qualidade?.A || 0}</td>
-                      <td className="px-3 py-3 text-center">{jogador.qualidade?.B || 0}</td>
-                      <td className="px-3 py-3 text-center">{jogador.qualidade?.C || 0}</td>
+                      {ESCALA.map((simbolo) => (
+                        <td key={simbolo} className="px-3 py-3 text-center">{jogador.qualidade?.[simbolo] || 0}</td>
+                      ))}
                       <td className="px-3 py-3 text-center">{jogador.scout?.saque?.total || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.saque?.aces || 0}</td>
                       <td className="px-3 py-3 text-center">{jogador.scout?.saque?.ab || 0}</td>
@@ -1149,13 +1115,14 @@ const EstatisticaView = ({
                   <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
                     Qualidade
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-6 gap-2">
                     {editOptions.qualidades.map((qualidade) => (
                       <button
                         key={qualidade}
                         type="button"
                         onClick={() => handleDraftActionChange('qualidade', qualidade)}
-                        className={`rounded-2xl px-4 py-3 text-sm font-black transition-colors ${
+                        title={descrever(TIPO_ACAO_PARA_FUNDAMENTO[Number(draftAction.tipoAcaoId)], qualidade)}
+                        className={`rounded-2xl px-2 py-3 text-sm font-black transition-colors ${
                           draftAction.qualidade === qualidade
                             ? 'bg-gray-900 text-white'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1165,6 +1132,11 @@ const EstatisticaView = ({
                       </button>
                     ))}
                   </div>
+
+                  {/* O simbolo sozinho nao diz nada: o significado vem do fundamento. */}
+                  <p className="mt-2 text-xs font-bold text-gray-500">
+                    {descrever(TIPO_ACAO_PARA_FUNDAMENTO[Number(draftAction.tipoAcaoId)], draftAction.qualidade)}
+                  </p>
                 </div>
               </div>
 

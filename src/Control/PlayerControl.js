@@ -1,5 +1,6 @@
 import db from "../db/db";
 import Player from "../Model/Player";
+import { getUploadsDir } from "../config/appPaths";
 const fs = require('fs');
 const path = require('path');
 const { Buffer } = require('buffer');
@@ -19,10 +20,7 @@ class PlayerControl {
         if (!base64Image || !base64Image.startsWith('data:image')) {
             return base64Image; 
         }
-        const pastaUploads = path.join(process.cwd(), 'uploads');
-        if (!fs.existsSync(pastaUploads)) {
-            fs.mkdirSync(pastaUploads);
-        }
+        const pastaUploads = getUploadsDir();
         const partes = base64Image.match(/^data:image\/([a-zA-Z0-9+-]+);base64,(.+)$/);
         if (!partes || partes.length !== 3) return null;
 

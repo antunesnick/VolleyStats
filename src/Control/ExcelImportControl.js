@@ -248,9 +248,9 @@ class ExcelImportControl {
                         }
                     };
 
-                    inserirAcoesEmMassa(row['Saque (Pts)'], 1, 'A');
-                    inserirAcoesEmMassa(row['Ataque (Pts)'], 2, 'A');
-                    inserirAcoesEmMassa(row['Bloqueio (Pts)'], 3, 'A');
+                    inserirAcoesEmMassa(row['Saque (Pts)'], 1, '#');
+                    inserirAcoesEmMassa(row['Ataque (Pts)'], 2, '#');
+                    inserirAcoesEmMassa(row['Bloqueio (Pts)'], 3, '#');
                     inserirAcoesEmMassa(row['Recepção (Pos%)'], 4, 'B'); 
 
                     jogadoresAtualizados++;

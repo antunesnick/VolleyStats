@@ -1,20 +1,21 @@
-const { app, BrowserWindow, ipcMain, protocol } = require('electron');
-const path = require('node:path');
-const CategoriaControl = require("./Control/CategoriaControl").default;
-const GinasioControlModule = require('./Control/GinasioControl');
-const GinasioControl = GinasioControlModule.default || GinasioControlModule;
-const PartidaControl = require('./Control/PartidaControl');
-const url = require('url');
-const xlsx = require('xlsx');
-const ExcelImportControl = require('./Control/ExcelImportControl').default;
-const RelatorioControl = require('./Control/RelatorioControl').default;
+// PRECISA ser o primeiro import: define o diretorio de dados antes de
+// src/db/db.js abrir a conexao com o SQLite.
+import './config/bootstrapPaths';
 
-const db = require('./db/db');
-const { initDatabase } = db;
-const TournamentControl = require('./Control/TournamentControl').default;
-const { gerarDadosFalsos } = require('./db/seed');
+import { app, BrowserWindow, ipcMain, protocol } from 'electron';
+import url from 'url';
+import squirrelStartup from 'electron-squirrel-startup';
 
-if (require('electron-squirrel-startup')) {
+import CategoriaControl from './Control/CategoriaControl';
+import GinasioControl from './Control/GinasioControl';
+import PartidaControl from './Control/PartidaControl';
+import ExcelImportControl from './Control/ExcelImportControl';
+import RelatorioControl from './Control/RelatorioControl';
+import TournamentControl from './Control/TournamentControl';
+import { initDatabase } from './db/db';
+import { gerarDadosFalsos } from './db/seed';
+
+if (squirrelStartup) {
   app.quit();
 }
   
@@ -104,7 +105,11 @@ app.whenReady().then(() => {
   });
 
   initDatabase();
-  gerarDadosFalsos();
+
+  // Dados ficticios servem para desenvolver. Uma build empacotada comeca vazia.
+  if (!app.isPackaged && process.env.VOLLEYSTATS_SEED !== '0') {
+    gerarDadosFalsos();
+  }
 
 
   ipcMain.handle('salvar-categoria', async (event, dados) => {
@@ -216,6 +221,12 @@ app.whenReady().then(() => {
 
   ipcMain.handle('relatorio:salvarPdf', async (event, payload = {}) => {
     return RelatorioControl.salvarPdf(event, payload);
+  });
+
+  // O renderer precisa do mesmo diretorio de dados para abrir o banco.
+  // Sincrono de proposito: o preload roda antes do bundle do React.
+  ipcMain.on('app:getDataDir', (event) => {
+    event.returnValue = process.env.VOLLEYSTATS_DATA_DIR;
   });
 
   createWindow();

@@ -1,4 +1,6 @@
 import db from '../db/db';
+import Ponto from './Ponto';
+import { ESCALA, normalizarFundamento, normalizarQualidade } from './Qualidade';
 
 const ACTION_NAMES = ['Saque', 'Ataque', 'Bloqueio', 'Recepcao', 'Defesa', 'Erro geral'];
 
@@ -129,29 +131,51 @@ class EstatisticaModel {
   }
 
   normalizarNomeAcao(name) {
+    const fundamento = normalizarFundamento(name);
+    if (fundamento) return fundamento;
+
     const actionName = String(name || '').trim();
-    if (actionName.toLowerCase().startsWith('recep')) return 'Recepcao';
     if (actionName.toLowerCase().startsWith('erro')) return 'Erro geral';
     return actionName || 'Sem tipo';
   }
 
+  criarContagemPorQualidade() {
+    return ESCALA.reduce((acc, simbolo) => {
+      acc[simbolo] = 0;
+      return acc;
+    }, {});
+  }
+
+  /**
+   * Estrutura de scout de um jogador, de um set ou da partida inteira.
+   *
+   * `qualidade` guarda a escala de 6 niveis crua; os campos derivados
+   * (aces, erros, eficiencia...) sao recalculados por `finalizarScout`.
+   */
   criarScoutVazio() {
+    const porQualidade = () => this.criarContagemPorQualidade();
+
     return {
       pontosTotais: 0,
+      errosTotais: 0,
       totalAcoes: 0,
-      qualidade: { A: 0, B: 0, C: 0 },
+      qualidade: porQualidade(),
       saque: {
         total: 0,
-        qualidade: { A: 0, B: 0, C: 0 },
+        qualidade: porQualidade(),
         aces: 0,
+        // "ab" e "cx" vem das telas antigas: pressao alta e pressao baixa.
+        // Mantidos porque os relatorios ja existentes leem esses nomes.
         ab: 0,
         cx: 0,
         erros: 0,
+        positivos: 0,
         eficiencia: 0,
+        positivoPct: 0,
       },
       recepcao: {
         total: 0,
-        qualidade: { A: 0, B: 0, C: 0 },
+        qualidade: porQualidade(),
         perfeita: 0,
         positiva: 0,
         c: 0,
@@ -159,32 +183,36 @@ class EstatisticaModel {
         erros: 0,
         positivaPct: 0,
         perfeitaPct: 0,
+        eficiencia: 0,
       },
       ataque: {
         total: 0,
-        qualidade: { A: 0, B: 0, C: 0 },
+        qualidade: porQualidade(),
         pontos: 0,
         positivos: 0,
         negativos: 0,
-        erros: 0,
         bloqueados: 0,
+        erros: 0,
         eficiencia: 0,
         pontosPct: 0,
       },
       bloqueio: {
         total: 0,
-        qualidade: { A: 0, B: 0, C: 0 },
+        qualidade: porQualidade(),
         pontos: 0,
         positivos: 0,
+        neutros: 0,
         erros: 0,
         eficiencia: 0,
       },
       defesa: {
         total: 0,
-        qualidade: { A: 0, B: 0, C: 0 },
+        qualidade: porQualidade(),
+        perfeitas: 0,
         positivas: 0,
         negativas: 0,
         erros: 0,
+        positivaPct: 0,
         eficiencia: 0,
       },
       errosGerais: 0,
@@ -200,54 +228,60 @@ class EstatisticaModel {
     return Number(value.toFixed(1));
   }
 
-  finalizarScout(scout) {
-    const nextScout = scout || this.criarScoutVazio();
-    nextScout.saque.total = nextScout.saque.aces
-      + nextScout.saque.ab
-      + nextScout.saque.cx
-      + nextScout.saque.erros;
-    nextScout.saque.eficiencia = nextScout.saque.total > 0
-      ? this.arredondarPercentual(((nextScout.saque.aces + nextScout.saque.cx) / nextScout.saque.total) * 100)
-      : 0;
-    nextScout.recepcao.total = nextScout.recepcao.perfeita
-      + nextScout.recepcao.positiva
-      + nextScout.recepcao.c
-      + nextScout.recepcao.x
-      + nextScout.recepcao.erros;
-    nextScout.recepcao.positivaPct = nextScout.recepcao.total > 0
-      ? this.arredondarPercentual(((nextScout.recepcao.perfeita + nextScout.recepcao.positiva) / nextScout.recepcao.total) * 100)
-      : 0;
-    nextScout.recepcao.perfeitaPct = nextScout.recepcao.total > 0
-      ? this.arredondarPercentual((nextScout.recepcao.perfeita / nextScout.recepcao.total) * 100)
-      : 0;
-    nextScout.ataque.total = nextScout.ataque.pontos
-      + nextScout.ataque.positivos
-      + nextScout.ataque.negativos
-      + nextScout.ataque.bloqueados
-      + nextScout.ataque.erros;
-    nextScout.ataque.eficiencia = nextScout.ataque.total > 0
-      ? this.arredondarPercentual(((nextScout.ataque.pontos - nextScout.ataque.erros - nextScout.ataque.bloqueados) / nextScout.ataque.total) * 100)
-      : 0;
-    nextScout.ataque.pontosPct = nextScout.ataque.total > 0
-      ? this.arredondarPercentual((nextScout.ataque.pontos / nextScout.ataque.total) * 100)
-      : 0;
-    nextScout.bloqueio.eficiencia = nextScout.bloqueio.total > 0
-      ? this.arredondarPercentual((nextScout.bloqueio.pontos / nextScout.bloqueio.total) * 100)
-      : 0;
-    nextScout.defesa.total = nextScout.defesa.positivas + nextScout.defesa.negativas;
-    nextScout.defesa.eficiencia = nextScout.defesa.total > 0
-      ? this.arredondarPercentual((nextScout.defesa.positivas / nextScout.defesa.total) * 100)
-      : 0;
-    nextScout.pontosTotais = nextScout.saque.aces + nextScout.ataque.pontos + nextScout.bloqueio.pontos;
-    nextScout.vitoriaPontos = nextScout.pontosTotais - (
-      nextScout.saque.erros
-      + nextScout.recepcao.erros
-      + nextScout.ataque.bloqueados
-      + nextScout.ataque.erros
-      + nextScout.errosGerais
-    );
+  somarQualidades(contagem) {
+    return ESCALA.reduce((soma, simbolo) => soma + (contagem[simbolo] || 0), 0);
+  }
 
-    return nextScout;
+  percentual(parte, total) {
+    return total > 0 ? this.arredondarPercentual((parte / total) * 100) : 0;
+  }
+
+  /**
+   * Fecha os numeros derivados do scout.
+   *
+   * As formulas sao as usadas no mercado (DataVolley e sumulas de federacao):
+   *   eficiencia de ataque = (pontos - erros - bloqueados) / tentativas
+   *   eficiencia de saque  = (aces - erros) / tentativas
+   *   recepcao positiva    = (# + +) / tentativas
+   */
+  finalizarScout(scout) {
+    const s = scout || this.criarScoutVazio();
+
+    s.saque.total = this.somarQualidades(s.saque.qualidade);
+    s.saque.eficiencia = this.percentual(s.saque.aces - s.saque.erros, s.saque.total);
+    s.saque.positivoPct = this.percentual(s.saque.positivos, s.saque.total);
+
+    s.recepcao.total = this.somarQualidades(s.recepcao.qualidade);
+    s.recepcao.positivaPct = this.percentual(s.recepcao.perfeita + s.recepcao.positiva, s.recepcao.total);
+    s.recepcao.perfeitaPct = this.percentual(s.recepcao.perfeita, s.recepcao.total);
+    s.recepcao.eficiencia = this.percentual(s.recepcao.perfeita - s.recepcao.erros, s.recepcao.total);
+
+    s.ataque.total = this.somarQualidades(s.ataque.qualidade);
+    s.ataque.eficiencia = this.percentual(
+      s.ataque.pontos - s.ataque.erros - s.ataque.bloqueados,
+      s.ataque.total
+    );
+    s.ataque.pontosPct = this.percentual(s.ataque.pontos, s.ataque.total);
+
+    s.bloqueio.total = this.somarQualidades(s.bloqueio.qualidade);
+    s.bloqueio.eficiencia = this.percentual(s.bloqueio.pontos - s.bloqueio.erros, s.bloqueio.total);
+
+    s.defesa.total = this.somarQualidades(s.defesa.qualidade);
+    s.defesa.positivaPct = this.percentual(s.defesa.positivas, s.defesa.total);
+    s.defesa.eficiencia = this.percentual(s.defesa.positivas - s.defesa.erros, s.defesa.total);
+
+    // So saque, ataque e bloqueio encerram o rally a favor da equipe.
+    s.pontosTotais = s.saque.aces + s.ataque.pontos + s.bloqueio.pontos;
+    s.errosTotais = s.saque.erros
+      + s.recepcao.erros
+      + s.ataque.erros
+      + s.ataque.bloqueados
+      + s.bloqueio.erros
+      + s.defesa.erros
+      + s.errosGerais;
+    s.vitoriaPontos = s.pontosTotais - s.errosTotais;
+
+    return s;
   }
 
   aplicarAcaoNoScout(scout, actionName, quality) {
@@ -255,98 +289,72 @@ class EstatisticaModel {
       return;
     }
 
-    const normalizedAction = this.normalizarNomeAcao(actionName);
-    const normalizedQuality = String(quality || '').trim().toUpperCase();
-    const isA = normalizedQuality === 'A';
-    const isB = normalizedQuality === 'B';
-    const isC = normalizedQuality === 'C';
+    const fundamento = normalizarFundamento(actionName);
+    const simbolo = normalizarQualidade(quality);
+
+    if (!fundamento || !simbolo) {
+      if (this.normalizarNomeAcao(actionName) === 'Erro geral') {
+        scout.errosGerais += 1;
+        scout.totalAcoes += 1;
+      }
+      return;
+    }
 
     scout.totalAcoes += 1;
-    if (Object.prototype.hasOwnProperty.call(scout.qualidade, normalizedQuality)) {
-      scout.qualidade[normalizedQuality] += 1;
-    }
+    scout.qualidade[simbolo] += 1;
 
-    if (normalizedAction === 'Saque') {
-      if (Object.prototype.hasOwnProperty.call(scout.saque.qualidade, normalizedQuality)) {
-        scout.saque.qualidade[normalizedQuality] += 1;
-      }
-      if (['ACE', 'PONTO', 'PTS'].includes(normalizedQuality) || isA) {
-        scout.saque.aces += 1;
-      } else if (['A+B', 'AB'].includes(normalizedQuality) || isB) {
-        scout.saque.ab += 1;
-      } else if (['C+X', 'CX'].includes(normalizedQuality) || isC) {
-        scout.saque.cx += 1;
-      } else if (normalizedQuality === 'ERRO') {
-        scout.saque.erros += 1;
-      }
+    const chave = fundamento === 'Recepcao' ? 'recepcao' : fundamento.toLowerCase();
+    const alvo = scout[chave];
+    alvo.qualidade[simbolo] += 1;
+
+    if (fundamento === 'Saque') {
+      if (simbolo === '#') alvo.aces += 1;
+      else if (simbolo === '=') alvo.erros += 1;
+      // "/" e "+" tiraram o adversario do primeiro tempo; "!" e "-" devolveram
+      // passe facil.
+      else if (simbolo === '/' || simbolo === '+') alvo.ab += 1;
+      else alvo.cx += 1;
+
+      if (['#', '/', '+'].includes(simbolo)) alvo.positivos += 1;
       return;
     }
 
-    if (normalizedAction === 'Recepcao') {
-      if (Object.prototype.hasOwnProperty.call(scout.recepcao.qualidade, normalizedQuality)) {
-        scout.recepcao.qualidade[normalizedQuality] += 1;
-      }
-      if (isA) {
-        scout.recepcao.perfeita += 1;
-      } else if (isB) {
-        scout.recepcao.positiva += 1;
-      } else if (isC) {
-        scout.recepcao.c += 1;
-      } else if (normalizedQuality === 'X') {
-        scout.recepcao.x += 1;
-      } else if (normalizedQuality === 'ERRO') {
-        scout.recepcao.erros += 1;
-      }
+    if (fundamento === 'Recepcao') {
+      if (simbolo === '#') alvo.perfeita += 1;
+      else if (simbolo === '+') alvo.positiva += 1;
+      else if (simbolo === '/') alvo.x += 1;
+      else if (simbolo === '=') alvo.erros += 1;
+      else alvo.c += 1;
       return;
     }
 
-    if (normalizedAction === 'Ataque') {
-      if (Object.prototype.hasOwnProperty.call(scout.ataque.qualidade, normalizedQuality)) {
-        scout.ataque.qualidade[normalizedQuality] += 1;
-      }
-      if (['PONTO', 'PTS'].includes(normalizedQuality) || isA) {
-        scout.ataque.pontos += 1;
-      } else if (['+', 'POSITIVO'].includes(normalizedQuality) || isB) {
-        scout.ataque.positivos += 1;
-      } else if (['-', 'NEGATIVO'].includes(normalizedQuality) || isC) {
-        scout.ataque.negativos += 1;
-      } else if (['BLOQ', 'BLOQUEADO'].includes(normalizedQuality)) {
-        scout.ataque.bloqueados += 1;
-      } else if (normalizedQuality === 'ERRO') {
-        scout.ataque.erros += 1;
-      }
+    if (fundamento === 'Ataque') {
+      if (simbolo === '#') alvo.pontos += 1;
+      else if (simbolo === '+') alvo.positivos += 1;
+      else if (simbolo === '/') alvo.bloqueados += 1;
+      else if (simbolo === '=') alvo.erros += 1;
+      else alvo.negativos += 1;
       return;
     }
 
-    if (normalizedAction === 'Bloqueio') {
-      scout.bloqueio.total += 1;
-      if (Object.prototype.hasOwnProperty.call(scout.bloqueio.qualidade, normalizedQuality)) {
-        scout.bloqueio.qualidade[normalizedQuality] += 1;
-      }
-      if (['PONTO', 'PTS'].includes(normalizedQuality) || isA) {
-        scout.bloqueio.pontos += 1;
-      } else if (['+', 'POSITIVO'].includes(normalizedQuality) || isB) {
-        scout.bloqueio.positivos += 1;
-      } else if (normalizedQuality === 'ERRO' || isC) {
-        scout.bloqueio.erros += 1;
-      }
+    if (fundamento === 'Bloqueio') {
+      if (simbolo === '#') alvo.pontos += 1;
+      else if (simbolo === '+') alvo.positivos += 1;
+      // Invasao e erro tecnico entregam o ponto ao adversario do mesmo jeito.
+      else if (simbolo === '/' || simbolo === '=') alvo.erros += 1;
+      else alvo.neutros += 1;
       return;
     }
 
-    if (normalizedAction === 'Defesa') {
-      if (Object.prototype.hasOwnProperty.call(scout.defesa.qualidade, normalizedQuality)) {
-        scout.defesa.qualidade[normalizedQuality] += 1;
-      }
-      if (['+', 'POSITIVA'].includes(normalizedQuality) || isA || isB) {
-        scout.defesa.positivas += 1;
-      } else if (['-', 'NEGATIVA'].includes(normalizedQuality) || isC) {
-        scout.defesa.negativas += 1;
-      }
-      return;
-    }
-
-    if (normalizedAction === 'Erro geral') {
-      scout.errosGerais += 1;
+    if (simbolo === '#') {
+      alvo.perfeitas += 1;
+      alvo.positivas += 1;
+    } else if (simbolo === '+') {
+      alvo.positivas += 1;
+    } else if (simbolo === '=') {
+      alvo.erros += 1;
+    } else {
+      alvo.negativas += 1;
     }
   }
 
@@ -356,11 +364,7 @@ class EstatisticaModel {
       nome: row.jogadorNome || 'Jogador',
       numero: row.jogadorNumero || '--',
       totalAcoes: 0,
-      qualidade: {
-        A: 0,
-        B: 0,
-        C: 0,
-      },
+      qualidade: this.criarContagemPorQualidade(),
       acoes: ACTION_NAMES.reduce((acc, actionName) => {
         acc[actionName] = 0;
         return acc;
@@ -394,6 +398,11 @@ class EstatisticaModel {
           numSet: setNumber,
           pontosMap: new Map(),
           acoes: 0,
+          // Cada set carrega o proprio scout e os proprios jogadores, para o
+          // relatorio poder comparar set a set - e onde se enxerga a equipe
+          // caindo de rendimento do primeiro para o terceiro set.
+          scout: this.criarScoutVazio(),
+          jogadoresMap: new Map(),
           savedPlacar: hasSavedScore
             ? {
                 home: this.normalizarPlacar(row.pontosTime1),
@@ -435,19 +444,14 @@ class EstatisticaModel {
         jogadoresMap.set(row.jogadorId, this.criarEstatisticaJogador(row));
       }
 
-      const playerStats = jogadoresMap.get(row.jogadorId);
-      const actionName = this.normalizarNomeAcao(row.tipoAcaoNome);
-      const quality = String(row.qualidade || '').toUpperCase();
-
-      playerStats.totalAcoes += 1;
-      playerStats.acoes[actionName] = (playerStats.acoes[actionName] || 0) + 1;
-      if (Object.prototype.hasOwnProperty.call(playerStats.qualidade, quality)) {
-        playerStats.qualidade[quality] += 1;
+      if (!setStats.jogadoresMap.has(row.jogadorId)) {
+        setStats.jogadoresMap.set(row.jogadorId, this.criarEstatisticaJogador(row));
       }
-      this.aplicarAcaoNoScout(playerStats.scout, actionName, quality);
-      this.aplicarAcaoNoScout(scoutTotal, actionName, quality);
 
-      playerStats.acoesDetalhadas.push({
+      const actionName = this.normalizarNomeAcao(row.tipoAcaoNome);
+      const quality = normalizarQualidade(row.qualidade);
+
+      const detalhe = {
         id: row.acaoId,
         numSet: row.numSet,
         pontoTime1: row.pontoTime1,
@@ -458,8 +462,25 @@ class EstatisticaModel {
         tipoAcaoId: row.tipoAcaoId,
         tipoAcaoNome: row.tipoAcaoNome || 'Sem tipo',
         qualidade: quality,
-      });
+      };
+
+      for (const alvo of [jogadoresMap.get(row.jogadorId), setStats.jogadoresMap.get(row.jogadorId)]) {
+        alvo.totalAcoes += 1;
+        alvo.acoes[actionName] = (alvo.acoes[actionName] || 0) + 1;
+        if (quality && Object.prototype.hasOwnProperty.call(alvo.qualidade, quality)) {
+          alvo.qualidade[quality] += 1;
+        }
+        this.aplicarAcaoNoScout(alvo.scout, actionName, quality);
+        alvo.acoesDetalhadas.push(detalhe);
+      }
+
+      this.aplicarAcaoNoScout(setStats.scout, actionName, quality);
+      this.aplicarAcaoNoScout(scoutTotal, actionName, quality);
     }
+
+    const ordenarJogadores = (lista) => lista
+      .map((jogador) => ({ ...jogador, scout: this.finalizarScout(jogador.scout) }))
+      .sort((a, b) => b.totalAcoes - a.totalAcoes || String(a.nome).localeCompare(String(b.nome)));
 
     const sets = Array.from(setsMap.values())
       .map((setStats) => {
@@ -471,16 +492,13 @@ class EstatisticaModel {
           acoes: setStats.acoes,
           placar,
           vencedor: placar.home > placar.away ? 'home' : placar.away > placar.home ? 'away' : null,
+          scout: this.finalizarScout(setStats.scout),
+          jogadores: ordenarJogadores(Array.from(setStats.jogadoresMap.values())),
         };
       })
       .sort((a, b) => a.numSet - b.numSet);
 
-    const jogadores = Array.from(jogadoresMap.values())
-      .map((jogador) => ({
-        ...jogador,
-        scout: this.finalizarScout(jogador.scout),
-      }))
-      .sort((a, b) => b.totalAcoes - a.totalAcoes || String(a.nome).localeCompare(String(b.nome)));
+    const jogadores = ordenarJogadores(Array.from(jogadoresMap.values()));
 
     const resultadoSets = sets.reduce((resultado, setStats) => {
       if (setStats.vencedor === 'home') {
@@ -553,7 +571,76 @@ class EstatisticaModel {
       ORDER BY S.NumSet ASC, (P.pontoTime1 + P.pontoTime2) ASC, P.pontoTime1 ASC, P.pontoTime2 ASC, A.id ASC
     `);
 
-    return this.montarEstatisticasPorLinhas(sql.all(Number(partidaId)), partidaScore);
+    const estatisticas = this.montarEstatisticasPorLinhas(sql.all(Number(partidaId)), partidaScore);
+
+    return this.aplicarPontosPorAtleta(Number(partidaId), estatisticas);
+  }
+
+  /**
+   * Acrescenta a cada jogador quantos pontos da partida sao dele.
+   *
+   * O dono do ponto e o autor da ultima acao do rally (Ponto.Jogador_id), e o
+   * lado que venceu o rally separa "ponto conquistado" de "ponto cedido".
+   * Sem essa separacao um erro de ataque contaria como ponto a favor do atleta.
+   */
+  aplicarPontosPorAtleta(partidaId, estatisticas) {
+    const porAtleta = new Map(
+      Ponto.buscarPontosPorAtleta(partidaId, db).map((linha) => [Number(linha.jogadorId), linha])
+    );
+
+    // Mesma informacao, indexada por set, para a aba "Por set" do relatorio.
+    const porAtletaNoSet = new Map();
+    for (const linha of Ponto.buscarPontosPorAtletaPorSet(partidaId, db)) {
+      const numSet = Number(linha.numSet);
+      if (!porAtletaNoSet.has(numSet)) {
+        porAtletaNoSet.set(numSet, new Map());
+      }
+      porAtletaNoSet.get(numSet).set(Number(linha.jogadorId), linha);
+    }
+
+    const enxertar = (lista, indice) => (lista || []).map((jogador) => {
+      const linha = indice?.get(Number(jogador.id));
+
+      return {
+        ...jogador,
+        pontos: Number(linha?.pontos ?? 0),
+        pontosCedidos: Number(linha?.pontosCedidos ?? 0),
+      };
+    });
+
+    const somarPontos = (lista) => lista.reduce(
+      (acc, jogador) => ({
+        pontos: acc.pontos + jogador.pontos,
+        pontosCedidos: acc.pontosCedidos + jogador.pontosCedidos,
+      }),
+      { pontos: 0, pontosCedidos: 0 }
+    );
+
+    const jogadores = enxertar(estatisticas.jogadores, porAtleta);
+    const totais = somarPontos(jogadores);
+
+    const sets = (estatisticas.sets || []).map((setStats) => {
+      const jogadoresDoSet = enxertar(setStats.jogadores, porAtletaNoSet.get(Number(setStats.numSet)));
+      const totaisDoSet = somarPontos(jogadoresDoSet);
+
+      return {
+        ...setStats,
+        jogadores: jogadoresDoSet,
+        pontosAtribuidos: totaisDoSet.pontos,
+        pontosCedidos: totaisDoSet.pontosCedidos,
+      };
+    });
+
+    return {
+      ...estatisticas,
+      jogadores,
+      sets,
+      totals: {
+        ...estatisticas.totals,
+        pontosAtribuidos: totais.pontos,
+        pontosCedidos: totais.pontosCedidos,
+      },
+    };
   }
 
   montarRelatorioGeralPartidas(filtros = null) {
@@ -863,7 +950,7 @@ class EstatisticaModel {
     return {
       jogadores,
       tiposAcao,
-      qualidades: ['A', 'B', 'C'],
+      qualidades: [...ESCALA],
     };
   }
 
@@ -871,14 +958,14 @@ class EstatisticaModel {
     const acaoId = Number(dadosAcao?.id);
     const jogadorId = Number(dadosAcao?.jogadorId);
     const tipoAcaoId = Number(dadosAcao?.tipoAcaoId);
-    const qualidade = String(dadosAcao?.qualidade || '').toUpperCase();
+    const qualidade = normalizarQualidade(dadosAcao?.qualidade);
 
-    if (!acaoId || !jogadorId || !tipoAcaoId || !['A', 'B', 'C'].includes(qualidade)) {
+    if (!acaoId || !jogadorId || !tipoAcaoId || !qualidade) {
       throw new Error('Dados invalidos para editar a acao.');
     }
 
     const acao = db.prepare(`
-      SELECT id
+      SELECT id, Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id
       FROM Acao
       WHERE id = ? AND Ponto_Partida_id = ?
     `).get(acaoId, Number(partidaId));
@@ -908,6 +995,15 @@ class EstatisticaModel {
     if (result.changes === 0) {
       throw new Error('Nenhuma acao foi atualizada.');
     }
+
+    // Trocar o autor da ultima acao do rally troca o dono do ponto.
+    Ponto.sincronizarDonoDoPonto(
+      acao.Ponto_Partida_id,
+      acao.Ponto_NumSet,
+      acao.Ponto_pontoTime1,
+      acao.Ponto_pontoTime2,
+      db
+    );
 
     return this.buscarEstatisticasPartida(partidaId);
   }
@@ -978,6 +1074,15 @@ class EstatisticaModel {
         acaoRow.Ponto_pontoTime2,
         acaoRow.Ponto_NumSet,
         acaoRow.Ponto_Partida_id,
+      );
+    } else {
+      // Sobraram acoes: o ponto passa para o autor da nova ultima acao.
+      Ponto.sincronizarDonoDoPonto(
+        acaoRow.Ponto_Partida_id,
+        acaoRow.Ponto_NumSet,
+        acaoRow.Ponto_pontoTime1,
+        acaoRow.Ponto_pontoTime2,
+        db
       );
     }
 

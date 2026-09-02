@@ -1,9 +1,9 @@
-const db = require('../db/db');
-const PartidaModel = require('../Model/PartidaModel');
+import db from '../db/db';
+import PartidaModel from '../Model/PartidaModel';
 
 class PartidaControl {
     async createPartida(data) {
-        const partida = new PartidaModel(null, data.nome, data.pontosTime1, data.pontosTime2, data.dataPartida, data.tipo, data.status, data.externa, data.ginasio_id, data.time1, data.time2, data.torneio_id, data.videoLink, data.fase || data.tipo);
+        const partida = new PartidaModel(null, data.nome, data.pontosTime1, data.pontosTime2, data.dataPartida, data.tipo, data.status, data.externa, data.ginasio_id, data.time1, data.time2, data.torneio_id, data.videoLink, data.fase || data.tipo, data.setsParaVencer);
         
         const insertTransaction = db.transaction((partidaObj) => {
             return partida.insert(partidaObj, db); 
@@ -19,7 +19,7 @@ class PartidaControl {
     }
 
     async updatePartida(data) {
-        const partida = new PartidaModel(data.id, data.nome, data.pontosTime1, data.pontosTime2, data.dataPartida, data.tipo, data.status, data.externa, data.ginasio_id, data.time1, data.time2, data.torneio_id, data.videoLink, data.fase || data.tipo);
+        const partida = new PartidaModel(data.id, data.nome, data.pontosTime1, data.pontosTime2, data.dataPartida, data.tipo, data.status, data.externa, data.ginasio_id, data.time1, data.time2, data.torneio_id, data.videoLink, data.fase || data.tipo, data.setsParaVencer);
         
         const updateTransaction = db.transaction((partidaObj) => {
             return partida.update(partidaObj, db);
@@ -162,4 +162,4 @@ class PartidaControl {
         return PartidaControl.instance;
     }
 }   
-module.exports = PartidaControl;
+export default PartidaControl;

@@ -110,7 +110,7 @@ class Substituicao extends Evento {
         }
 
         if (!parDoEntra || !parDoSai || parDoEntra !== parDoSai) {
-            return 'SubstituiÃ§Ã£o irregular: o reserva sÃ³ pode sair para o mesmo titular que ele substituiu.';
+            return 'Substituição irregular: o reserva só pode sair para o mesmo titular que ele substituiu.';
         }
 
         const par = parDoSai;
@@ -118,15 +118,15 @@ class Substituicao extends Evento {
         const titularVoltando = par.reserva === sai && par.titular === entra;
 
         if (!titularSaindo && !titularVoltando) {
-            return 'SubstituiÃ§Ã£o irregular: este par de jogadores nÃ£o respeita a ordem da troca original.';
+            return 'Substituição irregular: este par de jogadores não respeita a ordem da troca original.';
         }
 
         if (titularSaindo) {
-            return 'SubstituiÃ§Ã£o irregular: o titular jÃ¡ saiu neste set e sÃ³ poderia voltar no lugar do mesmo reserva.';
+            return 'Substituição irregular: o titular já saiu neste set e só poderia voltar no lugar do mesmo reserva.';
         }
 
         if (titularVoltando && par.movimentos.length >= 2) {
-            return 'SubstituiÃ§Ã£o irregular: o titular jÃ¡ voltou uma vez neste set.';
+            return 'Substituição irregular: o titular já voltou uma vez neste set.';
         }
 
         return null;
@@ -136,7 +136,7 @@ class Substituicao extends Evento {
         const mensagens = [];
 
         if (!partidaId) {
-            mensagens.push('Partida nÃ£o identificada.');
+            mensagens.push('Partida não identificada.');
         }
 
         if (!jogadorEntra || !jogadorSai) {
@@ -163,7 +163,7 @@ class Substituicao extends Evento {
             ));
 
             if (substituicoesNormais.length >= MAX_SUBSTITUICOES_POR_SET) {
-                mensagens.push(`Limite de ${MAX_SUBSTITUICOES_POR_SET} substituiÃ§Ãµes por set atingido.`);
+                mensagens.push(`Limite de ${MAX_SUBSTITUICOES_POR_SET} substituições por set atingido.`);
             }
 
             const pares = Substituicao.montarParesNormais(substituicoes);

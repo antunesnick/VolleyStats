@@ -7,7 +7,7 @@ import { Alertas } from "../../utils/Alertas";
 
 const SORT_OPTIONS = [
   { id: "efetividade", label: "Efetividade" },
-  { id: "acertos", label: "Acertos" },
+  { id: "pontos", label: "Pontos" },
   { id: "bloqueios", label: "Bloqueios" },
 ];
 
@@ -182,7 +182,7 @@ const PlayerRanking = ({ open, onClose }) => {
             <div className="grid grid-cols-[56px_1.7fr_0.8fr_0.8fr_0.8fr] gap-2 bg-gray-950 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-300">
               <span>#</span>
               <span>Jogador</span>
-              <span className="text-center">Acertos</span>
+              <span className="text-center">Pontos</span>
               <span className="text-center">Bloqueios</span>
               <span className="text-center">Efetividade</span>
             </div>
@@ -217,7 +217,7 @@ const PlayerRanking = ({ open, onClose }) => {
                       </div>
                     </div>
 
-                    <div className="text-center text-lg font-black text-gray-900">{player.acertos}</div>
+                    <div className="text-center text-lg font-black text-gray-900">{player.pontosAcao}</div>
                     <div className="text-center text-lg font-black text-gray-900">{player.bloqueios}</div>
                     <div className="flex items-center justify-center gap-1 text-lg font-black text-red-700">
                       <BarChart3 size={16} />

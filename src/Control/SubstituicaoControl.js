@@ -63,7 +63,7 @@ class SubstituicaoControl {
     } catch (error) {
       return {
         success: false,
-        message: error.message || 'Erro ao registrar substituiÃ§Ã£o.',
+        message: error.message || 'Erro ao registrar substituição.',
       };
     }
   }

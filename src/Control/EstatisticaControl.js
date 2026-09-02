@@ -1,5 +1,12 @@
 import db from "../db/db";
 import EstatisticaModel from "../Model/EstatisticaModel";
+import {
+  avaliarPartida,
+  avaliarSet,
+  normalizarSetsParaVencer,
+  totalDeSets,
+} from "../Model/RegrasSet";
+import { ESCALA, normalizarQualidade } from "../Model/Qualidade";
 
 class EstatisticaControl {
   static #instance;
@@ -24,7 +31,7 @@ class EstatisticaControl {
       editOptions: {
         jogadores: [],
         tiposAcao: [],
-        qualidades: ["A", "B", "C"],
+        qualidades: [...ESCALA],
       },
       statistics: this.estatisticaModel.montarEstatisticaVazia(),
       statisticsError: "",
@@ -80,13 +87,23 @@ class EstatisticaControl {
     }, { home: 0, away: 0 });
   }
 
-  validarPontuacaoPartida(draftSets = []) {
+  /**
+   * Valida o placar dos sets no encerramento da partida.
+   *
+   * O formato manda em tudo: numa melhor de 3 bastam 2 sets (2x0 e resultado
+   * valido) e o set decisivo e o 3o, de 15 pontos; numa melhor de 5 sao 3 sets
+   * e o decisivo e o 5o - o set 3 de uma melhor de 5 vale 25, nao 15.
+   */
+  validarPontuacaoPartida(draftSets = [], setsParaVencer) {
+    const alvoSets = normalizarSetsParaVencer(setsParaVencer);
+    const maximoSets = totalDeSets(alvoSets);
+
     if (!Array.isArray(draftSets) || draftSets.length === 0) {
-      throw new Error("Informe ao menos 3 sets para encerrar a partida.");
+      throw new Error(`Informe ao menos ${alvoSets} sets para encerrar a partida.`);
     }
 
-    if (draftSets.length > 5) {
-      throw new Error("Uma partida de volei pode ter no maximo 5 sets.");
+    if (draftSets.length > maximoSets) {
+      throw new Error(`Uma partida melhor de ${maximoSets} pode ter no maximo ${maximoSets} sets.`);
     }
 
     const setsOrdenados = [...draftSets].sort((a, b) => Number(a.numSet) - Number(b.numSet));
@@ -112,15 +129,13 @@ class EstatisticaControl {
         throw new Error(`O Set ${numeroSet} nao pode terminar empatado.`);
       }
 
-      const pontosVencedor = Math.max(home, away);
-      const pontosPerdedor = Math.min(home, away);
-      const pontosMinimos = numeroSet === 3 || numeroSet === 5 ? 15 : 25;
+      const avaliacao = avaliarSet(home, away, numeroSet, alvoSets);
 
-      if (pontosVencedor < pontosMinimos) {
-        throw new Error(`O Set ${numeroSet} precisa terminar com pelo menos ${pontosMinimos} pontos para o vencedor.`);
+      if (Math.max(home, away) < avaliacao.alvo) {
+        throw new Error(`O Set ${numeroSet} precisa terminar com pelo menos ${avaliacao.alvo} pontos para o vencedor.`);
       }
 
-      if (pontosVencedor - pontosPerdedor < 2) {
+      if (Math.abs(home - away) < 2) {
         throw new Error(`O Set ${numeroSet} precisa ter diferenca minima de 2 pontos.`);
       }
 
@@ -130,17 +145,19 @@ class EstatisticaControl {
         setsAway += 1;
       }
 
-      if ((setsHome === 3 || setsAway === 3) && index < setsOrdenados.length - 1) {
-        throw new Error("A partida deve encerrar assim que um time vence 3 sets.");
+      const encerrada = avaliarPartida(setsHome, setsAway, alvoSets).encerrada;
+      if (encerrada && index < setsOrdenados.length - 1) {
+        throw new Error(`A partida deve encerrar assim que um time vence ${alvoSets} sets.`);
       }
     }
 
-    if (setsHome !== 3 && setsAway !== 3) {
-      throw new Error("Para encerrar a partida, um dos times precisa vencer 3 sets.");
+    if (!avaliarPartida(setsHome, setsAway, alvoSets).encerrada) {
+      throw new Error(`Para encerrar a partida, um dos times precisa vencer ${alvoSets} sets.`);
     }
 
     return {
       isValid: true,
+      setsParaVencer: alvoSets,
       resultado: {
         home: setsHome,
         away: setsAway,
@@ -253,7 +270,7 @@ class EstatisticaControl {
       return {
         jogadores: [],
         tiposAcao: [],
-        qualidades: ["A", "B", "C"],
+        qualidades: [...ESCALA],
       };
     }
   }
@@ -267,7 +284,7 @@ class EstatisticaControl {
       id: acao.id,
       jogadorId: Number(acao.jogadorId) || "",
       tipoAcaoId: Number(acao.tipoAcaoId) || "",
-      qualidade: acao.qualidade || "A",
+      qualidade: normalizarQualidade(acao.qualidade) || "#",
     };
   }
 

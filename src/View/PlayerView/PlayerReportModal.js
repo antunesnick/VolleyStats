@@ -1,5 +1,13 @@
 import React, { useMemo, useState } from "react";
 import { Alertas } from "../../utils/Alertas";
+import {
+  blocoMetricas,
+  blocoTabela,
+  escapeHtml,
+  montarDocumento,
+  nomeArquivoRelatorio,
+  salvarRelatorioPdf,
+} from "../../utils/relatorioPdf";
 
 const ACTION_LABELS = ["Saque", "Ataque", "Bloqueio", "Recepcao", "Defesa"];
 
@@ -80,14 +88,8 @@ const getTopAction = (acoesPorTipo = {}) => {
   return ordered[0];
 };
 
-const sumCounts = (counts = {}) => (Number(counts.A) || 0) + (Number(counts.B) || 0) + (Number(counts.C) || 0);
+const sumCounts = (counts = {}) => (Number(counts.Ponto) || 0) + (Number(counts.Neutra) || 0) + (Number(counts.Erro) || 0);
 
-const escapeHtml = (value) => String(value ?? "")
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/\"/g, "&quot;")
-  .replace(/'/g, "&#039;");
 
 const montarHtmlRelatorioJogador = ({ jogador, totals, partidas, torneios }) => {
   const nomeJogador = jogador?.nome || "Jogador";
@@ -103,16 +105,16 @@ const montarHtmlRelatorioJogador = ({ jogador, totals, partidas, torneios }) => 
   const linhasAcoes = ACTION_LABELS.concat("Outros")
     .filter((label) => totals.acoesPorTipoQualidade?.[label])
     .map((label) => {
-      const counts = totals.acoesPorTipoQualidade?.[label] || { A: 0, B: 0, C: 0 };
+      const counts = totals.acoesPorTipoQualidade?.[label] || { Ponto: 0, Neutra: 0, Erro: 0 };
       return `
         <tr>
           <td>${escapeHtml(label)}</td>
-          <td class="center">${counts.A || 0}</td>
-          <td class="center">${counts.B || 0}</td>
-          <td class="center">${counts.C || 0}</td>
+          <td class="center">${counts.Ponto || 0}</td>
+          <td class="center">${counts.Neutra || 0}</td>
+          <td class="center">${counts.Erro || 0}</td>
         </tr>
       `;
-    }).join("");
+    });
 
   const linhasPartidas = (partidas || []).map((partida) => {
     const placarLabel = partida.time1Nome && partida.time2Nome
@@ -126,12 +128,12 @@ const montarHtmlRelatorioJogador = ({ jogador, totals, partidas, torneios }) => 
           <span>${escapeHtml(partida.torneioNome || "Sem torneio")}</span>
         </td>
         <td class="center">${partida.acoes || 0}</td>
-        <td class="center">${partida.qualidade?.A || 0}</td>
-        <td class="center">${partida.qualidade?.B || 0}</td>
-        <td class="center">${partida.qualidade?.C || 0}</td>
+        <td class="center">${partida.qualidade?.Ponto || 0}</td>
+        <td class="center">${partida.qualidade?.Neutra || 0}</td>
+        <td class="center">${partida.qualidade?.Erro || 0}</td>
       </tr>
     `;
-  }).join("");
+  });
 
   const linhasTorneios = (torneios || []).map((torneio) => `
     <tr>
@@ -140,202 +142,62 @@ const montarHtmlRelatorioJogador = ({ jogador, totals, partidas, torneios }) => 
       <td class="center">${torneio.partidas || 0}</td>
       <td class="center">${torneio.acoes || 0}</td>
     </tr>
-  `).join("");
+  `);
 
-  return `
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>Relatorio do Jogador - ${escapeHtml(nomeJogador)}</title>
-        <style>
-          * { box-sizing: border-box; }
-          body {
-            margin: 0;
-            padding: 32px;
-            font-family: Arial, Helvetica, sans-serif;
-            color: #111827;
-            background: #ffffff;
-          }
-          header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 24px;
-            padding: 22px 24px;
-            color: #ffffff;
-            background: #000000;
-            border-bottom: 6px solid #dc2626;
-            border-radius: 14px 14px 0 0;
-          }
-          .eyebrow {
-            margin: 0 0 6px;
-            color: #f87171;
-            font-size: 11px;
-            font-weight: 900;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-          }
-          h1 {
-            margin: 0;
-            font-size: 30px;
-            line-height: 1;
-            text-transform: uppercase;
-          }
-          .meta {
-            margin-top: 8px;
-            color: #d1d5db;
-            font-size: 13px;
-            font-weight: 700;
-          }
-          .avatar {
-            width: 72px;
-            height: 72px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex: 0 0 auto;
-            border-radius: 12px;
-            background: #dc2626;
-            color: #ffffff;
-            font-size: 28px;
-            font-weight: 900;
-          }
-          .metrics {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            margin: 22px 0;
-          }
-          .metric {
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 16px;
-            background: #ffffff;
-          }
-          .metric span {
-            display: block;
-            color: #6b7280;
-            font-size: 10px;
-            font-weight: 900;
-            letter-spacing: 1.4px;
-            text-transform: uppercase;
-          }
-          .metric strong {
-            display: block;
-            margin-top: 8px;
-            font-size: 28px;
-            font-weight: 900;
-          }
-          .table-title {
-            margin: 26px 0 0;
-            padding: 14px 18px;
-            background: #dc2626;
-            color: #ffffff;
-            font-size: 18px;
-            font-weight: 900;
-            text-transform: uppercase;
-            border-radius: 12px 12px 0 0;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            border: 1px solid #e5e7eb;
-          }
-          th {
-            padding: 11px;
-            background: #000000;
-            color: #ffffff;
-            font-size: 10px;
-            letter-spacing: 1px;
-            text-align: left;
-            text-transform: uppercase;
-          }
-          td {
-            padding: 12px 11px;
-            border-bottom: 1px solid #f3f4f6;
-            font-size: 12px;
-            vertical-align: top;
-          }
-          td span {
-            display: block;
-            margin-top: 4px;
-            color: #6b7280;
-            font-size: 10px;
-            font-weight: 700;
-          }
-          .center { text-align: center; }
-        </style>
-      </head>
-      <body>
-        <header>
-          <div>
-            <p class="eyebrow">Relatorio do Jogador</p>
-            <h1>${escapeHtml(nomeJogador)}</h1>
-            <div class="meta">Camisa ${escapeHtml(jogador?.numCamisa || "--")} | ${escapeHtml(jogador?.posicaoNome || "--")} | ${escapeHtml(jogador?.categoriaNome || "--")}</div>
-            <div class="meta">Altura ${escapeHtml(formatHeight(jogador?.altura))} | Nascimento ${escapeHtml(formatDate(jogador?.dataNasc))}</div>
-          </div>
-          <div class="avatar">${escapeHtml(iniciais)}</div>
-        </header>
-
-        <section class="metrics">
-          <div class="metric"><span>Acoes</span><strong>${totals.acoes || 0}</strong></div>
-          <div class="metric"><span>Partidas</span><strong>${totals.partidas || 0}</strong></div>
-          <div class="metric"><span>Torneios</span><strong>${totals.torneios || 0}</strong></div>
-          <div class="metric"><span>Qualidade A</span><strong>${totals.qualidade?.A || 0}</strong></div>
-          <div class="metric"><span>Qualidade B</span><strong>${totals.qualidade?.B || 0}</strong></div>
-          <div class="metric"><span>Qualidade C</span><strong>${totals.qualidade?.C || 0}</strong></div>
-        </section>
-
-        <h2 class="table-title">Acoes por tipo</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Acao</th>
-              <th class="center">A</th>
-              <th class="center">B</th>
-              <th class="center">C</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${linhasAcoes || '<tr><td colspan="4" class="center">Nenhuma acao encontrada.</td></tr>'}
-          </tbody>
-        </table>
-
-        <h2 class="table-title">Partidas</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Partida</th>
-              <th class="center">Acoes</th>
-              <th class="center">A</th>
-              <th class="center">B</th>
-              <th class="center">C</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${linhasPartidas || '<tr><td colspan="6" class="center">Nenhuma partida encontrada.</td></tr>'}
-          </tbody>
-        </table>
-
-        <h2 class="table-title">Torneios</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Torneio</th>
-              <th>Periodo</th>
-              <th class="center">Partidas</th>
-              <th class="center">Acoes</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${linhasTorneios || '<tr><td colspan="4" class="center">Nenhum torneio encontrado.</td></tr>'}
-          </tbody>
-        </table>
-      </body>
-    </html>
-  `;
+  return montarDocumento({
+    titulo: nomeJogador,
+    eyebrow: "Relatorio do Jogador",
+    subtitulo: [
+      `Camisa ${jogador?.numCamisa || "--"} | ${jogador?.posicaoNome || "--"} | ${jogador?.categoriaNome || "--"}`,
+      `Altura ${formatHeight(jogador?.altura)} | Nascimento ${formatDate(jogador?.dataNasc)}`,
+    ],
+    aside: `<div class="avatar">${escapeHtml(iniciais)}</div>`,
+    corpo: `
+      ${blocoMetricas([
+        { rotulo: "Acoes", valor: totals.acoes || 0 },
+        { rotulo: "Partidas", valor: totals.partidas || 0 },
+        { rotulo: "Torneios", valor: totals.torneios || 0 },
+        { rotulo: "Pontos", valor: totals.qualidade?.Ponto || 0, destaque: true },
+        { rotulo: "Neutras", valor: totals.qualidade?.Neutra || 0 },
+        { rotulo: "Erros", valor: totals.qualidade?.Erro || 0 },
+      ], { colunas: 3 })}
+      ${blocoTabela({
+        titulo: "Acoes por tipo",
+        colunas: [
+          "Acao",
+          { rotulo: "Pts", center: true },
+          { rotulo: "Neutras", center: true },
+          { rotulo: "Erros", center: true },
+        ],
+        linhas: linhasAcoes,
+        vazio: "Nenhuma acao encontrada.",
+      })}
+      ${blocoTabela({
+        titulo: "Partidas",
+        colunas: [
+          "Data",
+          "Partida",
+          { rotulo: "Acoes", center: true },
+          { rotulo: "Pts", center: true },
+          { rotulo: "Neutras", center: true },
+          { rotulo: "Erros", center: true },
+        ],
+        linhas: linhasPartidas,
+        vazio: "Nenhuma partida encontrada.",
+      })}
+      ${blocoTabela({
+        titulo: "Torneios",
+        colunas: [
+          "Torneio",
+          "Periodo",
+          { rotulo: "Partidas", center: true },
+          { rotulo: "Acoes", center: true },
+        ],
+        linhas: linhasTorneios,
+        vazio: "Nenhum torneio encontrado.",
+      })}
+    `,
+  });
 };
 
 const PlayerReportModal = ({ open, onClose, loading, report, player }) => {
@@ -345,7 +207,7 @@ const PlayerReportModal = ({ open, onClose, loading, report, player }) => {
     acoes: 0,
     partidas: 0,
     torneios: 0,
-    qualidade: { A: 0, B: 0, C: 0 },
+    qualidade: { Ponto: 0, Neutra: 0, Erro: 0 },
     acoesPorTipo: {},
     acoesPorTipoQualidade: {},
   };
@@ -353,10 +215,10 @@ const PlayerReportModal = ({ open, onClose, loading, report, player }) => {
   const actionCards = useMemo(() => {
     const base = ACTION_LABELS.map((label) => ({
       label,
-      counts: totals.acoesPorTipoQualidade?.[label] || { A: 0, B: 0, C: 0 },
+      counts: totals.acoesPorTipoQualidade?.[label] || { Ponto: 0, Neutra: 0, Erro: 0 },
     }));
 
-    const outrosCounts = totals.acoesPorTipoQualidade?.Outros || { A: 0, B: 0, C: 0 };
+    const outrosCounts = totals.acoesPorTipoQualidade?.Outros || { Ponto: 0, Neutra: 0, Erro: 0 };
     if (sumCounts(outrosCounts) > 0) {
       base.push({ label: "Outros", counts: outrosCounts });
     }
@@ -375,12 +237,8 @@ const PlayerReportModal = ({ open, onClose, loading, report, player }) => {
     setIsSavingPdf(true);
 
     try {
-      const nomeJogador = String(jogador?.nome || "jogador")
-        .trim()
-        .replace(/\s+/g, "-")
-        .toLowerCase();
-      const result = await window.reportAPI.salvarPdf({
-        nomeArquivo: `relatorio-jogador-${nomeJogador}.pdf`,
+      const result = await salvarRelatorioPdf({
+        nomeArquivo: nomeArquivoRelatorio("relatorio", "jogador", jogador?.nome),
         html: montarHtmlRelatorioJogador({ jogador, totals, partidas, torneios }),
       });
 
@@ -455,8 +313,8 @@ const PlayerReportModal = ({ open, onClose, loading, report, player }) => {
               <StatCard label="Ações" value={totals.acoes} />
               <StatCard label="Partidas" value={totals.partidas} />
               <StatCard label="Torneios" value={totals.torneios} />
-              <StatCard label="Qualidade A" value={totals.qualidade?.A || 0} />
-              <StatCard label="Qualidade B" value={totals.qualidade?.B || 0} />
+              <StatCard label="Pontos" value={totals.qualidade?.Ponto || 0} />
+              <StatCard label="Neutras" value={totals.qualidade?.Neutra || 0} />
             </div>
 
             <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
@@ -465,7 +323,7 @@ const PlayerReportModal = ({ open, onClose, loading, report, player }) => {
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Ações por tipo</p>
                   <h3 className="text-sm font-black text-gray-900">Distribuição</h3>
                 </div>
-                <span className="text-[10px] font-bold text-gray-500">Q.C: {totals.qualidade?.C || 0}</span>
+                <span className="text-[10px] font-bold text-gray-500">Erros: {totals.qualidade?.Erro || 0}</span>
               </div>
               <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
                 {actionCards.map((item) => (
@@ -473,13 +331,13 @@ const PlayerReportModal = ({ open, onClose, loading, report, player }) => {
                     <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">{item.label}</p>
                     <div className="mt-1 flex flex-wrap items-center justify-center gap-1 text-[9px] font-black text-gray-600">
                       <span className="rounded-full bg-gray-50 border border-gray-100 px-2 py-0.5">
-                        A {item.counts?.A || 0}
+                        Pts {item.counts?.Ponto || 0}
                       </span>
                       <span className="rounded-full bg-gray-50 border border-gray-100 px-2 py-0.5">
-                        B {item.counts?.B || 0}
+                        Neutras {item.counts?.Neutra || 0}
                       </span>
                       <span className="rounded-full bg-gray-50 border border-gray-100 px-2 py-0.5">
-                        C {item.counts?.C || 0}
+                        Erros {item.counts?.Erro || 0}
                       </span>
                     </div>
                   </div>
@@ -528,13 +386,13 @@ const PlayerReportModal = ({ open, onClose, loading, report, player }) => {
 
                         <div className="mt-2 flex flex-wrap gap-1 text-[10px] font-black">
                           <span className="rounded-full bg-white border border-gray-100 px-2 py-0.5 text-gray-700">
-                            A: {partida.qualidade?.A || 0}
+                            Pts: {partida.qualidade?.Ponto || 0}
                           </span>
                           <span className="rounded-full bg-white border border-gray-100 px-2 py-0.5 text-gray-700">
-                            B: {partida.qualidade?.B || 0}
+                            Neutras: {partida.qualidade?.Neutra || 0}
                           </span>
                           <span className="rounded-full bg-white border border-gray-100 px-2 py-0.5 text-gray-700">
-                            C: {partida.qualidade?.C || 0}
+                            Erros: {partida.qualidade?.Erro || 0}
                           </span>
                           {topAction ? (
                             <span className="rounded-full bg-white border border-gray-100 px-2 py-0.5 text-gray-700">

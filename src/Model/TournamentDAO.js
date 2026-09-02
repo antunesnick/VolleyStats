@@ -1,4 +1,7 @@
-const { getDatabase } = require('../db/db');
+import { sqlContagemPorResultado } from './SqlQualidade';
+import db from '../db/db';
+
+const getDatabase = () => db;
 
 class TournamentDAO {
 
@@ -135,9 +138,7 @@ class TournamentDAO {
                 j.numCamisa,
                 p.nome AS posicaoNome,
                 COUNT(a.id) AS totalAcoes,
-                SUM(CASE WHEN a.Qualidade = 'A' THEN 1 ELSE 0 END) AS acoesA,
-                SUM(CASE WHEN a.Qualidade = 'B' THEN 1 ELSE 0 END) AS acoesB,
-                SUM(CASE WHEN a.Qualidade = 'C' THEN 1 ELSE 0 END) AS acoesC,
+${sqlContagemPorResultado('a')},
                 COUNT(DISTINCT pa.torneio_id) AS torneios,
                 COUNT(DISTINCT pa.id) AS partidas,
                 SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'saq%' THEN 1 ELSE 0 END) AS saques,
@@ -162,7 +163,7 @@ class TournamentDAO {
             )
             ${matchFilter}
             GROUP BY j.id, j.nome, j.numCamisa, p.nome
-            ORDER BY acoesA DESC, totalAcoes DESC, torneios DESC, j.nome ASC
+            ORDER BY acoesPonto DESC, totalAcoes DESC, torneios DESC, j.nome ASC
             LIMIT 10
         `);
 
@@ -216,9 +217,7 @@ class TournamentDAO {
                 j.nome,
                 j.numCamisa,
                 COUNT(a.id) AS totalAcoes,
-                SUM(CASE WHEN a.Qualidade = 'A' THEN 1 ELSE 0 END) AS acoesA,
-                SUM(CASE WHEN a.Qualidade = 'B' THEN 1 ELSE 0 END) AS acoesB,
-                SUM(CASE WHEN a.Qualidade = 'C' THEN 1 ELSE 0 END) AS acoesC,
+${sqlContagemPorResultado('a')},
                 SUM(CASE WHEN ta.Nome = 'Saque' THEN 1 ELSE 0 END) AS saques,
                 SUM(CASE WHEN ta.Nome = 'Ataque' THEN 1 ELSE 0 END) AS ataques,
                 SUM(CASE WHEN ta.Nome = 'Bloqueio' THEN 1 ELSE 0 END) AS bloqueios
@@ -229,7 +228,7 @@ class TournamentDAO {
             WHERE p.torneio_id = ?
             ${matchFilter}
             GROUP BY j.id, j.nome, j.numCamisa
-            ORDER BY acoesA DESC, totalAcoes DESC, j.nome ASC
+            ORDER BY acoesPonto DESC, totalAcoes DESC, j.nome ASC
             LIMIT 1
         `);
 
@@ -246,9 +245,7 @@ class TournamentDAO {
                 j.numCamisa,
                 p.nome AS posicaoNome,
                 COUNT(a.id) AS totalAcoes,
-                SUM(CASE WHEN a.Qualidade = 'A' THEN 1 ELSE 0 END) AS acoesA,
-                SUM(CASE WHEN a.Qualidade = 'B' THEN 1 ELSE 0 END) AS acoesB,
-                SUM(CASE WHEN a.Qualidade = 'C' THEN 1 ELSE 0 END) AS acoesC,
+${sqlContagemPorResultado('a')},
                 SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'saq%' THEN 1 ELSE 0 END) AS saques,
                 SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'ata%' THEN 1 ELSE 0 END) AS ataques,
                 SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'bloq%' THEN 1 ELSE 0 END) AS bloqueios,
@@ -262,7 +259,7 @@ class TournamentDAO {
             WHERE pa.torneio_id = ?
             ${matchFilter}
             GROUP BY j.id, j.nome, j.numCamisa, p.nome
-            ORDER BY acoesA DESC, totalAcoes DESC, j.nome ASC
+            ORDER BY acoesPonto DESC, totalAcoes DESC, j.nome ASC
             LIMIT 10
         `);
 
@@ -275,7 +272,7 @@ class TournamentDAO {
         const stmt = this.db.prepare(`
             SELECT
                 COALESCE(ta.Nome, 'Outros') AS tipoAcaoNome,
-                COALESCE(a.Qualidade, '-') AS qualidade,
+                a.Qualidade AS qualidade,
                 COUNT(a.id) AS total
             FROM Acao a
             LEFT JOIN TipoAcao ta ON ta.idTipoAcao = a.idTipoAcao
@@ -311,6 +308,5 @@ class TournamentDAO {
     }
 }
 
-module.exports = {
-    TournamentDAO,
-};
+export { TournamentDAO };
+export default TournamentDAO;

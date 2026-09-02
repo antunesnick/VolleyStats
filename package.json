@@ -2,7 +2,7 @@
   "name": "volleystats",
   "productName": "volleystats",
   "version": "1.0.0",
-  "description": "My Electron application description",
+  "description": "Scout ao vivo e gestao de equipes de volei",
   "main": ".webpack/main",
   "private": true,
   "scripts": {
@@ -10,7 +10,11 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "echo \"No linting configured\""
+    "pretest": "node scripts/ensureNativeBuild.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "rebuild:node": "npm rebuild better-sqlite3",
+    "rebuild:electron": "electron-rebuild -f -w better-sqlite3"
   },
   "keywords": [],
   "author": {
@@ -41,21 +45,18 @@
     "postcss": "^8.5.8",
     "postcss-loader": "^8.2.1",
     "style-loader": "^3.3.4",
-    "tailwindcss": "^4.2.1"
+    "tailwindcss": "^4.2.1",
+    "vitest": "^3.2.7"
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0",
     "cpf-cnpj-validator": "^1.0.3",
     "electron-squirrel-startup": "^1.0.1",
-    "framer-motion": "^12.38.0",
     "lucide-react": "^0.577.0",
-    "path": "^0.12.7",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-hotkeys-hook": "^5.2.4",
     "react-router-dom": "^7.13.1",
-    "sonner": "^2.0.7",
-    "styled": "^1.0.0",
     "styled-components": "^6.3.12",
     "sweetalert2": "^11.26.24",
     "xlsx": "^0.18.5"

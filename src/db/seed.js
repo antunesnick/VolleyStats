@@ -68,7 +68,7 @@ const gerarDadosFalsos = () => {
         const nomes = ["Caio Góes", "Gustavo Uyema", "Nickolas Antunes", "Pedro Henrique", "João Ricardo"];
         const posIds = [1, 2, 3, 2, 4]; // Levantador, Ponteiro, Central, Ponteiro, Oposto
         const acoesIds = [1, 2, 3, 4, 5]; // Saque, Ataque, Bloqueio, Recepção, Defesa
-        const qualidades = ['A', 'B', 'C'];
+        const qualidades = ['=', '/', '-', '!', '+', '#'];
 
         for(let i=0; i<nomes.length; i++) {
             // Cria Jogador
@@ -87,7 +87,7 @@ const gerarDadosFalsos = () => {
             
             // Gera mais algumas ações na Partida 3
             for(let a=0; a<10; a++) {
-                stmtAcao.run(jId, 2, 'A', partida3); // Injeta ataques positivos
+                stmtAcao.run(jId, 2, '#', partida3); // Injeta ataques positivos
             }
         }
 

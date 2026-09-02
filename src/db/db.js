@@ -1,10 +1,13 @@
-const path = require('path');
-const Database = require('better-sqlite3');
+import Database from 'better-sqlite3';
+import { getDatabasePath } from '../config/appPaths';
 
-const dbPath = path.join(process.cwd(), 'developVS.db');
-console.log('Caminho do banco de dados:', dbPath);
+const dbPath = getDatabasePath();
 
-const db = new Database(dbPath, {verbose: console.log});
+// O log de toda query so e ligado sob demanda: em uso normal ele polui o
+// console e custa desempenho no scout ao vivo.
+const verbose = process.env.VOLLEYSTATS_SQL_DEBUG === '1' ? console.log : null;
+
+const db = new Database(dbPath, { verbose });
 
 db.pragma('foreign_keys = ON');
 
@@ -84,6 +87,134 @@ function ensurePartidaColumns() {
     if (!columns.includes('videoLink')) {
       db.exec('ALTER TABLE Partidas ADD COLUMN videoLink VARCHAR(2048)');
     }
+
+    // Formato da partida: 2 = melhor de 3, 3 = melhor de 5. Define quantos
+    // pontos vale o set decisivo e quando a partida pode ser encerrada.
+    // Partidas anteriores a esta coluna eram todas tratadas como melhor de 5.
+    if (!columns.includes('setsParaVencer')) {
+        db.exec('ALTER TABLE Partidas ADD COLUMN setsParaVencer INTEGER DEFAULT 3');
+        db.exec('UPDATE Partidas SET setsParaVencer = 3 WHERE setsParaVencer IS NULL');
+    }
+}
+
+/**
+ * Migra Acao.Qualidade da escala antiga de 3 niveis (A/B/C) para a escala de
+ * 6 niveis do DataVolley (= / - ! + #).
+ *
+ * O CHECK antigo so aceita A, B e C, e SQLite nao permite alterar um CHECK -
+ * a tabela precisa ser reconstruida. Nenhuma outra tabela referencia Acao, so
+ * Acao referencia as outras, entao a reconstrucao e segura.
+ *
+ * Mapeamento: A -> # (ponto/perfeito), B -> ! (ok), C -> = (erro).
+ */
+function ensureAcaoEscalaQualidade() {
+    const schema = db.prepare(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'Acao'"
+    ).get();
+
+    // Sem a escala antiga no CHECK nao ha o que migrar - inclusive em bancos
+    // novos, que ja nascem com a escala nova no CREATE TABLE.
+    if (!schema?.sql || !/'A'\s*,\s*'B'\s*,\s*'C'/.test(schema.sql)) {
+        return;
+    }
+
+    // PRAGMA foreign_keys nao tem efeito dentro de transacao, por isso o
+    // desligamento fica fora dela (procedimento padrao de ALTER do SQLite).
+    db.pragma('foreign_keys = OFF');
+
+    try {
+        db.transaction(() => {
+            db.exec(`
+                CREATE TABLE Acao_nova (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Ponto_pontoTime1 INTEGER,
+                    Ponto_pontoTime2 INTEGER,
+                    Ponto_Partida_id INTEGER,
+                    Ponto_NumSet INTEGER,
+                    Jogador_id INTEGER NOT NULL,
+                    importacao_id INTEGER,
+                    Qualidade TEXT CHECK(Qualidade IN ('=', '/', '-', '!', '+', '#')),
+                    idTipoAcao INTEGER NOT NULL,
+                    FOREIGN KEY (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id) REFERENCES Ponto (pontoTime1, pontoTime2, NumSet, Set_Partida_id),
+                    FOREIGN KEY (Jogador_id) REFERENCES Jogadores (id),
+                    FOREIGN KEY (idTipoAcao) REFERENCES TipoAcao (idTipoAcao),
+                    FOREIGN KEY (importacao_id) REFERENCES ImportacaoHistorico(id) ON DELETE CASCADE
+                );
+
+                INSERT INTO Acao_nova (
+                    id, Ponto_pontoTime1, Ponto_pontoTime2, Ponto_Partida_id,
+                    Ponto_NumSet, Jogador_id, importacao_id, Qualidade, idTipoAcao
+                )
+                SELECT
+                    id, Ponto_pontoTime1, Ponto_pontoTime2, Ponto_Partida_id,
+                    Ponto_NumSet, Jogador_id, importacao_id,
+                    CASE Qualidade
+                        WHEN 'A' THEN '#'
+                        WHEN 'B' THEN '!'
+                        WHEN 'C' THEN '='
+                        ELSE NULL
+                    END,
+                    idTipoAcao
+                FROM Acao;
+
+                DROP TABLE Acao;
+                ALTER TABLE Acao_nova RENAME TO Acao;
+            `);
+        })();
+
+        const violacoes = db.pragma('foreign_key_check');
+        if (violacoes.length > 0) {
+            console.error('Migracao da escala de qualidade deixou FKs invalidas:', violacoes);
+        }
+    } finally {
+        db.pragma('foreign_keys = ON');
+    }
+}
+
+/**
+ * Atribuicao do ponto a um atleta.
+ *
+ * Jogador_id  - atleta responsavel pela ultima acao do rally. E ele que "leva"
+ *               o ponto nos relatorios.
+ * vencedor    - quem ganhou o rally ('MANDANTE' | 'VISITANTE'). Sem isso um erro
+ *               de ataque seria contado como ponto a favor do atleta.
+ */
+function ensureSetColumns() {
+    const columns = db.prepare('PRAGMA table_info("Set")').all().map((column) => column.name);
+
+    if (!columns.includes('pontosTime1')) {
+        db.exec('ALTER TABLE "Set" ADD COLUMN pontosTime1 INTEGER');
+    }
+
+    if (!columns.includes('pontosTime2')) {
+        db.exec('ALTER TABLE "Set" ADD COLUMN pontosTime2 INTEGER');
+    }
+
+    if (!columns.includes('encerrado')) {
+        db.exec('ALTER TABLE "Set" ADD COLUMN encerrado INTEGER DEFAULT 0');
+        // Sets de partidas ja finalizadas contam como encerrados: e a unica
+        // leitura possivel de um placar gravado numa partida que acabou.
+        db.exec(`
+            UPDATE "Set"
+            SET encerrado = 1
+            WHERE pontosTime1 IS NOT NULL
+              AND pontosTime2 IS NOT NULL
+              AND pontosTime1 <> pontosTime2
+              AND Partida_id IN (SELECT id FROM Partidas WHERE status = 'FINALIZADA')
+        `);
+    }
+}
+
+function ensurePontoColumns() {
+    const columns = db.prepare('PRAGMA table_info(Ponto)').all().map((column) => column.name);
+
+    if (!columns.includes('Jogador_id')) {
+        db.exec('ALTER TABLE Ponto ADD COLUMN Jogador_id INTEGER REFERENCES Jogadores(id)');
+    }
+
+    if (!columns.includes('vencedor')) {
+        db.exec("ALTER TABLE Ponto ADD COLUMN vencedor TEXT");
+    }
 }
 
 function ensureGinasioColumns() {
@@ -159,6 +290,8 @@ function initDatabase() {
                 externa INTEGER DEFAULT 0,
                 pontosTime1 INTEGER,
                 pontosTime2 INTEGER,
+                -- Sets que uma equipe precisa vencer: 2 = melhor de 3, 3 = melhor de 5.
+                setsParaVencer INTEGER DEFAULT 3,
                 torneio_id INTEGER,
                 ginasio_id INTEGER,
                 time1 INTEGER,
@@ -234,6 +367,10 @@ function initDatabase() {
                 Partida_id INTEGER NOT NULL,
                 pontosTime1 INTEGER,
                 pontosTime2 INTEGER,
+                -- 1 quando o analista fechou o set. Sem isso nao da para
+                -- distinguir "20x18 em andamento" de "25x18 terminado", e a
+                -- contagem de sets ganhos vira chute.
+                encerrado INTEGER DEFAULT 0,
                 PRIMARY KEY (NumSet, Partida_id),
                 FOREIGN KEY (Partida_id) REFERENCES Partidas (id)
             );
@@ -243,8 +380,13 @@ function initDatabase() {
                 pontoTime2 INTEGER NOT NULL,
                 NumSet INTEGER NOT NULL,
                 Set_Partida_id INTEGER NOT NULL,
+                -- Atleta dono do ponto: autor da ultima acao registrada no rally.
+                Jogador_id INTEGER,
+                -- 'MANDANTE' | 'VISITANTE': quem venceu o rally.
+                vencedor TEXT,
                 PRIMARY KEY (pontoTime1, pontoTime2, NumSet, Set_Partida_id),
-                FOREIGN KEY (NumSet, Set_Partida_id) REFERENCES 'Set' (NumSet, Partida_id)
+                FOREIGN KEY (NumSet, Set_Partida_id) REFERENCES 'Set' (NumSet, Partida_id),
+                FOREIGN KEY (Jogador_id) REFERENCES Jogadores (id)
             );
 
             CREATE TABLE IF NOT EXISTS TipoAcao (
@@ -266,7 +408,8 @@ function initDatabase() {
             Ponto_NumSet INTEGER ,     -- REMOVIDO NOT NULL PARA DADOS IMPORTADOS 28/04
             Jogador_id INTEGER NOT NULL,
             importacao_id INTEGER,
-            Qualidade TEXT CHECK(Qualidade IN ('A', 'B', 'C')),
+            -- Escala de 6 niveis do DataVolley, do erro ao ponto.
+            Qualidade TEXT CHECK(Qualidade IN ('=', '/', '-', '!', '+', '#')),
             idTipoAcao INTEGER NOT NULL,
             -- CORREÇÃO DA FOREIGN KEY AQUI:
             FOREIGN KEY (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id) REFERENCES Ponto (pontoTime1, pontoTime2, NumSet, Set_Partida_id),
@@ -314,30 +457,46 @@ function initDatabase() {
 
 
 
-            INSERT OR IGNORE INTO Posicoes (nome) VALUES 
+            -- Tabela de dominio: as 5 posicoes do volei. Nao e dado de demo.
+            INSERT OR IGNORE INTO Posicoes (nome) VALUES
                 ('Levantador'),
                 ('Ponteiro'),
                 ('Central'),
                 ('Oposto'),
                 ('Líbero');
-
-            
-            
-            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (1, 'Vôlei Prudente', 'Presidente Prudente');
-            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (2, 'Sada Cruzeiro', 'Belo Horizonte');
-            INSERT OR IGNORE INTO Times (id, nome, cidade) VALUES (3, 'Vôlei Renata', 'Campinas');
         `);
 
         ensureTournamentColumns();
         ensureGinasioColumns();
         ensurePartidaColumns();
+        ensureSetColumns();
+        ensurePontoColumns();
         ensureTorneioTimesSchema();
+        ensureAcaoEscalaQualidade();
         seedTipoAcao();
-        console.log('Banco de dados inicializado com sucesso (com dados mockados para testes).');
     } catch (e) {
         console.error("Erro ao inicializar o banco de dados:", e);
         throw e;
     }
+}
+
+/**
+ * Zera o banco e recria o schema. Usado pelos testes para isolar cada caso;
+ * nao e chamado em producao.
+ */
+function resetDatabase() {
+    db.pragma('foreign_keys = OFF');
+
+    const tabelas = db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+        .all();
+
+    for (const { name } of tabelas) {
+        db.exec(`DROP TABLE IF EXISTS "${name}"`);
+    }
+
+    db.pragma('foreign_keys = ON');
+    initDatabase();
 }
 
 initDatabase();
@@ -345,5 +504,7 @@ initDatabase();
 db.getDatabase = getDatabase;
 db.initDatabase = initDatabase;
 db.inicializarBanco = initDatabase;
+db.resetDatabase = resetDatabase;
 
-module.exports = db;
+export { getDatabase, initDatabase, resetDatabase, ensureAcaoEscalaQualidade };
+export default db;

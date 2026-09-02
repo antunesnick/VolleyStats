@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import GerenciarPartidas from '../Partida/GerenciarPartidas';
+import {
+  blocoDestaques,
+  blocoMetricas,
+  blocoTabela,
+  escapeHtml,
+  montarDocumento,
+  nomeArquivoRelatorio,
+  salvarRelatorioPdf,
+} from '../../utils/relatorioPdf';
 
 const TOURNAMENT_TYPES = [
   { value: 1, label: 'Pontos Corridos' },
@@ -594,12 +603,6 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     return `${day}/${month}/${year}`;
   };
 
-  const escapeHtml = (value) => String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 
   const getMatchReportFilterSummary = (report = matchReport) => {
     const filtros = report?.filtrosAplicados || {};
@@ -646,7 +649,15 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
   };
 
   const buildMatchReportHtml = () => {
-    if (!matchReport) return '<html><body><h1>Relatorio do torneio</h1></body></html>';
+    if (!matchReport) {
+      return montarDocumento({ titulo: 'Relatorio do Torneio', eyebrow: 'VolleyStats' });
+    }
+
+    const { resumo = {}, destaques = {}, torneio = {} } = matchReport;
+
+    const descreverJogo = (jogo, semDados = 'Sem dados') => (jogo
+      ? `${jogo.time1Nome} x ${jogo.time2Nome} (${jogo.placar})`
+      : semDados);
 
     const rowsTimes = (matchReport.times || []).map((time, index) => `
       <tr>
@@ -660,29 +671,29 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
         <td class="center">${time.setRatio || 0}</td>
         <td class="center">${time.saldoSets}</td>
       </tr>
-    `).join('');
+    `);
 
     const rowsJogadores = (matchReport.jogadores || []).map((jogador, index) => `
       <tr>
         <td class="center">${index + 1}</td>
         <td><strong>${escapeHtml(jogador.nome)}</strong><span>${escapeHtml(jogador.posicaoNome || 'Sem posicao')} | Camisa ${escapeHtml(jogador.numCamisa || '--')}</span></td>
         <td class="center">${jogador.totalAcoes || 0}</td>
-        <td class="center">${jogador.acoesA || 0}</td>
-        <td class="center">${jogador.acoesB || 0}</td>
-        <td class="center">${jogador.acoesC || 0}</td>
+        <td class="center">${jogador.acoesPonto || 0}</td>
+        <td class="center">${jogador.acoesNeutra || 0}</td>
+        <td class="center">${jogador.acoesErro || 0}</td>
         <td class="center">${jogador.eficiencia || 0}%</td>
       </tr>
-    `).join('');
+    `);
 
     const rowsAcoes = (matchReport.acoesPorTipo || []).map((acao) => `
       <tr>
         <td><strong>${escapeHtml(acao.tipo)}</strong></td>
         <td class="center">${acao.total || 0}</td>
-        <td class="center">${acao.A || 0}</td>
-        <td class="center">${acao.B || 0}</td>
-        <td class="center">${acao.C || 0}</td>
+        <td class="center">${acao.Ponto || 0}</td>
+        <td class="center">${acao.Neutra || 0}</td>
+        <td class="center">${acao.Erro || 0}</td>
       </tr>
-    `).join('');
+    `);
 
     const rowsGinasios = (matchReport.ginasios || []).map((ginasio) => `
       <tr>
@@ -690,7 +701,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
         <td class="center">${ginasio.partidas || 0}</td>
         <td class="center">${ginasio.finalizadas || 0}</td>
       </tr>
-    `).join('');
+    `);
 
     const rowsJogos = (matchReport.jogos || []).map((jogo) => `
       <tr>
@@ -701,77 +712,103 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
         <td class="center">${escapeHtml(jogo.placar)}</td>
         <td class="center">${escapeHtml(jogo.vencedor)}</td>
       </tr>
-    `).join('');
+    `);
 
-    return `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Relatorio do Torneio - ${escapeHtml(matchReport.torneio.nome)}</title>
-          <style>
-            * { box-sizing: border-box; }
-            body { margin: 0; padding: 30px; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #fff; }
-            header { padding: 22px 24px; color: #fff; background: #000; border-bottom: 6px solid #dc2626; border-radius: 14px 14px 0 0; }
-            .eyebrow { margin: 0 0 6px; color: #f87171; font-size: 11px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
-            h1 { margin: 0; font-size: 30px; text-transform: uppercase; }
-            .sub { margin-top: 8px; color: #d1d5db; font-size: 13px; font-weight: 700; }
-            .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
-            .metric { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; background: #fff; }
-            .metric.featured { color: #fff; background: #000; border-color: #000; }
-            .metric span, .highlight span { display: block; color: #6b7280; font-size: 10px; font-weight: 900; letter-spacing: 1.4px; text-transform: uppercase; }
-            .metric.featured span { color: #f87171; }
-            .metric strong { display: block; margin-top: 8px; font-size: 22px; font-weight: 900; }
-            .highlights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 22px; }
-            .highlight { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; background: #f9fafb; }
-            .highlight strong { display: block; margin-top: 8px; font-size: 15px; line-height: 1.3; font-weight: 900; }
-            .table-title { margin: 26px 0 0; padding: 14px 18px; background: #dc2626; color: #fff; font-size: 18px; font-weight: 900; text-transform: uppercase; border-radius: 12px 12px 0 0; }
-            table { width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; }
-            th { padding: 10px; background: #000; color: #fff; font-size: 10px; letter-spacing: 1px; text-align: left; text-transform: uppercase; }
-            td { padding: 10px; border-bottom: 1px solid #f3f4f6; font-size: 12px; vertical-align: top; }
-            td span { display: block; margin-top: 4px; color: #6b7280; font-size: 10px; font-weight: 700; }
-            .center { text-align: center; }
-          </style>
-        </head>
-        <body>
-          <header>
-            <p class="eyebrow">VolleyStats</p>
-            <h1>Relatorio do Torneio</h1>
-            <div class="sub">${escapeHtml(matchReport.torneio.nome)} | ${escapeHtml(matchReport.torneio.tipoNome || 'Formato nao informado')} | ${escapeHtml(formatDateBR(matchReport.torneio.inicio))} ate ${escapeHtml(formatDateBR(matchReport.torneio.termino))}</div>
-            <div class="sub">${escapeHtml(getMatchReportFilterSummary(matchReport))}</div>
-          </header>
-          <section class="metrics">
-            <div class="metric featured"><span>Lider</span><strong>${escapeHtml(matchReport.destaques?.lider?.nome || 'Sem dados')}</strong></div>
-            <div class="metric"><span>Pontos do lider</span><strong>${matchReport.destaques?.lider?.pontosClassificacao || 0}</strong></div>
-            <div class="metric featured"><span>Melhor jogador</span><strong>${escapeHtml(matchReport.destaques?.melhorJogador?.nome || 'Sem scout')}</strong></div>
-            <div class="metric"><span>Aproveitamento A</span><strong>${matchReport.resumo.aproveitamentoA || 0}%</strong></div>
-            <div class="metric"><span>Total partidas</span><strong>${matchReport.resumo.totalPartidas || 0}</strong></div>
-            <div class="metric"><span>Finalizadas</span><strong>${matchReport.resumo.finalizadas || 0}</strong></div>
-            <div class="metric"><span>Agendadas</span><strong>${matchReport.resumo.agendadas || 0}</strong></div>
-            <div class="metric"><span>Times</span><strong>${matchReport.resumo.totalTimes || 0}</strong></div>
-            <div class="metric"><span>Sets disputados</span><strong>${matchReport.resumo.totalSets || 0}</strong></div>
-            <div class="metric"><span>Media sets/jogo</span><strong>${matchReport.resumo.mediaSetsPorPartida || 0}</strong></div>
-            <div class="metric"><span>Jogos 5 sets</span><strong>${matchReport.resumo.jogosCincoSets || 0}</strong></div>
-            <div class="metric"><span>Acoes registradas</span><strong>${matchReport.resumo.totalAcoes || 0}</strong></div>
-          </section>
-          <section class="highlights">
-            <div class="highlight"><span>Jogo mais disputado</span><strong>${escapeHtml(matchReport.destaques?.jogoMaisDisputado ? `${matchReport.destaques.jogoMaisDisputado.time1Nome} x ${matchReport.destaques.jogoMaisDisputado.time2Nome} (${matchReport.destaques.jogoMaisDisputado.placar})` : 'Sem dados')}</strong></div>
-            <div class="highlight"><span>Maior diferenca</span><strong>${escapeHtml(matchReport.destaques?.maiorDiferenca ? `${matchReport.destaques.maiorDiferenca.time1Nome} x ${matchReport.destaques.maiorDiferenca.time2Nome} (${matchReport.destaques.maiorDiferenca.placar})` : 'Sem dados')}</strong></div>
-            <div class="highlight"><span>Fundamento mais registrado</span><strong>${escapeHtml(matchReport.destaques?.fundamentoMaisRegistrado ? `${matchReport.destaques.fundamentoMaisRegistrado.tipo} (${matchReport.destaques.fundamentoMaisRegistrado.total})` : 'Sem scout')}</strong></div>
-          </section>
-          <h2 class="table-title">Classificacao dos times</h2>
-          <table><thead><tr><th class="center">#</th><th>Time</th><th class="center">J</th><th class="center">Pts</th><th class="center">V</th><th class="center">D</th><th class="center">Sets</th><th class="center">Ratio</th><th class="center">Saldo</th></tr></thead><tbody>${rowsTimes || '<tr><td colspan="9" class="center">Sem times no torneio.</td></tr>'}</tbody></table>
-          <h2 class="table-title">Top jogadores</h2>
-          <table><thead><tr><th class="center">#</th><th>Jogador</th><th class="center">Acoes</th><th class="center">A</th><th class="center">B</th><th class="center">C</th><th class="center">Eficiencia</th></tr></thead><tbody>${rowsJogadores || '<tr><td colspan="7" class="center">Sem scouts registrados.</td></tr>'}</tbody></table>
-          <h2 class="table-title">Fundamentos e qualidade</h2>
-          <table><thead><tr><th>Fundamento</th><th class="center">Total</th><th class="center">A</th><th class="center">B</th><th class="center">C</th></tr></thead><tbody>${rowsAcoes || '<tr><td colspan="5" class="center">Sem acoes registradas.</td></tr>'}</tbody></table>
-          <h2 class="table-title">Locais</h2>
-          <table><thead><tr><th>Ginasio</th><th class="center">Partidas</th><th class="center">Finalizadas</th></tr></thead><tbody>${rowsGinasios || '<tr><td colspan="3" class="center">Sem locais registrados.</td></tr>'}</tbody></table>
-          <h2 class="table-title">Partidas</h2>
-          <table><thead><tr><th>Data</th><th>Jogo</th><th>Fase</th><th>Local</th><th class="center">Placar</th><th class="center">Vencedor</th></tr></thead><tbody>${rowsJogos || '<tr><td colspan="6" class="center">Sem partidas no torneio.</td></tr>'}</tbody></table>
-        </body>
-      </html>
-    `;
+    return montarDocumento({
+      titulo: 'Relatorio do Torneio',
+      eyebrow: 'VolleyStats',
+      subtitulo: [
+        `${torneio.nome} | ${torneio.tipoNome || 'Formato nao informado'} | ${formatDateBR(torneio.inicio)} ate ${formatDateBR(torneio.termino)}`,
+        getMatchReportFilterSummary(matchReport),
+      ],
+      corpo: `
+        ${blocoMetricas([
+          { rotulo: 'Lider', valor: destaques.lider?.nome || 'Sem dados', destaque: true },
+          { rotulo: 'Pontos do lider', valor: destaques.lider?.pontosClassificacao || 0 },
+          { rotulo: 'Melhor jogador', valor: destaques.melhorJogador?.nome || 'Sem scout', destaque: true },
+          { rotulo: 'Aproveitamento (pontos)', valor: `${resumo.aproveitamentoPontos || 0}%` },
+          { rotulo: 'Total partidas', valor: resumo.totalPartidas || 0 },
+          { rotulo: 'Finalizadas', valor: resumo.finalizadas || 0 },
+          { rotulo: 'Agendadas', valor: resumo.agendadas || 0 },
+          { rotulo: 'Times', valor: resumo.totalTimes || 0 },
+          { rotulo: 'Sets disputados', valor: resumo.totalSets || 0 },
+          { rotulo: 'Media sets/jogo', valor: resumo.mediaSetsPorPartida || 0 },
+          { rotulo: 'Jogos 5 sets', valor: resumo.jogosCincoSets || 0 },
+          { rotulo: 'Acoes registradas', valor: resumo.totalAcoes || 0 },
+        ])}
+        ${blocoDestaques([
+          { rotulo: 'Jogo mais disputado', valor: descreverJogo(destaques.jogoMaisDisputado) },
+          { rotulo: 'Maior diferenca', valor: descreverJogo(destaques.maiorDiferenca) },
+          {
+            rotulo: 'Fundamento mais registrado',
+            valor: destaques.fundamentoMaisRegistrado
+              ? `${destaques.fundamentoMaisRegistrado.tipo} (${destaques.fundamentoMaisRegistrado.total})`
+              : 'Sem scout',
+          },
+        ])}
+        ${blocoTabela({
+          titulo: 'Classificacao dos times',
+          colunas: [
+            { rotulo: '#', center: true },
+            'Time',
+            { rotulo: 'J', center: true },
+            { rotulo: 'Pts', center: true },
+            { rotulo: 'V', center: true },
+            { rotulo: 'D', center: true },
+            { rotulo: 'Sets', center: true },
+            { rotulo: 'Ratio', center: true },
+            { rotulo: 'Saldo', center: true },
+          ],
+          linhas: rowsTimes,
+          vazio: 'Sem times no torneio.',
+        })}
+        ${blocoTabela({
+          titulo: 'Top jogadores',
+          colunas: [
+            { rotulo: '#', center: true },
+            'Jogador',
+            { rotulo: 'Acoes', center: true },
+            { rotulo: 'Pts', center: true },
+            { rotulo: 'Neutras', center: true },
+            { rotulo: 'Erros', center: true },
+            { rotulo: 'Eficiencia', center: true },
+          ],
+          linhas: rowsJogadores,
+          vazio: 'Sem scouts registrados.',
+        })}
+        ${blocoTabela({
+          titulo: 'Fundamentos e qualidade',
+          colunas: [
+            'Fundamento',
+            { rotulo: 'Total', center: true },
+            { rotulo: 'Pts', center: true },
+            { rotulo: 'Neutras', center: true },
+            { rotulo: 'Erros', center: true },
+          ],
+          linhas: rowsAcoes,
+          vazio: 'Sem acoes registradas.',
+        })}
+        ${blocoTabela({
+          titulo: 'Locais',
+          colunas: ['Ginasio', { rotulo: 'Partidas', center: true }, { rotulo: 'Finalizadas', center: true }],
+          linhas: rowsGinasios,
+          vazio: 'Sem locais registrados.',
+        })}
+        ${blocoTabela({
+          titulo: 'Partidas',
+          colunas: [
+            'Data',
+            'Jogo',
+            'Fase',
+            'Local',
+            { rotulo: 'Placar', center: true },
+            { rotulo: 'Vencedor', center: true },
+          ],
+          linhas: rowsJogos,
+          vazio: 'Sem partidas no torneio.',
+        })}
+      `,
+    });
   };
 
   const saveMatchReportPdf = async () => {
@@ -780,9 +817,8 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
     setMatchReportPdfSaving(true);
 
     try {
-      const fileSafeName = String(matchReport.torneio.nome || 'torneio').trim().replace(/\s+/g, '-').toLowerCase();
-      const result = await window.reportAPI.salvarPdf({
-        nomeArquivo: `relatorio-torneio-${fileSafeName}.pdf`,
+      const result = await salvarRelatorioPdf({
+        nomeArquivo: nomeArquivoRelatorio('relatorio', 'torneio', matchReport.torneio.nome),
         html: buildMatchReportHtml(),
       });
 
@@ -813,8 +849,10 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
         ))}
       </div>
 
-      <header className="bg-white border-b border-gray-100 px-8 py-6 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-6">
+      {/* Mesmo cuidado do header da Home: a fileira de botoes quebra para
+          baixo em vez de passar por cima do nome do torneio. */}
+      <header className="bg-white border-b border-gray-100 px-8 py-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-4 sticky top-0 z-50">
+        <div className="flex items-center gap-6 min-w-0">
           {typeof onBack === 'function' && (
             <button
               onClick={onBack}
@@ -826,8 +864,8 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
             </button>
           )}
 
-          <div>
-            <h1 className="text-3xl font-black text-[#DC2626] tracking-tighter uppercase italic leading-none">
+          <div className="min-w-0">
+            <h1 className="text-3xl font-black text-[#DC2626] tracking-tighter uppercase italic leading-none truncate">
               {tournament ? tournament.name : 'Torneio'}
             </h1>
             <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] mt-1">
@@ -837,19 +875,19 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <nav className="flex flex-wrap items-center justify-end gap-3">
           <button
             type="button"
             onClick={openMatchReport}
             disabled={matchReportLoading || !tournament}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-full font-black text-[13px] uppercase tracking-widest bg-white border border-gray-200 text-gray-700 hover:border-[#DC2626] hover:text-[#DC2626] hover:bg-red-50 transition-all disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-full font-black text-[13px] uppercase tracking-widest whitespace-nowrap bg-white border border-gray-200 text-gray-700 hover:border-[#DC2626] hover:text-[#DC2626] hover:bg-red-50 transition-all disabled:cursor-not-allowed disabled:opacity-60"
           >
             {matchReportLoading ? 'Emitindo...' : 'Relatorio do Torneio'}
           </button>
 
           <button
             onClick={handleToggleManage}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-black text-[13px] uppercase tracking-widest transition-all ${
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-black text-[13px] uppercase tracking-widest whitespace-nowrap transition-all ${
               isManaging
                 ? 'bg-[#000000] text-white shadow-lg shadow-gray-300'
                 : 'bg-white border-2 border-[#000000] text-[#000000] hover:bg-[#000000] hover:text-white'
@@ -862,20 +900,20 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
             <>
               <button
                 onClick={openTournamentEdit}
-                className="px-4 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
+                className="px-4 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest whitespace-nowrap bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
               >
                 Editar Torneio
               </button>
 
               <button
                 onClick={handleDeleteTournament}
-                className="px-4 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest bg-red-600 text-white hover:bg-red-700 transition-all"
+                className="px-4 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest whitespace-nowrap bg-red-600 text-white hover:bg-red-700 transition-all"
               >
                 Excluir Torneio
               </button>
             </>
           )}
-        </div>
+        </nav>
       </header>
 
       <main className="max-w-400 mx-auto px-8 pt-12 space-y-16">
@@ -1052,7 +1090,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
                 <ReportMetric label="Lider" value={matchReport.destaques?.lider?.nome || 'Sem dados'} featured />
                 <ReportMetric label="Pontos do lider" value={matchReport.destaques?.lider?.pontosClassificacao || 0} />
                 <ReportMetric label="Melhor jogador" value={matchReport.destaques?.melhorJogador?.nome || 'Sem scout'} featured />
-                <ReportMetric label="Aproveitamento A" value={`${matchReport.resumo.aproveitamentoA || 0}%`} />
+                <ReportMetric label="Aproveitamento (pontos)" value={`${matchReport.resumo.aproveitamentoPontos || 0}%`} />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1133,9 +1171,9 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
                           <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">#</th>
                           <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest">Jogador</th>
                           <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">Acoes</th>
-                          <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">A</th>
-                          <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">B</th>
-                          <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">C</th>
+                          <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">Pts</th>
+                          <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">Neutras</th>
+                          <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">Erros</th>
                           <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">Efet.</th>
                         </tr>
                       </thead>
@@ -1148,9 +1186,9 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
                               <p className="text-xs font-semibold text-gray-500">{jogador.posicaoNome || 'Sem posicao'} - #{jogador.numCamisa || '--'}</p>
                             </td>
                             <td className="px-4 py-3 text-center font-black">{jogador.totalAcoes || 0}</td>
-                            <td className="px-4 py-3 text-center font-black">{jogador.acoesA || 0}</td>
-                            <td className="px-4 py-3 text-center font-black">{jogador.acoesB || 0}</td>
-                            <td className="px-4 py-3 text-center font-black">{jogador.acoesC || 0}</td>
+                            <td className="px-4 py-3 text-center font-black">{jogador.acoesPonto || 0}</td>
+                            <td className="px-4 py-3 text-center font-black">{jogador.acoesNeutra || 0}</td>
+                            <td className="px-4 py-3 text-center font-black">{jogador.acoesErro || 0}</td>
                             <td className="px-4 py-3 text-center font-black">{jogador.eficiencia || 0}%</td>
                           </tr>
                         )) : (
@@ -1173,9 +1211,9 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
                         <tr className="bg-black text-white">
                           <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest">Fundamento</th>
                           <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">Total</th>
-                          <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">A</th>
-                          <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">B</th>
-                          <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">C</th>
+                          <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">Pts</th>
+                          <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">Neutras</th>
+                          <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">Erros</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1183,9 +1221,9 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
                           <tr key={acao.tipo} className="border-b border-gray-100">
                             <td className="px-4 py-3 text-sm font-black text-black">{acao.tipo}</td>
                             <td className="px-4 py-3 text-center font-black">{acao.total || 0}</td>
-                            <td className="px-4 py-3 text-center font-black">{acao.A || 0}</td>
-                            <td className="px-4 py-3 text-center font-black">{acao.B || 0}</td>
-                            <td className="px-4 py-3 text-center font-black">{acao.C || 0}</td>
+                            <td className="px-4 py-3 text-center font-black">{acao.Ponto || 0}</td>
+                            <td className="px-4 py-3 text-center font-black">{acao.Neutra || 0}</td>
+                            <td className="px-4 py-3 text-center font-black">{acao.Erro || 0}</td>
                           </tr>
                         )) : (
                           <tr>
@@ -1594,119 +1632,6 @@ const StandingsBoard = ({ standings = [] }) => {
               <span>Classificado para a proxima fase</span>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const StandingsTable = ({ standings = [] }) => {
-  if (!standings.length) {
-    return (
-      <div className="text-center py-12 text-gray-400">
-        <p className="font-black uppercase tracking-widest text-sm">
-          Adicione partidas finalizadas para visualizar a classificação
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white border-2 border-gray-100 rounded-2xl overflow-hidden">
-      <div className="bg-linear-to-r from-[#DC2626] to-[#B91C1C] px-6 py-4">
-        <h3 className="text-xl font-black text-white uppercase tracking-tighter">Classificação Geral</h3>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-gray-50 border-b-2 border-gray-100">
-              <th className="px-6 py-4 text-left">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">#</span>
-              </th>
-              <th className="px-6 py-4 text-left">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Time</span>
-              </th>
-              <th className="px-4 py-4 text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">J</span>
-              </th>
-              <th className="px-4 py-4 text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">V</span>
-              </th>
-              <th className="px-4 py-4 text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">D</span>
-              </th>
-              <th className="px-4 py-4 text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">SG</span>
-              </th>
-              <th className="px-4 py-4 text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">SP</span>
-              </th>
-              <th className="px-6 py-4 text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Pts</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {standings.map((stat, index) => {
-              const isLeader = index === 0;
-
-              return (
-                <tr
-                  key={stat.teamId}
-                  className="border-b border-gray-50 transition-all hover:bg-gray-50"
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-black ${isLeader ? 'text-[#DC2626]' : 'text-gray-400'}`}>
-                        {index + 1}
-                      </span>
-                      {isLeader && <TrophyIcon className="size-4 text-[#DC2626]" />}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="size-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <span className="text-[10px] font-black text-gray-400">
-                          {String(stat.teamName || '').substring(0, 2).toUpperCase()}
-                        </span>
-                      </div>
-                      <span className="font-black text-sm text-gray-900">{stat.teamName}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <span className="text-sm font-bold text-gray-600">{stat.played}</span>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <span className="text-sm font-bold text-green-600">{stat.won}</span>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <span className="text-sm font-bold text-red-500">{stat.lost}</span>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <span className="text-sm font-bold text-gray-900">{stat.setsWon}</span>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <span className="text-sm font-bold text-gray-400">{stat.setsLost}</span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="text-lg font-black text-gray-900">{stat.points}</span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-        <div className="flex flex-wrap gap-4 text-[10px] font-bold text-gray-500">
-          <span>J - Jogos</span>
-          <span>V - Vitórias</span>
-          <span>D - Derrotas</span>
-          <span>SG - Sets Ganhos</span>
-          <span>SP - Sets Perdidos</span>
-          <span>Pts - Pontos</span>
         </div>
       </div>
     </div>

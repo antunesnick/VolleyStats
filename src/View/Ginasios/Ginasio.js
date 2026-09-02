@@ -2,6 +2,14 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import GinasioControl from "../../Control/GinasioControl";
 import { Alertas } from "../../utils/Alertas";
+import {
+  blocoMetricas,
+  blocoTabela,
+  escapeHtml,
+  montarDocumento,
+  nomeArquivoRelatorio,
+  salvarRelatorioPdf,
+} from "../../utils/relatorioPdf";
 
 const initialFormData = {
   nome: "",
@@ -61,12 +69,6 @@ const Ginasio = () => {
     return String(value);
   };
 
-  const escapeHtml = (value) => String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 
   const getReportFilterSummary = (report = reportData) => {
     const filtros = report?.filtrosAplicados || {};
@@ -258,7 +260,7 @@ const Ginasio = () => {
 
   const montarHtmlRelatorioGinasio = () => {
     if (!reportData) {
-      return "<html><body><h1>Relatorio do ginasio</h1></body></html>";
+      return montarDocumento({ titulo: "Ginasio", eyebrow: "Relatorio do Ginasio" });
     }
 
     const ginasio = reportData.ginasio || {};
@@ -279,7 +281,7 @@ const Ginasio = () => {
         <td class="center">${time.setsPerdidos}</td>
         <td class="center">${time.saldoSets}</td>
       </tr>
-    `).join("");
+    `);
 
     const linhasJogos = jogos.map((jogo) => `
       <tr>
@@ -289,77 +291,58 @@ const Ginasio = () => {
         <td class="center">${escapeHtml(jogo.placar)}</td>
         <td class="center">${escapeHtml(jogo.vencedor)}</td>
       </tr>
-    `).join("");
+    `);
 
-    return `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Relatorio do Ginasio - ${escapeHtml(ginasio.nome)}</title>
-          <style>
-            * { box-sizing: border-box; }
-            body { margin: 0; padding: 30px; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #fff; }
-            header { padding: 22px 24px; color: #fff; background: #000; border-bottom: 6px solid #dc2626; border-radius: 14px 14px 0 0; }
-            .eyebrow { margin: 0 0 6px; color: #f87171; font-size: 11px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
-            h1 { margin: 0; font-size: 30px; line-height: 1; text-transform: uppercase; }
-            .sub { margin-top: 8px; color: #d1d5db; font-size: 13px; font-weight: 700; }
-            .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
-            .metric { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; background: #fff; }
-            .metric.featured { color: #fff; background: #000; border-color: #000; }
-            .metric span { display: block; color: #6b7280; font-size: 10px; font-weight: 900; letter-spacing: 1.4px; text-transform: uppercase; }
-            .metric.featured span { color: #f87171; }
-            .metric strong { display: block; margin-top: 8px; font-size: 22px; font-weight: 900; }
-            .table-title { margin: 26px 0 0; padding: 14px 18px; background: #dc2626; color: #fff; font-size: 18px; font-weight: 900; text-transform: uppercase; border-radius: 12px 12px 0 0; }
-            table { width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; }
-            th { padding: 10px; background: #000; color: #fff; font-size: 10px; letter-spacing: 1px; text-align: left; text-transform: uppercase; }
-            td { padding: 10px; border-bottom: 1px solid #f3f4f6; font-size: 12px; vertical-align: top; }
-            td span { display: block; margin-top: 4px; color: #6b7280; font-size: 10px; font-weight: 700; }
-            .center { text-align: center; }
-          </style>
-        </head>
-        <body>
-          <header>
-            <p class="eyebrow">Relatorio do Ginasio</p>
-            <h1>${escapeHtml(ginasio.nome || "Ginasio")}</h1>
-            <div class="sub">${escapeHtml(ginasio.cidade || "Cidade nao informada")} - ${escapeHtml(ginasio.estado || "UF")}</div>
-            <div class="sub">${escapeHtml(ginasio.endereco || "Endereco nao informado")}</div>
-            <div class="sub">${escapeHtml(getReportFilterSummary(reportData))}</div>
-          </header>
-
-          <section class="metrics">
-            <div class="metric featured"><span>Total partidas</span><strong>${resumo.totalPartidas || 0}</strong></div>
-            <div class="metric"><span>Finalizadas</span><strong>${resumo.finalizadas || 0}</strong></div>
-            <div class="metric"><span>Agendadas</span><strong>${resumo.agendadas || 0}</strong></div>
-            <div class="metric"><span>Times diferentes</span><strong>${resumo.totalTimes || 0}</strong></div>
-            <div class="metric featured"><span>Vitorias</span><strong>${resumo.vitorias || 0}</strong></div>
-            <div class="metric"><span>Derrotas</span><strong>${resumo.derrotas || 0}</strong></div>
-            <div class="metric"><span>Empates</span><strong>${resumo.empates || 0}</strong></div>
-            <div class="metric"><span>Melhor time</span><strong>${escapeHtml(reportData.melhorTime?.nome || "Sem dados")}</strong></div>
-          </section>
-
-          <h2 class="table-title">Desempenho por time</h2>
-          <table>
-            <thead>
-              <tr>
-                <th class="center">#</th><th>Time</th><th class="center">J</th><th class="center">V</th><th class="center">D</th><th class="center">E</th><th class="center">Taxa</th><th class="center">SG</th><th class="center">SP</th><th class="center">Saldo</th>
-              </tr>
-            </thead>
-            <tbody>${linhasTimes || '<tr><td colspan="10" class="center">Nenhum time encontrado.</td></tr>'}</tbody>
-          </table>
-
-          <h2 class="table-title">Historico de partidas</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th><th>Jogo</th><th>Torneio</th><th class="center">Placar</th><th class="center">Vencedor</th>
-              </tr>
-            </thead>
-            <tbody>${linhasJogos || '<tr><td colspan="5" class="center">Nenhuma partida encontrada.</td></tr>'}</tbody>
-          </table>
-        </body>
-      </html>
-    `;
+    return montarDocumento({
+      titulo: ginasio.nome || "Ginasio",
+      eyebrow: "Relatorio do Ginasio",
+      subtitulo: [
+        `${ginasio.cidade || "Cidade nao informada"} - ${ginasio.estado || "UF"}`,
+        ginasio.endereco || "Endereco nao informado",
+        getReportFilterSummary(reportData),
+      ],
+      corpo: `
+        ${blocoMetricas([
+          { rotulo: "Total partidas", valor: resumo.totalPartidas || 0, destaque: true },
+          { rotulo: "Finalizadas", valor: resumo.finalizadas || 0 },
+          { rotulo: "Agendadas", valor: resumo.agendadas || 0 },
+          { rotulo: "Times diferentes", valor: resumo.totalTimes || 0 },
+          { rotulo: "Vitorias", valor: resumo.vitorias || 0, destaque: true },
+          { rotulo: "Derrotas", valor: resumo.derrotas || 0 },
+          { rotulo: "Empates", valor: resumo.empates || 0 },
+          { rotulo: "Melhor time", valor: reportData.melhorTime?.nome || "Sem dados" },
+        ])}
+        ${blocoTabela({
+          titulo: "Desempenho por time",
+          colunas: [
+            { rotulo: "#", center: true },
+            "Time",
+            { rotulo: "J", center: true },
+            { rotulo: "V", center: true },
+            { rotulo: "D", center: true },
+            { rotulo: "E", center: true },
+            { rotulo: "Taxa", center: true },
+            { rotulo: "SG", center: true },
+            { rotulo: "SP", center: true },
+            { rotulo: "Saldo", center: true },
+          ],
+          linhas: linhasTimes,
+          vazio: "Nenhum time encontrado.",
+        })}
+        ${blocoTabela({
+          titulo: "Historico de partidas",
+          colunas: [
+            "Data",
+            "Jogo",
+            "Torneio",
+            { rotulo: "Placar", center: true },
+            { rotulo: "Vencedor", center: true },
+          ],
+          linhas: linhasJogos,
+          vazio: "Nenhuma partida encontrada.",
+        })}
+      `,
+    });
   };
 
   const handleSalvarRelatorioPdf = async () => {
@@ -375,12 +358,8 @@ const Ginasio = () => {
     setIsReportPdfSaving(true);
 
     try {
-      const nomeGinasio = String(reportData.ginasio?.nome || "ginasio")
-        .trim()
-        .replace(/\s+/g, "-")
-        .toLowerCase();
-      const result = await window.reportAPI.salvarPdf({
-        nomeArquivo: `relatorio-ginasio-${nomeGinasio}.pdf`,
+      const result = await salvarRelatorioPdf({
+        nomeArquivo: nomeArquivoRelatorio("relatorio", "ginasio", reportData.ginasio?.nome),
         html: montarHtmlRelatorioGinasio(),
       });
 

@@ -1,5 +1,7 @@
+import { normalizarSetsParaVencer } from './RegrasSet';
+
 class PartidaModel {
-    constructor(id = null, nome = null, pontosTime1 = null, pontosTime2 = null, dataPartida = null, tipo = null, status = 'AGENDADA', externa = 0, ginasio_id = null, time1 = null, time2 = null, torneio_id = null, videoLink = null, fase = null) {
+    constructor(id = null, nome = null, pontosTime1 = null, pontosTime2 = null, dataPartida = null, tipo = null, status = 'AGENDADA', externa = 0, ginasio_id = null, time1 = null, time2 = null, torneio_id = null, videoLink = null, fase = null, setsParaVencer = null) {
         this.id = id;
         this.nome = nome;
         this.pontosTime1 = pontosTime1;
@@ -14,6 +16,8 @@ class PartidaModel {
         this.torneio_id = torneio_id;
         this.videoLink = videoLink;
         this.fase = fase || tipo;
+        // 2 = melhor de 3, 3 = melhor de 5.
+        this.setsParaVencer = normalizarSetsParaVencer(setsParaVencer);
     }
 
     findAll(db) {
@@ -104,8 +108,8 @@ class PartidaModel {
     insert(partida, db) {
         // Incluído videoLink e fase na inserção
         const stmt = db.prepare(`
-            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2, torneio_id, videoLink, fase)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Partidas (nome, pontosTime1, pontosTime2, dataPartida, tipo, status, externa, ginasio_id, time1, time2, torneio_id, videoLink, fase, setsParaVencer)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const data = stmt.run(
@@ -121,7 +125,8 @@ class PartidaModel {
             partida.time2 || 2,
                 partida.torneio_id || null,
             partida.videoLink ? partida.videoLink.trim() : null,
-            partida.fase || partida.tipo || null
+            partida.fase || partida.tipo || null,
+            normalizarSetsParaVencer(partida.setsParaVencer)
         );
 
         return { id: data.lastInsertRowid, ...partida };
@@ -131,7 +136,7 @@ class PartidaModel {
         // Incluído videoLink e fase na atualização
         const stmt = db.prepare(`
             UPDATE Partidas 
-            SET nome = ?, dataPartida = ?, tipo = ?, externa = ?, ginasio_id = ?, time1 = ?, time2 = ?, torneio_id = ?, videoLink = ?, fase = ?
+            SET nome = ?, dataPartida = ?, tipo = ?, externa = ?, ginasio_id = ?, time1 = ?, time2 = ?, torneio_id = ?, videoLink = ?, fase = ?, setsParaVencer = ?
             WHERE id = ?
         `);
         
@@ -146,6 +151,7 @@ class PartidaModel {
             partida.torneio_id, 
             partida.videoLink,
             partida.fase,
+            normalizarSetsParaVencer(partida.setsParaVencer),
             partida.id
         );   
         return partida;
@@ -313,4 +319,4 @@ class PartidaModel {
     }
 }
 
-module.exports = PartidaModel;
+export default PartidaModel;

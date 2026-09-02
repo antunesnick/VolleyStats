@@ -1,18 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-
-const escapeHtml = (value) => String(value ?? '')
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#039;');
-
-const normalizarNomeArquivo = (value) => String(value || 'categorias')
-  .trim()
-  .replace(/\s+/g, '-')
-  .toLowerCase();
+import {
+  blocoDestaques,
+  blocoMetricas,
+  blocoTabela,
+  escapeHtml,
+  montarDocumento,
+  nomeArquivoRelatorio,
+  salvarRelatorioPdf,
+} from '../../utils/relatorioPdf';
 
 const ReportMetric = ({ label, value, featured = false }) => (
   <div className={`rounded-xl border p-4 ${featured ? 'border-red-200 bg-red-50' : 'border-gray-100 bg-white'}`}>
@@ -178,13 +175,13 @@ const GerenciarCategorias = () => {
 
   const montarHtmlRelatorioCategorias = () => {
     if (!relatorioCategorias) {
-      return '<html><body><h1>Relatorio de Categorias</h1></body></html>';
+      return montarDocumento({ titulo: 'Categorias', eyebrow: 'Relatorio Geral' });
     }
 
     const resumo = relatorioCategorias.resumo || {};
     const destaques = relatorioCategorias.destaques || {};
     const filtros = relatorioCategorias.filtrosAplicados || {};
-    const resumoFiltros = `Filtros: Time: ${filtros.timeNome || 'Todos'} | Posicao: ${filtros.posicaoNome || 'Todas'} | Torneio: ${filtros.torneioNome || 'Todos'}`;
+
     const linhasCategorias = (relatorioCategorias.categorias || []).map((categoria) => `
       <tr>
         <td><strong>${escapeHtml(categoria.nome)}</strong><span>#ID ${escapeHtml(categoria.id)}</span></td>
@@ -193,77 +190,57 @@ const GerenciarCategorias = () => {
         <td class="center">${escapeHtml(categoria.amplitude)} anos</td>
         <td class="center">${escapeHtml(categoria.totalJogadores || 0)}</td>
       </tr>
-    `).join('');
+    `);
 
-    return `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Relatorio de Categorias</title>
-          <style>
-            * { box-sizing: border-box; }
-            body { margin: 0; padding: 32px; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #ffffff; }
-            header { padding: 24px; color: #ffffff; background: #000000; border-bottom: 6px solid #dc2626; border-radius: 14px 14px 0 0; }
-            .eyebrow { margin: 0 0 6px; color: #f87171; font-size: 11px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
-            h1 { margin: 0; font-size: 32px; line-height: 1; text-transform: uppercase; }
-            .meta { margin-top: 8px; color: #d1d5db; font-size: 13px; font-weight: 700; }
-            .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
-            .metric, .highlight { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; background: #ffffff; }
-            .metric span, .highlight span { display: block; color: #6b7280; font-size: 10px; font-weight: 900; letter-spacing: 1.4px; text-transform: uppercase; }
-            .metric strong { display: block; margin-top: 8px; font-size: 28px; font-weight: 900; }
-            .highlights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 22px; }
-            .highlight strong { display: block; margin-top: 8px; font-size: 15px; line-height: 1.3; font-weight: 900; }
-            .table-title { margin: 26px 0 0; padding: 14px 18px; background: #dc2626; color: #ffffff; font-size: 18px; font-weight: 900; text-transform: uppercase; border-radius: 12px 12px 0 0; }
-            table { width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; }
-            th { padding: 11px; background: #000000; color: #ffffff; font-size: 10px; letter-spacing: 1px; text-align: left; text-transform: uppercase; }
-            td { padding: 12px 11px; border-bottom: 1px solid #f3f4f6; font-size: 12px; vertical-align: top; }
-            td span { display: block; margin-top: 4px; color: #6b7280; font-size: 10px; font-weight: 700; }
-            .center { text-align: center; }
-          </style>
-        </head>
-        <body>
-          <header>
-            <p class="eyebrow">Relatorio Geral</p>
-            <h1>Categorias</h1>
-            <div class="meta">${escapeHtml(resumoFiltros)}</div>
-          </header>
-
-          <section class="metrics">
-            <div class="metric"><span>Total de categorias</span><strong>${resumo.totalCategorias || 0}</strong></div>
-            <div class="metric"><span>Total de jogadores</span><strong>${resumo.totalJogadores || 0}</strong></div>
-            <div class="metric"><span>Com jogadores</span><strong>${resumo.categoriasComJogadores || 0}</strong></div>
-            <div class="metric"><span>Sem jogadores</span><strong>${resumo.categoriasSemJogadores || 0}</strong></div>
-            <div class="metric"><span>Menor idade</span><strong>${resumo.menorIdade || 0}</strong></div>
-            <div class="metric"><span>Maior idade</span><strong>${resumo.maiorIdade || 0}</strong></div>
-            <div class="metric"><span>Media jogadores/categoria</span><strong>${resumo.mediaJogadoresPorCategoria || 0}</strong></div>
-            <div class="metric"><span>Media faixa etaria</span><strong>${resumo.mediaAmplitudeFaixa || 0}</strong></div>
-          </section>
-
-          <section class="highlights">
-            <div class="highlight"><span>Mais jogadores</span><strong>${escapeHtml(destaques.categoriaMaisJogadores?.nome || 'Sem dados')} (${destaques.categoriaMaisJogadores?.totalJogadores || 0})</strong></div>
-            <div class="highlight"><span>Maior faixa etaria</span><strong>${escapeHtml(destaques.maiorFaixaEtaria?.nome || 'Sem dados')} (${destaques.maiorFaixaEtaria?.amplitude || 0} anos)</strong></div>
-            <div class="highlight"><span>Menor faixa etaria</span><strong>${escapeHtml(destaques.menorFaixaEtaria?.nome || 'Sem dados')} (${destaques.menorFaixaEtaria?.amplitude || 0} anos)</strong></div>
-          </section>
-
-          <h2 class="table-title">Categorias cadastradas</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Categoria</th>
-                <th class="center">Idade minima</th>
-                <th class="center">Idade maxima</th>
-                <th class="center">Amplitude</th>
-                <th class="center">Jogadores</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${linhasCategorias || '<tr><td colspan="5" class="center">Nenhuma categoria cadastrada.</td></tr>'}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
+    return montarDocumento({
+      titulo: 'Categorias',
+      eyebrow: 'Relatorio Geral',
+      subtitulo: `Filtros: Time: ${filtros.timeNome || 'Todos'} | Posicao: ${filtros.posicaoNome || 'Todas'} | Torneio: ${filtros.torneioNome || 'Todos'}`,
+      corpo: `
+        ${blocoMetricas([
+          { rotulo: 'Total de categorias', valor: resumo.totalCategorias || 0 },
+          { rotulo: 'Total de jogadores', valor: resumo.totalJogadores || 0 },
+          { rotulo: 'Com jogadores', valor: resumo.categoriasComJogadores || 0 },
+          { rotulo: 'Sem jogadores', valor: resumo.categoriasSemJogadores || 0 },
+          { rotulo: 'Menor idade', valor: resumo.menorIdade || 0 },
+          { rotulo: 'Maior idade', valor: resumo.maiorIdade || 0 },
+          { rotulo: 'Media jogadores/categoria', valor: resumo.mediaJogadoresPorCategoria || 0 },
+          { rotulo: 'Media faixa etaria', valor: resumo.mediaAmplitudeFaixa || 0 },
+        ])}
+        ${blocoDestaques([
+          {
+            rotulo: 'Mais jogadores',
+            valor: destaques.categoriaMaisJogadores
+              ? `${destaques.categoriaMaisJogadores.nome} (${destaques.categoriaMaisJogadores.totalJogadores || 0})`
+              : null,
+          },
+          {
+            rotulo: 'Maior faixa etaria',
+            valor: destaques.maiorFaixaEtaria
+              ? `${destaques.maiorFaixaEtaria.nome} (${destaques.maiorFaixaEtaria.amplitude || 0} anos)`
+              : null,
+          },
+          {
+            rotulo: 'Menor faixa etaria',
+            valor: destaques.menorFaixaEtaria
+              ? `${destaques.menorFaixaEtaria.nome} (${destaques.menorFaixaEtaria.amplitude || 0} anos)`
+              : null,
+          },
+        ])}
+        ${blocoTabela({
+          titulo: 'Categorias cadastradas',
+          colunas: [
+            'Categoria',
+            { rotulo: 'Idade minima', center: true },
+            { rotulo: 'Idade maxima', center: true },
+            { rotulo: 'Amplitude', center: true },
+            { rotulo: 'Jogadores', center: true },
+          ],
+          linhas: linhasCategorias,
+          vazio: 'Nenhuma categoria cadastrada.',
+        })}
+      `,
+    });
   };
 
   const handleRelatorioFiltroChange = (event) => {
@@ -317,8 +294,8 @@ const GerenciarCategorias = () => {
     setIsPdfSaving(true);
 
     try {
-      const result = await window.reportAPI.salvarPdf({
-        nomeArquivo: `relatorio-categorias-${normalizarNomeArquivo(new Date().toISOString().slice(0, 10))}.pdf`,
+      const result = await salvarRelatorioPdf({
+        nomeArquivo: nomeArquivoRelatorio('relatorio', 'categorias', new Date().toISOString().slice(0, 10)),
         html: montarHtmlRelatorioCategorias(),
       });
 

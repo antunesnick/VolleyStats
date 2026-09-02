@@ -1,3 +1,5 @@
+import { sqlContagemPorResultado, sqlEhPonto } from './SqlQualidade';
+import { bucketDoResultado, criarContagemPorBucket } from './Qualidade';
 // Substituído require() por import para harmonizar com o export default no final
 import { cpf } from 'cpf-cnpj-validator';
 import db from '../db/db';
@@ -16,11 +18,11 @@ const criarMapaAcoes = () => {
 
 const criarMapaAcoesQualidade = () => {
   const base = ACTION_TYPES.reduce((acc, name) => {
-    acc[name] = { A: 0, B: 0, C: 0 };
+    acc[name] = criarContagemPorBucket();
     return acc;
   }, {});
 
-  base.Outros = { A: 0, B: 0, C: 0 };
+  base.Outros = criarContagemPorBucket();
   return base;
 };
 
@@ -173,7 +175,7 @@ class Player {
         j.categoria_id AS categoriaId,
         c.nome AS categoriaNome,
         COUNT(a.id) AS totalAcoes,
-        SUM(CASE WHEN UPPER(COALESCE(a.Qualidade, '')) = 'A' THEN 1 ELSE 0 END) AS acertos,
+        SUM(CASE WHEN ${sqlEhPonto('a')} THEN 1 ELSE 0 END) AS pontosAcao,
         SUM(CASE WHEN LOWER(COALESCE(ta.Nome, '')) LIKE 'bloq%' THEN 1 ELSE 0 END) AS bloqueios
       FROM Jogadores j
       LEFT JOIN Posicoes p ON p.id = j.posicao_id
@@ -186,7 +188,7 @@ class Player {
 
     const ranking = rows.map((row) => {
       const totalAcoes = Number(row.totalAcoes) || 0;
-      const acertos = Number(row.acertos) || 0;
+      const pontosAcao = Number(row.pontosAcao) || 0;
       const bloqueios = Number(row.bloqueios) || 0;
 
       return {
@@ -199,15 +201,15 @@ class Player {
         categoriaId: row.categoriaId,
         categoriaNome: row.categoriaNome || '--',
         totalAcoes,
-        acertos,
+        pontosAcao,
         bloqueios,
-        efetividade: totalAcoes > 0 ? Number(((acertos / totalAcoes) * 100).toFixed(1)) : 0,
+        efetividade: totalAcoes > 0 ? Number(((pontosAcao / totalAcoes) * 100).toFixed(1)) : 0,
       };
     });
 
     const ordenacao = filtro.ordenacao || 'efetividade';
     const getMetric = (player) => {
-      if (ordenacao === 'acertos') return player.acertos;
+      if (ordenacao === 'pontos') return player.pontosAcao;
       if (ordenacao === 'bloqueios') return player.bloqueios;
       if (ordenacao === 'acoes') return player.totalAcoes;
       return player.efetividade;
@@ -254,7 +256,7 @@ class Player {
       acoes: 0,
       partidas: 0,
       torneios: 0,
-      qualidade: { A: 0, B: 0, C: 0 },
+      qualidade: criarContagemPorBucket(),
       acoesPorTipo: criarMapaAcoes(),
       acoesPorTipoQualidade: criarMapaAcoesQualidade(),
     };
@@ -274,10 +276,10 @@ class Player {
       const count = Number(row.total) || 0;
       totals.acoes += count;
 
-      const quality = String(row.qualidade || '').toUpperCase();
-      if (Object.prototype.hasOwnProperty.call(totals.qualidade, quality)) {
-        totals.qualidade[quality] += count;
-      }
+      // O simbolo sozinho nao diz o resultado: "/" e erro no ataque e boa bola
+      // no saque. Por isso a classificacao leva o fundamento junto.
+      const balde = bucketDoResultado(row.tipoAcaoNome, row.qualidade);
+      totals.qualidade[balde] += count;
 
       const actionKey = normalizarNomeAcao(row.tipoAcaoNome);
       if (!Object.prototype.hasOwnProperty.call(totals.acoesPorTipo, actionKey)) {
@@ -286,12 +288,10 @@ class Player {
       totals.acoesPorTipo[actionKey] += count;
 
       if (!Object.prototype.hasOwnProperty.call(totals.acoesPorTipoQualidade, actionKey)) {
-        totals.acoesPorTipoQualidade[actionKey] = { A: 0, B: 0, C: 0 };
+        totals.acoesPorTipoQualidade[actionKey] = criarContagemPorBucket();
       }
 
-      if (Object.prototype.hasOwnProperty.call(totals.acoesPorTipoQualidade[actionKey], quality)) {
-        totals.acoesPorTipoQualidade[actionKey][quality] += count;
-      }
+      totals.acoesPorTipoQualidade[actionKey][balde] += count;
     });
 
     const matchRows = db.prepare(`
@@ -305,9 +305,7 @@ class Player {
         T1.nome AS time1Nome,
         T2.nome AS time2Nome,
         COUNT(A.id) AS totalAcoes,
-        SUM(CASE WHEN A.Qualidade = 'A' THEN 1 ELSE 0 END) AS qualidadeA,
-        SUM(CASE WHEN A.Qualidade = 'B' THEN 1 ELSE 0 END) AS qualidadeB,
-        SUM(CASE WHEN A.Qualidade = 'C' THEN 1 ELSE 0 END) AS qualidadeC
+${sqlContagemPorResultado('A', 'qualidade')}
       FROM Acao A
       JOIN Partidas P ON P.id = A.Ponto_Partida_id
       LEFT JOIN Torneios Tor ON Tor.id = P.torneio_id
@@ -356,9 +354,9 @@ class Player {
       torneioNome: row.torneioNome,
       acoes: Number(row.totalAcoes) || 0,
       qualidade: {
-        A: Number(row.qualidadeA) || 0,
-        B: Number(row.qualidadeB) || 0,
-        C: Number(row.qualidadeC) || 0,
+        Ponto: Number(row.qualidadePonto) || 0,
+        Neutra: Number(row.qualidadeNeutra) || 0,
+        Erro: Number(row.qualidadeErro) || 0,
       },
       acoesPorTipo: matchActionsMap.get(Number(row.partidaId)) || criarMapaAcoes(),
     }));

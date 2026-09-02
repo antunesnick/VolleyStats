@@ -4,11 +4,26 @@ import TournamentView from '../Tournament/Tournament';
 import vsLogo from '../../assets/vslogo.jpeg';
 import TournamentControl from '../../Control/TournamentControl'; 
 import TimesControl from '../../Control/TimesControl';
+import {
+  blocoMetricas,
+  blocoTabela,
+  escapeHtml,
+  montarDocumento,
+  nomeArquivoRelatorio,
+  salvarRelatorioPdf,
+} from '../../utils/relatorioPdf';
+
+/**
+ * Pilulas do menu do topo. `whitespace-nowrap` mantem o rotulo em uma linha
+ * dentro da pilula: sem ele "Relatorio Torneios" quebrava em duas e deixava a
+ * fileira de botoes desalinhada.
+ */
+const BOTAO_MENU = 'flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest whitespace-nowrap border transition-all';
+const BOTAO_MENU_PADRAO = `${BOTAO_MENU} bg-white border-gray-200 text-gray-600 hover:bg-gray-50`;
+const BOTAO_MENU_OCUPADO = `${BOTAO_MENU} bg-gray-100 border-gray-300 text-gray-400 cursor-wait`;
 
 // Importe o componente PlayerView (Ajuste o caminho da pasta conforme a estrutura do seu projeto)
-import { PlayerRegView } from '../PlayerRegister/PlayerRegView';
 import PlayerView from '../PlayerView/PlayerView';
-import Ginasio from '../Ginasios/Ginasio';
 import EstatisticaControl from '../../Control/EstatisticaControl';
 
 const TOURNAMENT_TYPES = [
@@ -102,12 +117,6 @@ const formatDateTimeBR = (value) => {
   });
 };
 
-const escapeHtml = (value) => String(value ?? '')
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#039;');
 
 const decorateTournaments = (tournaments) => {
   return tournaments.map((item, index) => {
@@ -464,7 +473,7 @@ const handleConfirmarImportacao = async () => {
 
   const buildGeneralTournamentReportHtml = () => {
     if (!generalTournamentReport) {
-      return '<html><body><h1>Relatorio Geral de Torneios</h1></body></html>';
+      return montarDocumento({ titulo: 'Relatorio Geral de Torneios', eyebrow: 'VolleyStats' });
     }
 
     const report = generalTournamentReport;
@@ -473,14 +482,14 @@ const handleConfirmarImportacao = async () => {
         <td><strong>${escapeHtml(torneio.nome)}</strong><span>${escapeHtml(torneio.tipoNome)}</span></td>
         <td class="center">${escapeHtml(formatDateBR(torneio.inicio))}</td>
         <td class="center">${escapeHtml(formatDateBR(torneio.termino))}</td>
-        <td class="center">${torneio.partidas}</td>
+        <td class="center">${torneio.totalPartidas}</td>
         <td class="center">${torneio.finalizadas}</td>
-        <td class="center">${torneio.setsDisputados}</td>
+        <td class="center">${torneio.totalSets}</td>
         <td>${escapeHtml(torneio.campeao?.nome || 'Sem campeao')}</td>
       </tr>
-    `).join('');
+    `);
 
-    const linhasTimes = report.times.slice(0, 12).map((time, index) => `
+    const linhasTimes = report.times.map((time, index) => `
       <tr>
         <td class="center">${index + 1}</td>
         <td><strong>${escapeHtml(time.nome)}</strong></td>
@@ -491,83 +500,89 @@ const handleConfirmarImportacao = async () => {
         <td class="center">${time.taxaVitoria}%</td>
         <td class="center">${time.saldoSets}</td>
       </tr>
-    `).join('');
+    `);
 
-    const linhasJogadores = report.jogadoresTimePrincipal.slice(0, 10).map((jogador, index) => `
+    const linhasJogadores = report.jogadores.map((jogador, index) => `
       <tr>
         <td class="center">${index + 1}</td>
         <td><strong>#${escapeHtml(jogador.numCamisa || '--')} - ${escapeHtml(jogador.nome)}</strong><span>${escapeHtml(jogador.posicaoNome || 'Sem posicao')}</span></td>
         <td class="center">${jogador.torneios}</td>
         <td class="center">${jogador.partidas}</td>
         <td class="center">${jogador.totalAcoes}</td>
-        <td class="center">${jogador.acoesA}</td>
-        <td class="center">${jogador.aproveitamentoA}%</td>
+        <td class="center">${jogador.acoesPonto}</td>
+        <td class="center">${jogador.aproveitamentoPontos}%</td>
         <td class="center">${jogador.saques}</td>
         <td class="center">${jogador.ataques}</td>
         <td class="center">${jogador.bloqueios}</td>
       </tr>
-    `).join('');
+    `);
 
-    return `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Relatorio Geral de Torneios</title>
-          <style>
-            * { box-sizing: border-box; }
-            body { margin: 0; padding: 28px; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #fff; }
-            header { padding: 22px 24px; color: #fff; background: #000; border-bottom: 6px solid #dc2626; border-radius: 14px 14px 0 0; }
-            .eyebrow { margin: 0 0 6px; color: #f87171; font-size: 10px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
-            h1 { margin: 0; font-size: 26px; text-transform: uppercase; }
-            .sub { margin-top: 8px; color: #d1d5db; font-size: 12px; font-weight: 700; }
-            .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0; }
-            .metric { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; background: #fff; }
-            .metric.featured { background: #000; color: #fff; border-color: #000; }
-            .metric span { display: block; color: #6b7280; font-size: 9px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
-            .metric.featured span { color: #f87171; }
-            .metric strong { display: block; margin-top: 5px; font-size: 17px; }
-            .section { margin-top: 20px; }
-            .section h2 { margin: 0 0 10px; color: #dc2626; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
-            table { width: 100%; border-collapse: collapse; font-size: 9px; }
-            th { background: #000; color: #fff; padding: 7px 5px; text-align: left; text-transform: uppercase; letter-spacing: 0.4px; }
-            td { border-bottom: 1px solid #e5e7eb; padding: 7px 5px; vertical-align: top; }
-            td span { display: block; margin-top: 3px; color: #6b7280; font-size: 8px; font-weight: 700; }
-            .center { text-align: center; }
-          </style>
-        </head>
-        <body>
-          <header>
-            <p class="eyebrow">VolleyStats</p>
-            <h1>Relatorio Geral de Torneios</h1>
-            <div class="sub">Resumo consolidado de todos os torneios cadastrados</div>
-            <div class="sub">${escapeHtml(getGeneralTournamentReportFilterSummary(report))}</div>
-          </header>
-          <section class="metrics">
-            <div class="metric featured"><span>Time que ganhou mais</span><strong>${escapeHtml(report.destaques.timeMaisVitorias?.nome || 'Sem dados')}</strong></div>
-            <div class="metric"><span>Vitorias</span><strong>${report.destaques.timeMaisVitorias?.vitorias || 0}</strong></div>
-            <div class="metric featured"><span>Melhor jogador do time principal</span><strong>${escapeHtml(report.destaques.melhorJogadorTimePrincipal?.nome || 'Sem scout')}</strong></div>
-            <div class="metric"><span>Aproveitamento A</span><strong>${report.destaques.melhorJogadorTimePrincipal?.aproveitamentoA || 0}%</strong></div>
-            <div class="metric"><span>Torneios</span><strong>${report.resumo.totalTorneios}</strong></div>
-            <div class="metric"><span>Partidas</span><strong>${report.resumo.totalPartidas}</strong></div>
-            <div class="metric"><span>Finalizadas</span><strong>${report.resumo.finalizadas}</strong></div>
-            <div class="metric"><span>Sets</span><strong>${report.resumo.totalSets}</strong></div>
-          </section>
-          <section class="section">
-            <h2>Torneios</h2>
-            <table><thead><tr><th>Torneio</th><th class="center">Inicio</th><th class="center">Termino</th><th class="center">Partidas</th><th class="center">Final.</th><th class="center">Sets</th><th>Campeao estimado</th></tr></thead><tbody>${linhasTorneios || '<tr><td colspan="7">Nenhum torneio encontrado.</td></tr>'}</tbody></table>
-          </section>
-          <section class="section">
-            <h2>Ranking geral dos times</h2>
-            <table><thead><tr><th class="center">#</th><th>Time</th><th class="center">Torneios</th><th class="center">Jogos</th><th class="center">V</th><th class="center">D</th><th class="center">Taxa</th><th class="center">Saldo</th></tr></thead><tbody>${linhasTimes || '<tr><td colspan="8">Nenhum time encontrado.</td></tr>'}</tbody></table>
-          </section>
-          <section class="section">
-            <h2>Jogadores do time principal</h2>
-            <table><thead><tr><th class="center">#</th><th>Jogador</th><th class="center">Torneios</th><th class="center">Partidas</th><th class="center">Acoes</th><th class="center">A</th><th class="center">A%</th><th class="center">Saque</th><th class="center">Ataque</th><th class="center">Bloq</th></tr></thead><tbody>${linhasJogadores || '<tr><td colspan="10">Nenhum jogador encontrado.</td></tr>'}</tbody></table>
-          </section>
-        </body>
-      </html>
-    `;
+    return montarDocumento({
+      titulo: 'Relatorio Geral de Torneios',
+      eyebrow: 'VolleyStats',
+      subtitulo: [
+        'Resumo consolidado de todos os torneios cadastrados',
+        getGeneralTournamentReportFilterSummary(report),
+      ],
+      corpo: `
+        ${blocoMetricas([
+          { rotulo: 'Time que ganhou mais', valor: report.destaques.timeMaisVitorias?.nome || 'Sem dados', destaque: true },
+          { rotulo: 'Vitorias', valor: report.destaques.timeMaisVitorias?.vitorias || 0 },
+          { rotulo: 'Melhor jogador do time principal', valor: report.destaques.melhorJogadorTimePrincipal?.nome || 'Sem scout', destaque: true },
+          { rotulo: 'Aproveitamento (pontos)', valor: `${report.destaques.melhorJogadorTimePrincipal?.aproveitamentoPontos || 0}%` },
+          { rotulo: 'Torneios', valor: report.resumo.totalTorneios },
+          { rotulo: 'Partidas', valor: report.resumo.totalPartidas },
+          { rotulo: 'Finalizadas', valor: report.resumo.finalizadas },
+          { rotulo: 'Sets', valor: report.resumo.totalSets },
+        ])}
+        ${blocoTabela({
+          titulo: 'Torneios',
+          colunas: [
+            'Torneio',
+            { rotulo: 'Inicio', center: true },
+            { rotulo: 'Termino', center: true },
+            { rotulo: 'Partidas', center: true },
+            { rotulo: 'Final.', center: true },
+            { rotulo: 'Sets', center: true },
+            'Campeao estimado',
+          ],
+          linhas: linhasTorneios,
+          vazio: 'Nenhum torneio encontrado.',
+        })}
+        ${blocoTabela({
+          titulo: 'Ranking geral dos times',
+          colunas: [
+            { rotulo: '#', center: true },
+            'Time',
+            { rotulo: 'Torneios', center: true },
+            { rotulo: 'Jogos', center: true },
+            { rotulo: 'V', center: true },
+            { rotulo: 'D', center: true },
+            { rotulo: 'Taxa', center: true },
+            { rotulo: 'Saldo', center: true },
+          ],
+          linhas: linhasTimes,
+          vazio: 'Nenhum time encontrado.',
+        })}
+        ${blocoTabela({
+          titulo: 'Jogadores do time principal',
+          colunas: [
+            { rotulo: '#', center: true },
+            'Jogador',
+            { rotulo: 'Torneios', center: true },
+            { rotulo: 'Partidas', center: true },
+            { rotulo: 'Acoes', center: true },
+            { rotulo: 'Pts', center: true },
+            { rotulo: 'Pts%', center: true },
+            { rotulo: 'Saque', center: true },
+            { rotulo: 'Ataque', center: true },
+            { rotulo: 'Bloq', center: true },
+          ],
+          linhas: linhasJogadores,
+          vazio: 'Nenhum jogador encontrado.',
+        })}
+      `,
+    });
   };
 
   const saveGeneralTournamentReportPdf = async () => {
@@ -578,8 +593,8 @@ const handleConfirmarImportacao = async () => {
     setGeneralTournamentReportPdfSaving(true);
 
     try {
-      const result = await window.reportAPI.salvarPdf({
-        nomeArquivo: 'relatorio-geral-torneios.pdf',
+      const result = await salvarRelatorioPdf({
+        nomeArquivo: nomeArquivoRelatorio('relatorio', 'geral', 'torneios'),
         html: buildGeneralTournamentReportHtml(),
       });
 
@@ -650,7 +665,7 @@ const handleConfirmarImportacao = async () => {
 
   const buildMatchReportHtml = () => {
     if (!matchReport) {
-      return '<html><body><h1>Relatorio Partidas</h1></body></html>';
+      return montarDocumento({ titulo: 'Relatorio Partidas', eyebrow: 'VolleyStats' });
     }
 
     const linhasPartidas = (matchReport.jogos || []).map((jogo) => `
@@ -665,7 +680,7 @@ const handleConfirmarImportacao = async () => {
         <td class="center">${jogo.totalSets || 0}</td>
         <td>${escapeHtml(jogo.vencedor)}</td>
       </tr>
-    `).join('');
+    `);
 
     const linhasTimes = (matchReport.times || []).map((time, index) => `
       <tr>
@@ -677,63 +692,55 @@ const handleConfirmarImportacao = async () => {
         <td class="center">${time.taxaVitoria}%</td>
         <td class="center">${time.saldoSets}</td>
       </tr>
-    `).join('');
+    `);
 
-    return `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Relatorio Partidas</title>
-          <style>
-            * { box-sizing: border-box; }
-            body { margin: 0; padding: 28px; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #fff; }
-            header { padding: 22px 24px; color: #fff; background: #000; border-bottom: 6px solid #dc2626; border-radius: 14px 14px 0 0; }
-            .eyebrow { margin: 0 0 6px; color: #f87171; font-size: 10px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
-            h1 { margin: 0; font-size: 26px; text-transform: uppercase; }
-            .sub { margin-top: 8px; color: #d1d5db; font-size: 12px; font-weight: 700; }
-            .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0; }
-            .metric { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; background: #fff; }
-            .metric.featured { background: #000; color: #fff; border-color: #000; }
-            .metric span { display: block; color: #6b7280; font-size: 9px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
-            .metric.featured span { color: #f87171; }
-            .metric strong { display: block; margin-top: 5px; font-size: 17px; }
-            .section { margin-top: 20px; }
-            .section h2 { margin: 0 0 10px; color: #dc2626; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
-            table { width: 100%; border-collapse: collapse; font-size: 9px; }
-            th { background: #000; color: #fff; padding: 7px 5px; text-align: left; text-transform: uppercase; letter-spacing: 0.4px; }
-            td { border-bottom: 1px solid #e5e7eb; padding: 7px 5px; vertical-align: top; }
-            td span { display: block; margin-top: 3px; color: #6b7280; font-size: 8px; font-weight: 700; }
-            .center { text-align: center; }
-          </style>
-        </head>
-        <body>
-          <header>
-            <p class="eyebrow">VolleyStats</p>
-            <h1>Relatorio Partidas</h1>
-            <div class="sub">${escapeHtml(getMatchReportFilterSummary(matchReport))}</div>
-          </header>
-          <section class="metrics">
-            <div class="metric featured"><span>Quem ganhou mais</span><strong>${escapeHtml(matchReport.melhorTime?.nome || 'Sem dados')}</strong></div>
-            <div class="metric"><span>Vitorias</span><strong>${matchReport.melhorTime?.vitorias || 0}</strong></div>
-            <div class="metric"><span>Total partidas</span><strong>${matchReport.resumo.totalPartidas || 0}</strong></div>
-            <div class="metric"><span>Finalizadas</span><strong>${matchReport.resumo.finalizadas || 0}</strong></div>
-            <div class="metric"><span>Agendadas</span><strong>${matchReport.resumo.agendadas || 0}</strong></div>
-            <div class="metric"><span>Sets disputados</span><strong>${matchReport.resumo.totalSetsDisputados || 0}</strong></div>
-            <div class="metric"><span>Media sets/partida</span><strong>${matchReport.resumo.mediaSetsPorPartida || 0}</strong></div>
-            <div class="metric"><span>Total times</span><strong>${matchReport.resumo.totalTimes || 0}</strong></div>
-          </section>
-          <section class="section">
-            <h2>Desempenho por time</h2>
-            <table><thead><tr><th class="center">#</th><th>Time</th><th class="center">Jogos</th><th class="center">V</th><th class="center">D</th><th class="center">Taxa</th><th class="center">Saldo</th></tr></thead><tbody>${linhasTimes || '<tr><td colspan="7">Nenhum time encontrado.</td></tr>'}</tbody></table>
-          </section>
-          <section class="section">
-            <h2>Partidas</h2>
-            <table><thead><tr><th>Data</th><th>Torneio</th><th>Partida</th><th>Tipo</th><th>Local</th><th class="center">Status</th><th class="center">Placar</th><th class="center">Sets</th><th>Vencedor</th></tr></thead><tbody>${linhasPartidas || '<tr><td colspan="9">Nenhuma partida encontrada.</td></tr>'}</tbody></table>
-          </section>
-        </body>
-      </html>
-    `;
+    return montarDocumento({
+      titulo: 'Relatorio Partidas',
+      eyebrow: 'VolleyStats',
+      subtitulo: getMatchReportFilterSummary(matchReport),
+      corpo: `
+        ${blocoMetricas([
+          { rotulo: 'Quem ganhou mais', valor: matchReport.melhorTime?.nome || 'Sem dados', destaque: true },
+          { rotulo: 'Vitorias', valor: matchReport.melhorTime?.vitorias || 0 },
+          { rotulo: 'Total partidas', valor: matchReport.resumo.totalPartidas || 0 },
+          { rotulo: 'Finalizadas', valor: matchReport.resumo.finalizadas || 0 },
+          { rotulo: 'Agendadas', valor: matchReport.resumo.agendadas || 0 },
+          { rotulo: 'Sets disputados', valor: matchReport.resumo.totalSetsDisputados || 0 },
+          { rotulo: 'Media sets/partida', valor: matchReport.resumo.mediaSetsPorPartida || 0 },
+          { rotulo: 'Total times', valor: matchReport.resumo.totalTimes || 0 },
+        ])}
+        ${blocoTabela({
+          titulo: 'Desempenho por time',
+          colunas: [
+            { rotulo: '#', center: true },
+            'Time',
+            { rotulo: 'Jogos', center: true },
+            { rotulo: 'V', center: true },
+            { rotulo: 'D', center: true },
+            { rotulo: 'Taxa', center: true },
+            { rotulo: 'Saldo', center: true },
+          ],
+          linhas: linhasTimes,
+          vazio: 'Nenhum time encontrado.',
+        })}
+        ${blocoTabela({
+          titulo: 'Partidas',
+          colunas: [
+            'Data',
+            'Torneio',
+            'Partida',
+            'Tipo',
+            'Local',
+            { rotulo: 'Status', center: true },
+            { rotulo: 'Placar', center: true },
+            { rotulo: 'Sets', center: true },
+            'Vencedor',
+          ],
+          linhas: linhasPartidas,
+          vazio: 'Nenhuma partida encontrada.',
+        })}
+      `,
+    });
   };
 
   const saveMatchReportPdf = async () => {
@@ -744,8 +751,8 @@ const handleConfirmarImportacao = async () => {
     setMatchReportPdfSaving(true);
 
     try {
-      const result = await window.reportAPI.salvarPdf({
-        nomeArquivo: 'relatorio-partidas.pdf',
+      const result = await salvarRelatorioPdf({
+        nomeArquivo: nomeArquivoRelatorio('relatorio', 'partidas'),
         html: buildMatchReportHtml(),
       });
 
@@ -802,38 +809,39 @@ const handleConfirmarImportacao = async () => {
         ))}
       </div>
 
-      <header className="bg-white border-b border-gray-100 px-8 py-6 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-4">
+      {/*
+        `flex-wrap` + `shrink-0` na marca: sem isso o bloco do logo encolhia, o
+        texto "VolleyStats" vazava da caixa dele e os botoes do menu - que vem
+        depois no DOM - eram pintados por cima do vazamento.
+      */}
+      <header className="bg-white border-b border-gray-100 px-8 py-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-4 sticky top-0 z-50">
+        <div className="flex items-center gap-4 shrink-0">
           <img src={vsLogo} alt="VolleyStats logo" className="size-12 rounded-full flex items-center justify-center shadow-lg shadow-red-100" />
-          <h1 className="text-3xl font-black text-[#DC2626] tracking-tighter uppercase italic">VolleyStats</h1>
+          <h1 className="text-3xl font-black text-[#DC2626] tracking-tighter uppercase italic whitespace-nowrap">VolleyStats</h1>
         </div>
 
-        <div className="flex items-center gap-4">
+        <nav className="flex flex-wrap items-center justify-end gap-3">
           <button 
             onClick={() => navigate('/categorias')}
-            className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
+            className={BOTAO_MENU_PADRAO}>
              Categorias
           </button>
           <button
             onClick={() => navigate('/ginasios')}
-            className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all"
+            className={BOTAO_MENU_PADRAO}
           >
             Ginasios
           </button>
           <button
             onClick={() => navigate('/times')}
-            className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all"
+            className={BOTAO_MENU_PADRAO}
           >
             Times
           </button>
           <button 
             onClick={handleImportarExcel}
             disabled={isReadingExcel}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest border transition-all ${
-              isReadingExcel 
-                ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-wait' 
-                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-            }`}
+            className={isReadingExcel ? BOTAO_MENU_OCUPADO : BOTAO_MENU_PADRAO}
           >
             {isReadingExcel ? (
               <>
@@ -851,15 +859,11 @@ const handleConfirmarImportacao = async () => {
             type="button"
             onClick={abrirHistoricoExcel}
             disabled={historicoExcelLoading}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest border transition-all ${
-              historicoExcelLoading
-                ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-wait'
-                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-            }`}
+            className={historicoExcelLoading ? BOTAO_MENU_OCUPADO : BOTAO_MENU_PADRAO}
           >
             {historicoExcelLoading ? 'Carregando...' : 'Historico'}
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
+          <button className={BOTAO_MENU_PADRAO}>
             Exportar
           </button>
 
@@ -867,14 +871,14 @@ const handleConfirmarImportacao = async () => {
             type="button"
             onClick={openGeneralTournamentReport}
             disabled={generalTournamentReportLoading}
-            className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-widest bg-black text-white border border-black hover:bg-neutral-800 disabled:bg-gray-400 disabled:border-gray-400 transition-all"
+            className={`${BOTAO_MENU} bg-black text-white border-black hover:bg-neutral-800 disabled:bg-gray-400 disabled:border-gray-400`}
           >
             {generalTournamentReportLoading ? 'Emitindo...' : 'Relatorio Torneios'}
           </button>
 
           <button
             onClick={() => setIsEditing((prev) => !prev)}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-black text-[13px] uppercase tracking-widest transition-all ${
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-black text-[13px] uppercase tracking-widest whitespace-nowrap transition-all ${
               isEditing
                 ? 'bg-[#000000] text-white shadow-lg shadow-gray-300'
                 : 'bg-white border-2 border-[#000000] text-[#000000] hover:bg-[#000000] hover:text-white'
@@ -882,7 +886,7 @@ const handleConfirmarImportacao = async () => {
           >
             {isEditing ? 'Concluir' : 'Gerenciar Torneios'}
           </button>
-        </div>
+        </nav>
       </header>
 
       <main className="max-w-400 mx-auto px-8 pt-12 space-y-16">
@@ -1407,8 +1411,8 @@ const handleConfirmarImportacao = async () => {
                   <p className="mt-2 text-2xl font-black tracking-tight">{generalTournamentReport.destaques.melhorJogadorTimePrincipal?.nome || 'Sem scout'}</p>
                 </div>
                 <div className="rounded-xl border border-gray-200 p-5 shadow-sm">
-                  <p className="text-[11px] font-black uppercase tracking-widest text-gray-500">Aproveitamento A</p>
-                  <p className="mt-2 text-2xl font-black tracking-tight">{generalTournamentReport.destaques.melhorJogadorTimePrincipal?.aproveitamentoA || 0}%</p>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-gray-500">Aproveitamento (pontos)</p>
+                  <p className="mt-2 text-2xl font-black tracking-tight">{generalTournamentReport.destaques.melhorJogadorTimePrincipal?.aproveitamentoPontos || 0}%</p>
                 </div>
               </div>
 
@@ -1539,7 +1543,7 @@ const handleConfirmarImportacao = async () => {
                           <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Torneios</th>
                           <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Partidas</th>
                           <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Acoes</th>
-                          <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">A</th>
+                          <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">Pts</th>
                           <th className="px-4 py-3 text-center text-[11px] font-black uppercase tracking-widest">A%</th>
                         </tr>
                       </thead>
@@ -1554,8 +1558,8 @@ const handleConfirmarImportacao = async () => {
                             <td className="px-4 py-3 text-center font-bold">{jogador.torneios}</td>
                             <td className="px-4 py-3 text-center font-bold">{jogador.partidas}</td>
                             <td className="px-4 py-3 text-center font-bold">{jogador.totalAcoes}</td>
-                            <td className="px-4 py-3 text-center font-bold">{jogador.acoesA}</td>
-                            <td className="px-4 py-3 text-center font-bold">{jogador.aproveitamentoA}%</td>
+                            <td className="px-4 py-3 text-center font-bold">{jogador.acoesPonto}</td>
+                            <td className="px-4 py-3 text-center font-bold">{jogador.aproveitamentoPontos}%</td>
                           </tr>
                         )) : (
                           <tr>

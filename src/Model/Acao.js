@@ -5,7 +5,7 @@ class Acao extends Evento {
      * @param {Ponto}    ponto     - Objeto Ponto (contem .pontoTime1, .pontoTime2, .set.numSet, .set.partida.id)
      * @param {object}   jogador   - Objeto Jogador (deve conter .id)
      * @param {object}   tipoAcao  - Objeto TipoAcao (deve conter .idTipoAcao)
-     * @param {string}   qualidade - 'A', 'B' ou 'C'
+     * @param {string}   qualidade - escala DataVolley: '=', '/', '-', '!', '+' ou '#'
      */
     constructor(ponto, jogador, tipoAcao, qualidade, importacaoId = null) {
         super(ponto);

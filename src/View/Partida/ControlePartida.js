@@ -1,5 +1,13 @@
  import React, { useEffect, useMemo, useState, useRef } from 'react';
-  import PontoControl from '../../Control/PontoControl' 
+  import PontoControl from '../../Control/PontoControl'
+  import { VENCEDOR } from '../../Model/Ponto';
+import { avaliarPartida, avaliarSet, normalizarSetsParaVencer, podeIncrementar, totalDeSets } from '../../Model/RegrasSet';
+import {
+  FUNDAMENTO_PARA_TIPO_ACAO,
+  TECLA_PARA_FUNDAMENTO,
+  TECLA_PARA_QUALIDADE,
+  legendaDoFundamento,
+} from '../../Model/Qualidade';
   import PlayerControl from '../../Control/PlayerControl';
   import SubstituicaoControl from '../../Control/SubstituicaoControl';
   import TimesPartidaControl from '../../Control/TimesPartidaControl';
@@ -87,6 +95,13 @@
     home: partida?.pontosTime1 ?? 0,
     away: partida?.pontosTime2 ?? 0,
   });
+    // 2 = melhor de 3, 3 = melhor de 5. Define o alvo de cada set, quando o
+    // placar trava e quando a partida pode ser encerrada.
+    const setsParaVencer = useMemo(
+      () => normalizarSetsParaVencer(partida?.setsParaVencer),
+      [partida?.setsParaVencer]
+    );
+    const maxSets = totalDeSets(setsParaVencer);
     const [formation, setFormation] = useState('Padrão 6-6');
     const [isFormationOpen, setIsFormationOpen] = useState(false);
     const [liveStatus, setLiveStatus] = useState(
@@ -111,12 +126,15 @@
       away: timesPartidaControl.criarTimesPartida(partida?.time2, partida?.id)
     });
     const [currentSet, setCurrentSet] = useState(1);
+    // Espelha "Set".encerrado no banco. Set fechado nao aceita mais ponto nem
+    // acao: o placar dele ja virou resultado da partida.
+    const [setEncerrado, setSetEncerrado] = useState(false);
+    // Placar de cada set ja registrado, para o painel e a navegacao.
+    const [setsDaPartida, setSetsDaPartida] = useState([]);
     const [pontosDoSet, setPontosDoSet] = useState([]);
     const [substituicoesDoSet, setSubstituicoesDoSet] = useState([]);
     const [showSubstituicao, setShowSubstituicao] = useState(false);
     const [showFinalizarPartida, setShowFinalizarPartida] = useState(false);
-    const [editandoEncerramento, setEditandoEncerramento] = useState(false);
-    const [placarFinalDraft, setPlacarFinalDraft] = useState({ home: 0, away: 0 });
   const [selectedFieldPlayer, setSelectedFieldPlayer] = useState(null);
     const [selectedFieldTeam, setSelectedFieldTeam] = useState(null);
     const [selectedBenchPlayer, setSelectedBenchPlayer] = useState(null);
@@ -127,49 +145,195 @@
     const homeLabel = useMemo(() => partida?.time1Nome || partida?.time1 || 'Mandante', [partida]);
     const awayLabel = useMemo(() => partida?.time2Nome || partida?.time2 || 'Visitante', [partida]);
 
-      useHotkeys('shift+up', (e) => {
-      e.preventDefault();
-      setScore(current => {
-        const newScore = { home: current.home + 1, away: current.away };
-        PontoControl.getInstance().atualizarPlacarSet(
-          parseInt(partida.id), currentSetRef.current, newScore.home, newScore.away
-        );
-        return newScore;
-      });
-    });
+    const scoreRef = useRef(score);
+    useEffect(() => { scoreRef.current = score; }, [score]);
 
-    useHotkeys('alt+up', (e) => {
-      e.preventDefault();
-      setScore(current => {
-        const newScore = { home: current.home, away: current.away + 1 };
-        PontoControl.getInstance().atualizarPlacarSet(
-          parseInt(partida.id), currentSetRef.current, newScore.home, newScore.away
-        );
-        return newScore;
-      });
-    });
+    // Os handlers de teclado do scout sao memoizados por [buffer], entao podem
+    // enxergar um estado de uma renderizacao anterior. O ref garante que a trava
+    // do set encerrado valha o estado atual.
+    const setEncerradoRef = useRef(setEncerrado);
+    useEffect(() => { setEncerradoRef.current = setEncerrado; }, [setEncerrado]);
 
-    useHotkeys('shift+down', (e) => {
-      e.preventDefault();
-      setScore(current => {
-        const newScore = { home: Math.max(0, current.home - 1), away: current.away };
-        PontoControl.getInstance().atualizarPlacarSet(
-          parseInt(partida.id), currentSetRef.current, newScore.home, newScore.away
-        );
-        return newScore;
-      });
-    });
+    /** Estado do set corrente, derivado do placar. Alimenta o aviso de set point. */
+    const avaliacaoSet = useMemo(
+      () => avaliarSet(score.home, score.away, currentSet, setsParaVencer),
+      [score.home, score.away, currentSet, setsParaVencer]
+    );
 
-    useHotkeys('alt+down', (e) => {
-      e.preventDefault();
-      setScore(current => {
-        const newScore = { home: current.home, away: Math.max(0, current.away - 1) };
-        PontoControl.getInstance().atualizarPlacarSet(
-          parseInt(partida.id), currentSetRef.current, newScore.home, newScore.away
-        );
-        return newScore;
-      });
-    });
+    /** Estado da partida, derivado dos sets ja encerrados. */
+    const avaliacaoPartida = useMemo(
+      () => avaliarPartida(setsGanhos.home, setsGanhos.away, setsParaVencer),
+      [setsGanhos.home, setsGanhos.away, setsParaVencer]
+    );
+
+    /**
+     * Aviso flutuante do scout.
+     *
+     * O balao de mensagem que ja existia so aparece dentro do modal de
+     * substituicao, entao qualquer recado dado durante o scout passava
+     * despercebido. Este some sozinho e nao rouba o foco do teclado.
+     */
+    const [avisoScout, setAvisoScout] = useState({ tipo: '', texto: '', visivel: false });
+    const avisoTimeoutRef = useRef(null);
+
+    const mostrarAviso = (tipo, texto) => {
+      setAvisoScout({ tipo, texto, visivel: true });
+      clearTimeout(avisoTimeoutRef.current);
+      avisoTimeoutRef.current = setTimeout(
+        () => setAvisoScout((atual) => ({ ...atual, visivel: false })),
+        3500
+      );
+    };
+
+    useEffect(() => () => clearTimeout(avisoTimeoutRef.current), []);
+
+    /**
+     * Pilha de desfazer do scout.
+     *
+     * Cobre as duas coisas que o analista digita no meio do rally: a acao e o
+     * ponto no placar. Substituicao e encerramento de set ficam de fora - os
+     * dois ja tem caminho proprio de correcao (a tela de escalacao e o botao de
+     * reabrir set).
+     *
+     * A pilha vive enquanto a tela esta aberta: e um desfazer de digitacao, nao
+     * um historico da partida.
+     */
+    const LIMITE_UNDO = 50;
+    const [undoStack, setUndoStack] = useState([]);
+    const undoStackRef = useRef(undoStack);
+    useEffect(() => { undoStackRef.current = undoStack; }, [undoStack]);
+
+    const empilharUndo = (entrada) => {
+      setUndoStack((atual) => [...atual, entrada].slice(-LIMITE_UNDO));
+    };
+
+    /**
+     * Unico caminho para mexer no placar (atalhos e cliques).
+     *
+     * Ao somar um ponto, o rally que acabou de ser decidido e o que estava no
+     * placar ANTES do incremento - e ele que recebe a marcacao de vencedor.
+     * Ao subtrair, o rally que volta a ficar em aberto e o do placar resultante.
+     */
+    const aplicarPonto = (side, delta, { registrarUndo = true } = {}) => {
+      const atual = scoreRef.current;
+      const proximo = { ...atual, [side]: Math.max(0, atual[side] + delta) };
+
+      if (proximo[side] === atual[side]) return false;
+
+      const partidaId = parseInt(partida?.id);
+      const numSet = parseInt(currentSetRef.current);
+
+      // Set fechado: o placar dele ja conta como set ganho. Mexer aqui sem
+      // reabrir deixaria o resultado da partida diferente do placar dos sets.
+      if (setEncerradoRef.current) {
+        mostrarAviso('erro', `Set ${numSet} está encerrado. Reabra o set para corrigir o placar.`);
+        return false;
+      }
+
+      // Set decidido: o placar so aceita correcao para baixo. Somar mais um
+      // ponto criaria um 26x20, que nao existe em quadra.
+      if (delta > 0 && !podeIncrementar(atual.home, atual.away, numSet, setsParaVencer)) {
+        mostrarAviso('erro', `Set ${numSet} decidido em ${atual.home} x ${atual.away}. Corrija o placar ou encerre o set.`);
+        return false;
+      }
+
+      if (partidaId) {
+        try {
+          const control = PontoControl.getInstance();
+
+          if (delta > 0) {
+            control.definirVencedorRally(
+              partidaId,
+              numSet,
+              atual.home,
+              atual.away,
+              side === 'home' ? VENCEDOR.MANDANTE : VENCEDOR.VISITANTE
+            );
+          } else {
+            control.definirVencedorRally(partidaId, numSet, proximo.home, proximo.away, null);
+          }
+
+          control.atualizarPlacarSet(partidaId, numSet, proximo.home, proximo.away);
+        } catch (error) {
+          console.error('Erro ao registrar ponto no placar:', error);
+          mostrarAviso('erro', `Erro ao salvar o placar: ${error.message}`);
+          return false;
+        }
+      }
+
+      scoreRef.current = proximo;
+      setScore(proximo);
+
+      if (registrarUndo) {
+        empilharUndo({
+          tipo: 'placar',
+          numSet,
+          side,
+          delta,
+          descricao: `${delta > 0 ? '+1' : '-1'} ${side === 'home' ? homeLabel : awayLabel} (${proximo.home}x${proximo.away})`,
+        });
+      }
+
+      // Recarrega para o painel lateral refletir o vencedor do rally.
+      if (partidaId) {
+        carregarDadosDoSet(numSet);
+      }
+
+      return true;
+    };
+
+    useHotkeys('shift+up', (e) => { e.preventDefault(); aplicarPonto('home', 1); });
+    useHotkeys('alt+up', (e) => { e.preventDefault(); aplicarPonto('away', 1); });
+    useHotkeys('shift+down', (e) => { e.preventDefault(); aplicarPonto('home', -1); });
+    useHotkeys('alt+down', (e) => { e.preventDefault(); aplicarPonto('away', -1); });
+
+    /**
+     * Desfaz o ultimo lance digitado (Ctrl+Z).
+     *
+     * Uma acao volta pelo `removerAcao`, que ja regrava o dono do ponto; um
+     * ponto de placar volta pelo proprio `aplicarPonto` invertido, para a
+     * marcacao do vencedor do rally ser desfeita junto com o numero.
+     */
+    const desfazerUltimoLance = () => {
+      const pilha = undoStackRef.current;
+      const ultimo = pilha[pilha.length - 1];
+
+      if (!ultimo) {
+        mostrarAviso('erro', 'Nada para desfazer.');
+        return;
+      }
+
+      if (setEncerradoRef.current) {
+        mostrarAviso('erro', `Set ${currentSetRef.current} está encerrado. Reabra o set para desfazer.`);
+        return;
+      }
+
+      // O lance pertence ao set em que foi digitado; desfazer de outro set
+      // mexeria num placar que nao esta na tela.
+      if (Number(ultimo.numSet) !== Number(currentSetRef.current)) {
+        mostrarAviso('erro', `O último lance foi no set ${ultimo.numSet}. Volte para ele para desfazer.`);
+        return;
+      }
+
+      try {
+        if (ultimo.tipo === 'acao') {
+          PontoControl.getInstance().removerAcao(ultimo.acaoId);
+          carregarDadosDoSet(currentSetRef.current);
+        } else if (!aplicarPonto(ultimo.side, -ultimo.delta, { registrarUndo: false })) {
+          // aplicarPonto ja explicou o motivo; a pilha fica como estava.
+          return;
+        }
+
+        setUndoStack((atual) => atual.slice(0, -1));
+        mostrarAviso('sucesso', `Desfeito: ${ultimo.descricao}`);
+      } catch (error) {
+        console.error('Erro ao desfazer:', error);
+        mostrarAviso('erro', `Não foi possível desfazer: ${error.message}`);
+      }
+    };
+
+    useHotkeys('ctrl+z', (event) => { event.preventDefault(); desfazerUltimoLance(); }, { enableOnFormTags: false });
+
     const [buffer, setBuffer] = useState({ numero: '', acao: '', qualidade: '' });
 
     useHotkeys('ctrl+1, ctrl+2, ctrl+3, ctrl+4, ctrl+5, ctrl+6, ctrl+7, ctrl+8, ctrl+9, ctrl+0', (event) => {
@@ -181,61 +345,78 @@
       });
     }, { enableOnFormTags: false }, [buffer])
 
-    // 2. Soltou o Control e digitou a Ação (S=Saque, A=Ataque, B=Bloqueio, R=Recepção, D=Defesa)
-   useHotkeys('s, a, b, c, r, d', (event) => {
-    // Se não digitou a camisa ainda, a gente ignora qualquer letra
-    if (!buffer.numero) return;
+    // 2. Soltou o Control e digitou o fundamento (S=Saque, A=Ataque, B=Bloqueio, R=Recepção, D=Defesa)
+    useHotkeys('s, a, b, r, d', (event) => {
+      // Sem a camisa no buffer não há o que escoutar; a letra é ignorada.
+      if (!buffer.numero || buffer.acao) return;
 
-    const tecla = event.key.toUpperCase(); // Garante que 'a' vire 'A'
+      const tecla = event.key.toUpperCase();
+      if (!TECLA_PARA_FUNDAMENTO[tecla]) return;
 
-    // ESTÁGIO 1: Esperando a Ação
-    if (!buffer.acao) {
-      if (['S', 'A', 'B', 'R', 'D'].includes(tecla)) {
-        setBuffer((prev) => ({ ...prev, acao: tecla }));
+      setBuffer((prev) => (prev.acao ? prev : { ...prev, acao: tecla }));
+    }, { enableOnFormTags: false }, [buffer]);
+
+    // 3. Qualidade: teclas 1..6, sempre do pior para o melhor. O símbolo é o
+    // mesmo em todos os fundamentos, mas o significado muda de um para o outro
+    // — por isso a legenda na tela é a do fundamento em andamento.
+    useHotkeys('1, 2, 3, 4, 5, 6', (event) => {
+      if (!buffer.numero || !buffer.acao) return;
+
+      const qualidade = TECLA_PARA_QUALIDADE[event.key];
+      if (!qualidade) return;
+
+      if (setEncerradoRef.current) {
+        alert(`Set ${currentSetRef.current} está encerrado. Reabra o set para registrar ações.`);
+        setBuffer({ numero: '', acao: '', qualidade: '' });
+        return;
       }
-      return;
-    }
-    if (['A', 'B', 'C'].includes(tecla)) {
-      const codigoScout = `${buffer.numero}${buffer.acao}${tecla}`;
-      setBuffer((prev) => ({ ...prev, qualidade: tecla }));
-      console.log("Scout registrado com sucesso:", codigoScout);
-      // -> MANDAR O BUFFER PARA O BANCO AQUI <-
-       try {
-    const control = PontoControl.getInstance();
-    const normalizarCamisa = (value) => String(value || '').replace(/^0+/, '') || '0';
-    const jogador = players.find(p => normalizarCamisa(p.numero) === normalizarCamisa(buffer.numero));  
-    const tipoAcaoMap = { S: 1, A: 2, B: 3, R: 4, D: 5 }; // IDs conforme sua tabela TipoAcao
-    const tipoAcao = { idTipoAcao: tipoAcaoMap[buffer.acao] };
 
-    if (jogador && partida?.id) {
-      console.log('=== GRAVANDO PONTO ===');
-    console.log('partida.id:', partida.id);
-    console.log('currentSet:', currentSet);
-    console.log('score:', score.home, score.away);
-    console.log('jogador:', jogador);
-    console.log('tipoAcao:', tipoAcao);
-    console.log('qualidade (tecla):', tecla);
-      control.gravarPonto(
-  { ...partida, id: parseInt(partida.id) }, // ← id como inteiro
-  parseInt(currentSet),
-  score.home,
-  score.away,
-  jogador,
-  tipoAcao,
-  tecla
-);
-        carregarDadosDoSet(currentSet); // Atualiza a barra lateral
+      const idTipoAcao = FUNDAMENTO_PARA_TIPO_ACAO[TECLA_PARA_FUNDAMENTO[buffer.acao]];
+      const normalizarCamisa = (value) => String(value || '').replace(/^0+/, '') || '0';
+      const jogador = players.find((p) => normalizarCamisa(p.numero) === normalizarCamisa(buffer.numero));
+
+      if (!jogador) {
+        alert('Jogador não encontrado para o número: ' + buffer.numero);
+        setBuffer({ numero: '', acao: '', qualidade: '' });
+        return;
       }
-      else {
-   alert('Jogador não encontrado para o número: ' + buffer.numero);
-}
-    } catch (error) {
-      alert('Erro ao registrar ponto: ' + error.message);
-    }
+
+      try {
+        if (partida?.id) {
+          // Set e placar vem dos refs: os handlers do scout sao memoizados por
+          // [buffer], entao o valor da renderizacao pode estar atrasado.
+          const numSet = parseInt(currentSetRef.current);
+          const placar = scoreRef.current;
+
+          const ponto = PontoControl.getInstance().gravarPonto(
+            { ...partida, id: parseInt(partida.id) },
+            numSet,
+            placar.home,
+            placar.away,
+            jogador,
+            { idTipoAcao },
+            qualidade
+          );
+
+          const acaoId = ponto?.ultimaAcaoGravada?.();
+          if (acaoId) {
+            empilharUndo({
+              tipo: 'acao',
+              acaoId,
+              numSet,
+              descricao: `#${jogador.numero} ${buffer.acao}${qualidade}`,
+            });
+          }
+
+          carregarDadosDoSet(numSet); // Atualiza a barra lateral
+        }
+      } catch (error) {
+        alert('Erro ao registrar ponto: ' + error.message);
+      }
+
       // Limpa o buffer para o próximo rally
       setBuffer({ numero: '', acao: '', qualidade: '' });
-    }
-  }, { enableOnFormTags: false }, [buffer]);
+    }, { enableOnFormTags: false }, [buffer]);
 
     useHotkeys('esc', () => {
       if (showHelpModal) {
@@ -273,30 +454,158 @@
       };
     }, []);
 
-   const carregarDadosDoSet = (numSet) => {
-  try {
-    const control = PontoControl.getInstance();
-    const placar = control.buscarPlacarSet(parseInt(partida.id), parseInt(numSet));
-    setScore({ home: placar.home, away: placar.away });
-    const pontos = control.buscarPontosPorSet(parseInt(partida.id), parseInt(numSet));
-    setPontosDoSet(pontos);
-    const substituicoes = SubstituicaoControl.getInstance().buscarSubstituicoesDoSet(
-      parseInt(partida.id),
-      parseInt(numSet)
-    );
-    setSubstituicoesDoSet(substituicoes);
-  } catch (error) {
-    console.error('Erro ao carregar dados do set:', error.message);
-    alert(`Erro ao carregar set ${numSet}: ${error.message}`); // ← temporário para diagnóstico
-  }
-};
+  /**
+   * Recarrega tudo que depende do set: placar, rallies, substituicoes, se o set
+   * esta fechado e quantos sets cada lado ja ganhou.
+   *
+   * Os sets ganhos sao relidos aqui de proposito. Sao derivados dos sets com
+   * encerrado = 1, nunca de um contador na tela - assim reabrir ou reencerrar um
+   * set nao tem como desencontrar o resultado da partida.
+   */
+  const carregarDadosDoSet = (numSet) => {
+    try {
+      const partidaId = parseInt(partida.id);
+      const set = parseInt(numSet);
+      const control = PontoControl.getInstance();
+
+      const placar = control.buscarPlacarSet(partidaId, set);
+      setScore({ home: placar.home, away: placar.away });
+      setSetEncerrado(control.setEstaEncerrado(partidaId, set));
+      setSetsGanhos(control.buscarSetsGanhos(partidaId));
+      setSetsDaPartida(control.buscarSetsDaPartida(partidaId));
+
+      setPontosDoSet(control.buscarPontosPorSet(partidaId, set));
+      setSubstituicoesDoSet(
+        SubstituicaoControl.getInstance().buscarSubstituicoesDoSet(partidaId, set)
+      );
+    } catch (error) {
+      console.error('Erro ao carregar dados do set:', error.message);
+      alert(`Erro ao carregar set ${numSet}: ${error.message}`);
+    }
+  };
 
     
 
-    // Substitua o useEffect de currentSet por este:
     useEffect(() => {
       if (partida?.id) carregarDadosDoSet(currentSet);
     }, [currentSet, partida?.id]);
+
+    /**
+     * Ao abrir a partida, cai no set que esta sendo jogado - nao no set 1.
+     *
+     * Reabrir uma partida no set 1 fazia o analista escoutar por cima de um set
+     * ja encerrado sem perceber.
+     */
+    useEffect(() => {
+      if (!partida?.id) return;
+
+      const sets = PontoControl.getInstance().buscarSetsDaPartida(parseInt(partida.id));
+      if (sets.length === 0) return;
+
+      const emAberto = sets.find((set) => !set.encerrado);
+      const proximo = sets[sets.length - 1].numSet + 1;
+
+      setCurrentSet(Math.min(emAberto ? emAberto.numSet : proximo, maxSets));
+      // Só no carregamento da partida: depois disso quem manda no set e o analista.
+    }, [partida?.id, maxSets]);
+
+    /** Navegacao entre sets, limitada ao formato da partida. */
+    const irParaSet = (numSet) => {
+      const alvo = Math.min(Math.max(1, Number(numSet) || 1), maxSets);
+      if (alvo !== currentSet) setCurrentSet(alvo);
+    };
+
+    /**
+     * Fecha o set corrente e abre o proximo.
+     *
+     * E o unico caminho que soma um set ganho: `avancarSet` marca encerrado = 1
+     * e regrava Partidas.pontosTime1/2 a partir dos sets fechados. Sem passar
+     * por aqui o set fica em aberto para sempre - o placar do set nao vira
+     * resultado e a partida nao tem como ser finalizada.
+     */
+    const encerrarSetAtual = () => {
+      const partidaId = parseInt(partida?.id);
+      if (!partidaId) return;
+
+      if (score.home === score.away) {
+        alert(`O Set ${currentSet} está empatado em ${score.home}. Um set não pode terminar empatado.`);
+        return;
+      }
+
+      // Encerrar antes da hora e permitido (set interrompido, W.O., partida
+      // amistosa), mas nunca em silencio.
+      if (!avaliacaoSet.encerrado) {
+        const alvo = avaliacaoSet.alvo;
+        const confirmar = window.confirm(
+          `O Set ${currentSet} está ${score.home} x ${score.away} e ainda não atingiu ${alvo} pontos com 2 de vantagem.\n\nEncerrar assim mesmo?`
+        );
+        if (!confirmar) return;
+      }
+
+      try {
+        const control = PontoControl.getInstance();
+        const { proximoSet, setsGanhos: ganhos } = control.avancarSet(
+          partidaId,
+          parseInt(currentSet),
+          score.home,
+          score.away
+        );
+
+        setLiveStatus('Em andamento');
+
+        const vencedorSet = score.home > score.away ? homeLabel : awayLabel;
+        setFeed((current) => [
+          { id: Date.now(), text: `🏁 Set ${currentSet} encerrado: ${score.home} x ${score.away} (${vencedorSet})` },
+          ...current,
+        ]);
+
+        if (avaliarPartida(ganhos.home, ganhos.away, setsParaVencer).encerrada) {
+          // Fica no set encerrado: se algo estiver errado, da para reabrir daqui.
+          carregarDadosDoSet(currentSet);
+          setShowFinalizarPartida(true);
+          return;
+        }
+
+        // Cria a linha do proximo set ja zerada: assim ele aparece no
+        // encerramento e nos relatorios mesmo antes da primeira acao.
+        control.atualizarPlacarSet(partidaId, proximoSet, 0, 0);
+        setCurrentSet(proximoSet);
+      } catch (error) {
+        console.error('Erro ao encerrar o set:', error);
+        alert('Erro ao encerrar o set: ' + error.message);
+      }
+    };
+
+    /** Desfaz o encerramento: e o unico "undo" do fluxo de sets. */
+    const reabrirSetAtual = () => {
+      const partidaId = parseInt(partida?.id);
+      if (!partidaId) return;
+
+      try {
+        PontoControl.getInstance().reabrirSet(partidaId, parseInt(currentSet));
+        setShowFinalizarPartida(false);
+        carregarDadosDoSet(currentSet);
+      } catch (error) {
+        console.error('Erro ao reabrir o set:', error);
+        alert('Erro ao reabrir o set: ' + error.message);
+      }
+    };
+
+    const finalizarPartida = async () => {
+      const partidaId = parseInt(partida?.id);
+      if (!partidaId) return;
+
+      try {
+        // Partidas.pontosTime1/2 guarda SETS ganhos, nao pontos.
+        await window.api.partidas.finalizar(partidaId, setsGanhos.home, setsGanhos.away);
+        setLiveStatus('Finalizada');
+        setShowFinalizarPartida(false);
+        aoVoltar?.();
+      } catch (error) {
+        console.error('Erro ao finalizar a partida:', error);
+        alert('Erro ao finalizar a partida: ' + (error?.message || error));
+      }
+    };
 
     const matchInfo = useMemo(() => {
       let matchDate = 'Data não definida';
@@ -508,25 +817,9 @@ const handleExcluirAcao = (acao) => {
       setActivityText('');
     };
 
-    const changeScore = (side, delta) => {
-  setScore(current => {
-    const newScore = { ...current, [side]: Math.max(0, current[side] + delta) };
-    try {
-      PontoControl.getInstance().atualizarPlacarSet(
-        parseInt(partida.id),
-        currentSetRef.current,  // ← usa ref, nunca fica stale
-        newScore.home,
-        newScore.away
-      );
-    } catch (e) {
-      console.error('Erro ao salvar placar:', e);
-    }
-    return newScore;
-  });
-};
-
-  const scoreRef = useRef(score);
-useEffect(() => { scoreRef.current = score; }, [score]);
+    // Cliques nos placares usam exatamente o mesmo caminho dos atalhos,
+    // para que a marcacao do vencedor do rally nunca seja pulada.
+    const changeScore = (side, delta) => aplicarPonto(side, delta);
 
     const handleSubstituir = async () => {
       if (!selectedFieldTeam || !selectedFieldPlayer || !selectedBenchPlayer) {
@@ -649,7 +942,7 @@ useEffect(() => { scoreRef.current = score; }, [score]);
         setLiveStatus('Em andamento');
       } catch (error) {
         console.error('Erro ao iniciar partida:', error);
-        alert('NÃ£o foi possÃ­vel iniciar a partida.');
+        alert('Não foi possível iniciar a partida.');
       }
     };
 
@@ -674,6 +967,22 @@ useEffect(() => { scoreRef.current = score; }, [score]);
 
       
       <div className="fixed inset-0 z-[5000] h-screen w-screen bg-white overflow-hidden font-['Inter',sans-serif]">
+        {/* Aviso do scout: some sozinho e nao tira o foco do teclado */}
+        {avisoScout.visivel && (
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[10010] pointer-events-none">
+            <div className={`flex items-center gap-3 rounded-2xl px-5 py-3 shadow-2xl border ${
+              avisoScout.tipo === 'sucesso'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}>
+              {avisoScout.tipo === 'sucesso'
+                ? <CheckCircle size={18} className="text-emerald-600" />
+                : <AlertCircle size={18} className="text-red-600" />}
+              <span className="text-sm font-bold">{avisoScout.texto}</span>
+            </div>
+          </div>
+        )}
+
        {estaDigitando && (
         <div className="fixed bottom-8 left-8 z-[10000] pointer-events-none transition-all">
           <div className="bg-slate-900 text-white px-6 py-5 rounded-3xl shadow-2xl border border-slate-700 flex flex-col items-start animate-in slide-in-from-bottom-6 fade-in duration-200">
@@ -700,10 +1009,34 @@ useEffect(() => { scoreRef.current = score; }, [score]);
             </div>
 
             <p className="mt-3 text-[11px] font-medium text-slate-500">
-              {!buffer.acao 
-                ? "Solte Ctrl + Ação (S, A, B, R, D)" 
-                : "Qualidade (A, B, C)"}
+              {!buffer.acao
+                ? "Solte Ctrl + Ação (S, A, B, R, D)"
+                : `Qualidade de ${TECLA_PARA_FUNDAMENTO[buffer.acao]} (teclas 1 a 6)`}
             </p>
+
+            {/* A escala é a mesma nos cinco fundamentos, o significado não.
+                A legenda evita que o analista decore cinco mapas no meio do rally. */}
+            {buffer.acao && (
+              <ul className="mt-3 w-full space-y-1 border-t border-slate-700 pt-3">
+                {legendaDoFundamento(TECLA_PARA_FUNDAMENTO[buffer.acao]).map((item) => (
+                  <li key={item.simbolo} className="flex items-center gap-2 text-[11px] font-medium text-slate-300">
+                    <span className="w-4 text-center font-black text-slate-500">{item.tecla}</span>
+                    <span
+                      className={`w-4 text-center font-black ${
+                        item.resultado === 'PONTO'
+                          ? 'text-emerald-400'
+                          : item.resultado === 'ERRO'
+                            ? 'text-red-400'
+                            : 'text-slate-400'
+                      }`}
+                    >
+                      {item.simbolo}
+                    </span>
+                    <span>{item.texto}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       )}
@@ -868,70 +1201,130 @@ useEffect(() => { scoreRef.current = score; }, [score]);
               <h2 className="text-2xl font-black text-gray-900 tracking-tight">{matchInfo.name}</h2>
               <p className="text-[11px] uppercase tracking-widest font-bold text-gray-500 mt-1">{matchInfo.date}</p>
             </div>
+            {/* Sets da partida: derivado dos sets encerrados, nunca digitado */}
+<div className="px-6 pt-5 pb-4 border-b border-gray-100 bg-gray-50/50">
+  <div className="flex items-center justify-between mb-3">
+    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+      Sets da Partida
+    </p>
+    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+      Melhor de {maxSets}
+    </p>
+  </div>
 
-            {/* Sets ganhos na partida */}
-<div className="px-6 pt-5 pb-3 border-b border-gray-100 bg-gray-50/50">
-  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 text-center">
-    Sets da Partida
-  </p>
   <div className="grid grid-cols-2 gap-3">
-    {/* Mandante */}
-    <div className="flex items-center justify-between bg-white border border-gray-100 rounded-2xl px-3 py-2 shadow-sm">
-      <button
-        onClick={() => {
-          const control = PontoControl.getInstance();
-          const upd = control.atualizarSetsGanhos(parseInt(partida.id), -1, 0);
-          setSetsGanhos(upd);
-        }}
-        className="w-7 h-7 rounded-full bg-gray-100 text-gray-600 font-bold text-base hover:bg-gray-200 transition flex items-center justify-center"
-      >−</button>
-      <span className="text-2xl font-black text-gray-900">{setsGanhos.home}</span>
-      <button
-        onClick={() => {
-          const control = PontoControl.getInstance();
-          const upd = control.atualizarSetsGanhos(parseInt(partida.id), 1, 0);
-          setSetsGanhos(upd);
-        }}
-        className="w-7 h-7 rounded-full bg-gray-900 text-white font-bold text-base hover:bg-gray-700 transition flex items-center justify-center"
-      >+</button>
+    <div className="rounded-2xl bg-white border border-gray-100 px-3 py-2 shadow-sm text-center">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 truncate">{homeLabel}</p>
+      <span className="text-3xl font-black text-gray-900">{setsGanhos.home}</span>
     </div>
-    {/* Visitante */}
-    <div className="flex items-center justify-between bg-white border border-orange-100 rounded-2xl px-3 py-2 shadow-sm">
-      <button
-        onClick={() => {
-          const control = PontoControl.getInstance();
-          const upd = control.atualizarSetsGanhos(parseInt(partida.id), 0, -1);
-          setSetsGanhos(upd);
-        }}
-        className="w-7 h-7 rounded-full bg-orange-100 text-orange-600 font-bold text-base hover:bg-orange-200 transition flex items-center justify-center"
-      >−</button>
-      <span className="text-2xl font-black text-orange-500">{setsGanhos.away}</span>
-      <button
-        onClick={() => {
-          const control = PontoControl.getInstance();
-          const upd = control.atualizarSetsGanhos(parseInt(partida.id), 0, 1);
-          setSetsGanhos(upd);
-        }}
-        className="w-7 h-7 rounded-full bg-orange-500 text-white font-bold text-base hover:bg-orange-400 transition flex items-center justify-center"
-      >+</button>
+    <div className="rounded-2xl bg-white border border-orange-100 px-3 py-2 shadow-sm text-center">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-orange-400 truncate">{awayLabel}</p>
+      <span className="text-3xl font-black text-orange-500">{setsGanhos.away}</span>
     </div>
   </div>
+
+  {/* Um chip por set: clicar navega, o anel marca o set aberto na tela */}
+  {setsDaPartida.length > 0 && (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {setsDaPartida.map((set) => (
+        <button
+          key={set.numSet}
+          type="button"
+          onClick={() => irParaSet(set.numSet)}
+          title={set.encerrado ? `Set ${set.numSet} encerrado` : `Set ${set.numSet} em aberto`}
+          className={`rounded-full px-3 py-1.5 text-[11px] font-black transition-colors ${
+            set.numSet === currentSet
+              ? 'bg-gray-900 text-white'
+              : set.encerrado
+                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+          }`}
+        >
+          {set.numSet}º {set.home}-{set.away}
+          {set.encerrado ? ' ✓' : ''}
+        </button>
+      ))}
+    </div>
+  )}
+
+  {avaliacaoPartida.encerrada && (
+    <button
+      type="button"
+      onClick={() => setShowFinalizarPartida(true)}
+      className="mt-3 w-full rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-emerald-500 transition-colors"
+    >
+      Finalizar partida ({setsGanhos.home} x {setsGanhos.away})
+    </button>
+  )}
 </div>
 
 {/* Placar do set atual (clicável para mudança rápida) */}
-<div className="p-6 border-b border-gray-100 grid grid-cols-2 gap-4">
-  <div className="bg-gray-900 rounded-2xl p-4 text-center cursor-pointer hover:bg-gray-800 transition" onClick={() => changeScore('home', 1)}>
-    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">
-      {homeLabel} — Set {currentSet}
-    </span>
-    <span className="text-4xl font-black text-white">{score.home}</span>
+<div className="p-6 border-b border-gray-100">
+  <div className="grid grid-cols-2 gap-4">
+    <div
+      className={`bg-gray-900 rounded-2xl p-4 text-center transition ${setEncerrado ? 'opacity-60' : 'cursor-pointer hover:bg-gray-800'}`}
+      onClick={() => changeScore('home', 1)}
+    >
+      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">
+        {homeLabel} — Set {currentSet}
+      </span>
+      <span className="text-4xl font-black text-white">{score.home}</span>
+    </div>
+    <div
+      className={`bg-orange-500 rounded-2xl p-4 text-center transition ${setEncerrado ? 'opacity-60' : 'cursor-pointer hover:bg-orange-600'}`}
+      onClick={() => changeScore('away', 1)}
+    >
+      <span className="text-[10px] font-black uppercase tracking-widest text-orange-200 block mb-1">
+        {awayLabel} — Set {currentSet}
+      </span>
+      <span className="text-4xl font-black text-white">{score.away}</span>
+    </div>
   </div>
-  <div className="bg-orange-500 rounded-2xl p-4 text-center cursor-pointer hover:bg-orange-600 transition" onClick={() => changeScore('away', 1)}>
-    <span className="text-[10px] font-black uppercase tracking-widest text-orange-200 block mb-1">
-      {awayLabel} — Set {currentSet}
-    </span>
-    <span className="text-4xl font-black text-white">{score.away}</span>
-  </div>
+
+  {/* Situacao do set: alvo, set point e o momento de fechar */}
+  <p className="mt-3 text-center text-[11px] font-bold text-gray-500">
+    {setEncerrado
+      ? `Set ${currentSet} encerrado em ${score.home} x ${score.away}.`
+      : avaliacaoSet.encerrado
+        ? `Set decidido em ${score.home} x ${score.away}. Encerre para abrir o próximo.`
+        : avaliacaoSet.emSetPoint
+          ? `Set point — ${avaliacaoSet.faltamParaFechar} ponto para fechar (alvo ${avaliacaoSet.alvo}${avaliacaoSet.decisivo ? ', set decisivo' : ''}).`
+          : `Faltam ${avaliacaoSet.faltamParaFechar} pontos para fechar (alvo ${avaliacaoSet.alvo}${avaliacaoSet.decisivo ? ', set decisivo' : ''}).`}
+  </p>
+
+  {setEncerrado ? (
+    <button
+      type="button"
+      onClick={reabrirSetAtual}
+      className="mt-3 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-gray-700 hover:bg-gray-50 transition-colors"
+    >
+      Reabrir set {currentSet}
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={encerrarSetAtual}
+      className={`mt-3 w-full rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-widest transition-colors ${
+        avaliacaoSet.encerrado
+          ? 'bg-gray-900 text-white hover:bg-gray-800'
+          : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+      }`}
+    >
+      Encerrar set {currentSet}
+    </button>
+  )}
+
+  {/* O que o Ctrl+Z desfaz agora. Tambem serve de botao, para quem usa mouse. */}
+  {undoStack.length > 0 && !setEncerrado && (
+    <button
+      type="button"
+      onClick={desfazerUltimoLance}
+      title="Desfazer o último lance (Ctrl+Z)"
+      className="mt-2 w-full rounded-2xl border border-dashed border-gray-200 px-4 py-2 text-[11px] font-bold text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors truncate"
+    >
+      Ctrl+Z desfaz: {undoStack[undoStack.length - 1].descricao}
+    </button>
+  )}
 </div>
 
             {/* Pontos do Set */}
@@ -941,8 +1334,20 @@ useEffect(() => { scoreRef.current = score; }, [score]);
       Pontos — Set {currentSet}
     </h3>
     <div className="flex items-center gap-1">
-      <button onClick={() => setCurrentSet(prev => Math.max(1, prev - 1))}>‹</button>
-    <button onClick={() => setCurrentSet(prev => prev + 1)}>›</button>
+      <button
+        type="button"
+        onClick={() => irParaSet(currentSet - 1)}
+        disabled={currentSet <= 1}
+        title="Set anterior"
+        className="w-7 h-7 rounded-full bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+      >‹</button>
+      <button
+        type="button"
+        onClick={() => irParaSet(currentSet + 1)}
+        disabled={currentSet >= maxSets}
+        title="Próximo set"
+        className="w-7 h-7 rounded-full bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+      >›</button>
     </div>
   </div>
 
@@ -966,7 +1371,29 @@ useEffect(() => { scoreRef.current = score; }, [score]);
                         {ponto.pontoTime1} × {ponto.pontoTime2}
                       </span>
                     </div>
-                    
+
+                    {/* Dono do ponto: autor da última ação do rally */}
+                    <div
+                      className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 border ${
+                        ponto.vencedor === VENCEDOR.VISITANTE
+                          ? 'bg-orange-50 border-orange-100'
+                          : 'bg-emerald-50 border-emerald-100'
+                      }`}
+                    >
+                      <span
+                        className={`text-[9px] font-black uppercase tracking-widest ${
+                          ponto.vencedor === VENCEDOR.VISITANTE ? 'text-orange-500' : 'text-emerald-600'
+                        }`}
+                      >
+                        {ponto.vencedor === VENCEDOR.VISITANTE ? 'Ponto cedido' : 'Ponto de'}
+                      </span>
+                      <span className="text-xs font-black text-gray-800 truncate">
+                        {ponto.dono
+                          ? `${String(ponto.dono.numero ?? '').padStart(2, '0')} · ${ponto.dono.nome}`
+                          : 'Sem atleta'}
+                      </span>
+                    </div>
+
                     {/* Lista de Ações ocorridas neste ponto */}
                     {ponto.acoes && ponto.acoes.length > 0 && (
                       <div className="mt-1 pt-2 border-t border-gray-50 flex flex-col gap-1.5">
@@ -1292,6 +1719,62 @@ useEffect(() => { scoreRef.current = score; }, [score]);
         open={showHelpModal}
         onClose={() => setShowHelpModal(false)}
       />
+
+        {/* Encerramento da partida: aparece quando um lado alcanca o alvo de sets */}
+        {showFinalizarPartida && (
+          <div className="fixed inset-0 z-[10030] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-md rounded-[2rem] bg-white border border-gray-100 shadow-2xl p-8">
+              <p className="text-[11px] font-black uppercase tracking-widest text-gray-500">
+                Partida decidida
+              </p>
+              <h2 className="mt-1 text-2xl font-black text-gray-900 tracking-tight">
+                {setsGanhos.home > setsGanhos.away ? homeLabel : awayLabel} venceu
+              </h2>
+
+              <div className="mt-5 rounded-2xl bg-gray-50 border border-gray-100 p-5 text-center">
+                <p className="text-4xl font-black text-gray-900">
+                  {setsGanhos.home} <span className="text-gray-300">x</span> {setsGanhos.away}
+                </p>
+                <p className="mt-1 text-[11px] font-bold uppercase tracking-widest text-gray-400">
+                  Sets — melhor de {maxSets}
+                </p>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {setsDaPartida.map((set) => (
+                  <span
+                    key={`final-${set.numSet}`}
+                    className="rounded-full bg-gray-100 px-3 py-1.5 text-[11px] font-black text-gray-600"
+                  >
+                    {set.numSet}º {set.home}-{set.away}
+                  </span>
+                ))}
+              </div>
+
+              <p className="mt-5 text-xs font-medium leading-5 text-gray-500">
+                Depois de finalizada a partida não aceita mais alterações. Se algum set ficou errado,
+                cancele, reabra o set e corrija antes de finalizar.
+              </p>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowFinalizarPartida(false)}
+                  className="rounded-full bg-gray-100 px-6 py-3 text-xs font-black uppercase tracking-widest text-gray-700 hover:bg-gray-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={finalizarPartida}
+                  className="rounded-full bg-emerald-600 px-6 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-emerald-500 transition-colors"
+                >
+                  Finalizar partida
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       
     );

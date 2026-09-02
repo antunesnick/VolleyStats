@@ -149,4 +149,4 @@ class TimesPartida {
     }
 }
 
-module.exports = TimesPartida;
+export default TimesPartida;

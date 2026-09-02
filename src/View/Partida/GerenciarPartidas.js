@@ -1,3 +1,13 @@
+import { MELHOR_DE_3, MELHOR_DE_5, normalizarSetsParaVencer } from '../../Model/RegrasSet';
+import {
+  blocoDestaques,
+  blocoMetricas,
+  blocoTabela,
+  escapeHtml,
+  montarDocumento,
+  nomeArquivoRelatorio,
+  salvarRelatorioPdf,
+} from '../../utils/relatorioPdf';
 import React, { useState, useEffect } from 'react';
 import logoTime from '../assets/logoTransparent.png';
 import ControlePartida from './ControlePartida';
@@ -45,12 +55,6 @@ const showToastMessage = (setToasts, type, text, duration = 3200) => {
 };
 
 const formatPercent = (value) => `${Number(value || 0).toFixed(1)}%`;
-const escapeHtml = (value) => String(value ?? '')
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#039;');
 
 const ReportMetric = ({ label, value, featured = false }) => (
   <div className={`${featured ? 'bg-black text-white border-black' : 'bg-white text-black border-gray-200'} rounded-xl border p-5 shadow-sm`}>
@@ -103,6 +107,9 @@ const GerenciarPartidas = ({ tournamentId = null, onMatchesUpdated, isEmbedded =
     time1: '',
     time2: '',
     videoLink: '',
+    // Melhor de 5 e o formato mais comum; melhor de 3 aparece em categorias
+    // de base e fase de grupos.
+    setsParaVencer: String(MELHOR_DE_5),
     torneio_id: tournamentId || null
   };
 
@@ -484,7 +491,8 @@ const formatarDataBrasil = (dataString) => {
       ...partida,
       time1: String(partida.time1),
       time2: String(partida.time2),
-      ginasio_id: String(partida.ginasio_id)
+      ginasio_id: String(partida.ginasio_id),
+      setsParaVencer: String(normalizarSetsParaVencer(partida.setsParaVencer))
     });
     setVideoLinkValidado(true);
     setVideoLinkValidadoValor(existingVideoLink);
@@ -599,8 +607,14 @@ const formatarDataBrasil = (dataString) => {
 
   const montarHtmlRelatorioGeralPartidas = () => {
     if (!relatorioGeral) {
-      return '<html><body><h1>Relatorio Partidas</h1></body></html>';
+      return montarDocumento({ titulo: 'Relatorio Partidas', eyebrow: 'VolleyStats' });
     }
+
+    const { resumo } = relatorioGeral;
+
+    const descreverJogo = (jogo) => (jogo
+      ? `${jogo.time1Nome || 'Time 1'} x ${jogo.time2Nome || 'Time 2'} (${jogo.placar})`
+      : 'Sem dados');
 
     const linhasTimes = relatorioGeral.times.map((time, index) => `
       <tr>
@@ -616,7 +630,7 @@ const formatarDataBrasil = (dataString) => {
         <td class="center">${time.setsPerdidos}</td>
         <td class="center">${time.saldoSets}</td>
       </tr>
-    `).join('');
+    `);
 
     const linhasPartidas = relatorioGeral.jogos.map((jogo) => `
       <tr>
@@ -631,7 +645,7 @@ const formatarDataBrasil = (dataString) => {
         <td class="center">${jogo.diferencaSets || 0}</td>
         <td>${escapeHtml(jogo.vencedor)}</td>
       </tr>
-    `).join('');
+    `);
 
     const linhasTipos = relatorioGeral.resumoPorTipo.map((tipo) => `
       <tr>
@@ -642,7 +656,7 @@ const formatarDataBrasil = (dataString) => {
         <td class="center">${tipo.setsDisputados}</td>
         <td class="center">${tipo.taxaConclusao}%</td>
       </tr>
-    `).join('');
+    `);
 
     const linhasGinasios = relatorioGeral.resumoPorGinasio.map((ginasio) => `
       <tr>
@@ -651,117 +665,101 @@ const formatarDataBrasil = (dataString) => {
         <td class="center">${ginasio.finalizadas}</td>
         <td class="center">${ginasio.agendadas}</td>
       </tr>
-    `).join('');
+    `);
 
-    const montarResumoJogo = (jogo) => {
-      if (!jogo) {
-        return 'Sem dados';
-      }
-
-      return `${escapeHtml(jogo.time1Nome || 'Time 1')} x ${escapeHtml(jogo.time2Nome || 'Time 2')} (${escapeHtml(jogo.placar)})`;
-    };
-
-    return `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Relatorio Partidas</title>
-          <style>
-            * { box-sizing: border-box; }
-            body { margin: 0; padding: 26px; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #fff; }
-            header { padding: 20px 22px; background: #000; color: #fff; border-bottom: 6px solid #dc2626; border-radius: 12px 12px 0 0; }
-            .eyebrow { margin: 0 0 6px; color: #f87171; font-size: 10px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
-            h1 { margin: 0; font-size: 24px; }
-            .sub { margin-top: 8px; color: #d1d5db; font-size: 12px; font-weight: 700; }
-            .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0; }
-            .metric { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
-            .metric span { display: block; color: #6b7280; font-size: 9px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
-            .metric strong { display: block; margin-top: 5px; font-size: 18px; }
-            .highlights { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 18px; }
-            .highlight { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
-            .highlight span { display: block; color: #6b7280; font-size: 9px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
-            .highlight strong { display: block; margin-top: 5px; font-size: 13px; }
-            .section { margin-top: 18px; }
-            .section h2 { margin: 0 0 10px; color: #dc2626; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
-            table { width: 100%; border-collapse: collapse; font-size: 9px; }
-            th { background: #000; color: #fff; padding: 7px 5px; text-align: left; text-transform: uppercase; letter-spacing: 0.4px; }
-            td { border-bottom: 1px solid #e5e7eb; padding: 7px 5px; vertical-align: top; }
-            td span { display: block; margin-top: 3px; color: #6b7280; }
-            .center { text-align: center; }
-          </style>
-        </head>
-        <body>
-          <header>
-            <p class="eyebrow">VolleyStats</p>
-            <h1>Relatorio Partidas</h1>
-            <div class="sub">${escapeHtml(getResumoFiltrosRelatorio(relatorioGeral))}</div>
-          </header>
-          <section class="metrics">
-            <div class="metric"><span>Total de partidas</span><strong>${relatorioGeral.resumo.totalPartidas}</strong></div>
-            <div class="metric"><span>Finalizadas</span><strong>${relatorioGeral.resumo.finalizadas}</strong></div>
-            <div class="metric"><span>Agendadas</span><strong>${relatorioGeral.resumo.agendadas}</strong></div>
-            <div class="metric"><span>Sets disputados</span><strong>${relatorioGeral.resumo.totalSetsDisputados}</strong></div>
-            <div class="metric"><span>Media sets/partida</span><strong>${relatorioGeral.resumo.mediaSetsPorPartida}</strong></div>
-            <div class="metric"><span>Tipos de partida</span><strong>${relatorioGeral.resumoPorTipo.length}</strong></div>
-            <div class="metric"><span>Locais usados</span><strong>${relatorioGeral.resumoPorGinasio.length}</strong></div>
-            <div class="metric"><span>Total de times</span><strong>${relatorioGeral.resumo.totalTimes}</strong></div>
-          </section>
-          <section class="highlights">
-            <div class="highlight"><span>Melhor time</span><strong>${escapeHtml(relatorioGeral.melhorTime?.nome || 'Sem dados')} (${relatorioGeral.melhorTime?.vitorias || 0} vitorias)</strong></div>
-            <div class="highlight"><span>Quem perdeu mais</span><strong>${escapeHtml(relatorioGeral.piorTime?.nome || 'Sem dados')} (${relatorioGeral.piorTime?.derrotas || 0} derrotas)</strong></div>
-            <div class="highlight"><span>Jogo mais longo</span><strong>${montarResumoJogo(relatorioGeral.jogoMaisLongo)}</strong></div>
-            <div class="highlight"><span>Jogo mais disputado</span><strong>${montarResumoJogo(relatorioGeral.jogoMaisDisputado)}</strong></div>
-            <div class="highlight"><span>Maior diferenca</span><strong>${montarResumoJogo(relatorioGeral.jogoMaiorDiferenca)}</strong></div>
-            <div class="highlight"><span>Tipo mais frequente</span><strong>${escapeHtml(relatorioGeral.tipoMaisFrequente?.tipo || 'Sem dados')} (${relatorioGeral.tipoMaisFrequente?.total || 0})</strong></div>
-          </section>
-          <section class="section">
-            <h2>Resumo por tipo de partida</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Tipo</th><th class="center">Total</th><th class="center">Finalizadas</th><th class="center">Agendadas</th><th class="center">Sets</th><th class="center">Conclusao</th>
-                </tr>
-              </thead>
-              <tbody>${linhasTipos || '<tr><td colspan="6">Nenhum tipo encontrado.</td></tr>'}</tbody>
-            </table>
-          </section>
-          <section class="section">
-            <h2>Resumo por local</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Local</th><th class="center">Total</th><th class="center">Finalizadas</th><th class="center">Agendadas</th>
-                </tr>
-              </thead>
-              <tbody>${linhasGinasios || '<tr><td colspan="4">Nenhum local encontrado.</td></tr>'}</tbody>
-            </table>
-          </section>
-          <section class="section">
-            <h2>Desempenho por time</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th class="center">#</th><th>Time</th><th class="center">J</th><th class="center">Final.</th><th class="center">V</th><th class="center">D</th><th class="center">E</th><th class="center">Taxa</th><th class="center">SG</th><th class="center">SP</th><th class="center">Saldo</th>
-                </tr>
-              </thead>
-              <tbody>${linhasTimes || '<tr><td colspan="11">Nenhum time encontrado.</td></tr>'}</tbody>
-            </table>
-          </section>
-          <section class="section">
-            <h2>Partidas detalhadas</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Data</th><th>Torneio</th><th>Partida</th><th>Tipo</th><th>Local</th><th class="center">Status</th><th class="center">Placar</th><th class="center">Sets</th><th class="center">Dif.</th><th>Vencedor</th>
-                </tr>
-              </thead>
-              <tbody>${linhasPartidas || '<tr><td colspan="10">Nenhuma partida encontrada.</td></tr>'}</tbody>
-            </table>
-          </section>
-        </body>
-      </html>
-    `;
+    return montarDocumento({
+      titulo: 'Relatorio Partidas',
+      eyebrow: 'VolleyStats',
+      subtitulo: getResumoFiltrosRelatorio(relatorioGeral),
+      corpo: `
+        ${blocoMetricas([
+          { rotulo: 'Total de partidas', valor: resumo.totalPartidas },
+          { rotulo: 'Finalizadas', valor: resumo.finalizadas },
+          { rotulo: 'Agendadas', valor: resumo.agendadas },
+          { rotulo: 'Sets disputados', valor: resumo.totalSetsDisputados },
+          { rotulo: 'Media sets/partida', valor: resumo.mediaSetsPorPartida },
+          { rotulo: 'Tipos de partida', valor: relatorioGeral.resumoPorTipo.length },
+          { rotulo: 'Locais usados', valor: relatorioGeral.resumoPorGinasio.length },
+          { rotulo: 'Total de times', valor: resumo.totalTimes },
+        ])}
+        ${blocoDestaques([
+          {
+            rotulo: 'Melhor time',
+            valor: `${relatorioGeral.melhorTime?.nome || 'Sem dados'} (${relatorioGeral.melhorTime?.vitorias || 0} vitorias)`,
+          },
+          {
+            rotulo: 'Quem perdeu mais',
+            valor: `${relatorioGeral.piorTime?.nome || 'Sem dados'} (${relatorioGeral.piorTime?.derrotas || 0} derrotas)`,
+          },
+          { rotulo: 'Jogo mais longo', valor: descreverJogo(relatorioGeral.jogoMaisLongo) },
+          { rotulo: 'Jogo mais disputado', valor: descreverJogo(relatorioGeral.jogoMaisDisputado) },
+          { rotulo: 'Maior diferenca', valor: descreverJogo(relatorioGeral.jogoMaiorDiferenca) },
+          {
+            rotulo: 'Tipo mais frequente',
+            valor: `${relatorioGeral.tipoMaisFrequente?.tipo || 'Sem dados'} (${relatorioGeral.tipoMaisFrequente?.total || 0})`,
+          },
+        ])}
+        ${blocoTabela({
+          titulo: 'Resumo por tipo de partida',
+          colunas: [
+            'Tipo',
+            { rotulo: 'Total', center: true },
+            { rotulo: 'Finalizadas', center: true },
+            { rotulo: 'Agendadas', center: true },
+            { rotulo: 'Sets', center: true },
+            { rotulo: 'Conclusao', center: true },
+          ],
+          linhas: linhasTipos,
+          vazio: 'Nenhum tipo encontrado.',
+        })}
+        ${blocoTabela({
+          titulo: 'Resumo por local',
+          colunas: [
+            'Local',
+            { rotulo: 'Total', center: true },
+            { rotulo: 'Finalizadas', center: true },
+            { rotulo: 'Agendadas', center: true },
+          ],
+          linhas: linhasGinasios,
+          vazio: 'Nenhum local encontrado.',
+        })}
+        ${blocoTabela({
+          titulo: 'Desempenho por time',
+          colunas: [
+            { rotulo: '#', center: true },
+            'Time',
+            { rotulo: 'J', center: true },
+            { rotulo: 'Final.', center: true },
+            { rotulo: 'V', center: true },
+            { rotulo: 'D', center: true },
+            { rotulo: 'E', center: true },
+            { rotulo: 'Taxa', center: true },
+            { rotulo: 'SG', center: true },
+            { rotulo: 'SP', center: true },
+            { rotulo: 'Saldo', center: true },
+          ],
+          linhas: linhasTimes,
+          vazio: 'Nenhum time encontrado.',
+        })}
+        ${blocoTabela({
+          titulo: 'Partidas detalhadas',
+          colunas: [
+            'Data',
+            'Torneio',
+            'Partida',
+            'Tipo',
+            'Local',
+            { rotulo: 'Status', center: true },
+            { rotulo: 'Placar', center: true },
+            { rotulo: 'Sets', center: true },
+            { rotulo: 'Dif.', center: true },
+            'Vencedor',
+          ],
+          linhas: linhasPartidas,
+          vazio: 'Nenhuma partida encontrada.',
+        })}
+      `,
+    });
   };
 
   const salvarRelatorioGeralPdf = async () => {
@@ -772,8 +770,8 @@ const formatarDataBrasil = (dataString) => {
     setRelatorioGeralPdfSaving(true);
 
     try {
-      const result = await window.reportAPI.salvarPdf({
-        nomeArquivo: 'relatorio-partidas.pdf',
+      const result = await salvarRelatorioPdf({
+        nomeArquivo: nomeArquivoRelatorio('relatorio', 'partidas'),
         html: montarHtmlRelatorioGeralPartidas(),
       });
 
@@ -1102,7 +1100,7 @@ const formatarDataBrasil = (dataString) => {
                 </CustomSelect>
               </div>
 
-              <div className="grid grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
                     <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -1126,6 +1124,18 @@ const formatarDataBrasil = (dataString) => {
                   <option value="Semifinal">Semifinal</option>
                   <option value="Final">Grande Final</option>
                   <option value="Amistoso">Amistoso / Treino</option>
+                </CustomSelect>
+
+                <CustomSelect
+                  label="Formato *"
+                  name="setsParaVencer"
+                  value={formData.setsParaVencer}
+                  onChange={handleInputChange}
+                  required
+                  icon={<svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>}
+                >
+                  <option value={MELHOR_DE_5}>Melhor de 5 (3 sets, decisivo de 15)</option>
+                  <option value={MELHOR_DE_3}>Melhor de 3 (2 sets, decisivo de 15)</option>
                 </CustomSelect>
 
                 <CustomSelect

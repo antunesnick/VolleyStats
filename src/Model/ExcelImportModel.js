@@ -82,9 +82,9 @@ class ExcelImportModel {
                 }
             };
 
-            inserirAcoesEmMassa(row['Saque (Pts)'], 1, 'A');
-            inserirAcoesEmMassa(row['Ataque (Pts)'], 2, 'A');
-            inserirAcoesEmMassa(row['Bloqueio (Pts)'], 3, 'A');
+            inserirAcoesEmMassa(row['Saque (Pts)'], 1, '#');
+            inserirAcoesEmMassa(row['Ataque (Pts)'], 2, '#');
+            inserirAcoesEmMassa(row['Bloqueio (Pts)'], 3, '#');
             inserirAcoesEmMassa(ExcelImportModel.encontrarValor(row, 'recep'), 4, 'B');
 
             jogadoresAtualizados++;

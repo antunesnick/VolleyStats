@@ -1,10 +1,11 @@
+import { bucketDoResultado, criarContagemPorBucket } from './Qualidade';
 const TournamentType = Object.freeze({
     POINTS: 1,
     KNOCKOUT: 2,
     POINTS_AND_KNOCKOUT: 3
 });
 
-const { TournamentDAO } = require('./TournamentDAO');
+import { TournamentDAO } from './TournamentDAO';
 const tournamentDAO = new TournamentDAO();
 
 const getTournamentTypeLabel = (type) => {
@@ -341,42 +342,41 @@ class Tournament {
 
         const jogadores = tournamentDAO.getPlayerRankingByTournamentId(torneio.id, matchIdsForDao).map((jogador) => {
             const totalAcoes = Number(jogador.totalAcoes) || 0;
-            const acoesA = Number(jogador.acoesA) || 0;
+            const acoesPonto = Number(jogador.acoesPonto) || 0;
             return {
                 ...jogador,
                 totalAcoes,
-                acoesA,
-                acoesB: Number(jogador.acoesB) || 0,
-                acoesC: Number(jogador.acoesC) || 0,
-                eficiencia: totalAcoes > 0 ? Number(((acoesA / totalAcoes) * 100).toFixed(1)) : 0,
+                acoesPonto,
+                acoesNeutra: Number(jogador.acoesNeutra) || 0,
+                acoesErro: Number(jogador.acoesErro) || 0,
+                eficiencia: totalAcoes > 0 ? Number(((acoesPonto / totalAcoes) * 100).toFixed(1)) : 0,
             };
         });
 
         const acoesPorTipoMap = new Map();
-        const qualidade = { A: 0, B: 0, C: 0 };
+        // Baldes de resultado, nao a escala completa: esta tabela mistura
+        // fundamentos, e o mesmo simbolo significa coisas diferentes em cada um.
+        const qualidade = criarContagemPorBucket();
         let totalAcoes = 0;
 
         tournamentDAO.getActionSummaryByTournamentId(torneio.id, matchIdsForDao).forEach((row) => {
             const tipo = normalizarNomeAcao(row.tipoAcaoNome);
             const count = Number(row.total) || 0;
-            const qual = String(row.qualidade || '').toUpperCase();
+            const balde = bucketDoResultado(row.tipoAcaoNome, row.qualidade);
 
             if (!acoesPorTipoMap.has(tipo)) {
-                acoesPorTipoMap.set(tipo, { tipo, total: 0, A: 0, B: 0, C: 0 });
+                acoesPorTipoMap.set(tipo, { tipo, total: 0, ...criarContagemPorBucket() });
             }
 
             const item = acoesPorTipoMap.get(tipo);
             item.total += count;
             totalAcoes += count;
-
-            if (Object.prototype.hasOwnProperty.call(qualidade, qual)) {
-                qualidade[qual] += count;
-                item[qual] += count;
-            }
+            qualidade[balde] += count;
+            item[balde] += count;
         });
 
         const acoesPorTipo = Array.from(acoesPorTipoMap.values()).sort((a, b) => b.total - a.total || a.tipo.localeCompare(b.tipo));
-        const aproveitamentoA = totalAcoes > 0 ? Number(((qualidade.A / totalAcoes) * 100).toFixed(1)) : 0;
+        const aproveitamentoPontos = totalAcoes > 0 ? Number(((qualidade.Ponto / totalAcoes) * 100).toFixed(1)) : 0;
         const ginasios = tournamentDAO.getGymSummaryByTournamentId(torneio.id, matchIdsForDao).map((ginasio) => ({
             ...ginasio,
             partidas: Number(ginasio.partidas) || 0,
@@ -397,7 +397,7 @@ class Tournament {
                 mediaSetsPorPartida: finalizadas.length > 0 ? Number((totalSets / finalizadas.length).toFixed(1)) : 0,
                 jogosCincoSets: cincoSets,
                 totalAcoes,
-                aproveitamentoA,
+                aproveitamentoPontos,
                 locais: ginasios.length,
             },
             destaques: {
@@ -642,14 +642,14 @@ class Tournament {
         const jogadoresTimePrincipal = timePrincipal?.id
             ? tournamentDAO.getMainTeamPlayerRankingAcrossTournaments(timePrincipal.id, matchIdsForDao).map((jogador) => {
                 const totalAcoes = Number(jogador.totalAcoes) || 0;
-                const acoesA = Number(jogador.acoesA) || 0;
+                const acoesPonto = Number(jogador.acoesPonto) || 0;
 
                 return {
                     ...jogador,
                     totalAcoes,
-                    acoesA,
-                    acoesB: Number(jogador.acoesB) || 0,
-                    acoesC: Number(jogador.acoesC) || 0,
+                    acoesPonto,
+                    acoesNeutra: Number(jogador.acoesNeutra) || 0,
+                    acoesErro: Number(jogador.acoesErro) || 0,
                     torneios: Number(jogador.torneios) || 0,
                     partidas: Number(jogador.partidas) || 0,
                     saques: Number(jogador.saques) || 0,
@@ -657,7 +657,7 @@ class Tournament {
                     bloqueios: Number(jogador.bloqueios) || 0,
                     recepcoes: Number(jogador.recepcoes) || 0,
                     defesas: Number(jogador.defesas) || 0,
-                    aproveitamentoA: totalAcoes > 0 ? arredondarUmaCasa((acoesA / totalAcoes) * 100) : 0,
+                    aproveitamentoPontos: totalAcoes > 0 ? arredondarUmaCasa((acoesPonto / totalAcoes) * 100) : 0,
                 };
             })
             : [];
@@ -709,7 +709,5 @@ class Tournament {
     }
 }
 
-module.exports = {
-    TournamentType,
-    Tournament,
-};
+export { TournamentType, Tournament };
+export default Tournament;

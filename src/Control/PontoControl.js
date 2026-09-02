@@ -53,6 +53,23 @@ class PontoControl {
     }
   }
 
+  reabrirSet(partida_id, numSet) {
+    const transaction = db.transaction(() => Ponto.reabrirSet(partida_id, numSet, db));
+    return transaction();
+  }
+
+  buscarSetsGanhos(partida_id) {
+    return Ponto.buscarSetsGanhos(partida_id, db);
+  }
+
+  buscarSetsDaPartida(partida_id) {
+    return Ponto.buscarSetsDaPartida(partida_id, db);
+  }
+
+  setEstaEncerrado(partida_id, numSet) {
+    return Ponto.setEstaEncerrado(partida_id, numSet, db);
+  }
+
   atualizarPlacarSet(partida_id, numSet, pontosTime1, pontosTime2) {
     const transaction = db.transaction(() => {
       return Ponto.atualizarPlacarSet(partida_id, numSet, pontosTime1, pontosTime2, db);
@@ -73,17 +90,6 @@ class PontoControl {
     }
   }
 
-  atualizarSetsGanhos(partida_id, deltaTime1, deltaTime2) {
-    const transaction = db.transaction(() => {
-      return Ponto.atualizarSetsGanhos(partida_id, deltaTime1, deltaTime2, db);
-    });
-
-    try {
-      return transaction();
-    } catch (e) {
-      throw e;
-    }
-  }
 
   removerAcao(acaoId) {
     const transaction = db.transaction(() => {
@@ -95,6 +101,27 @@ class PontoControl {
     } catch (e) {
       throw e;
     }
+  }
+
+  /**
+   * Marca quem venceu o rally disputado no placar informado.
+   * O scout chama isso ao mexer no placar, com o placar ANTERIOR ao incremento.
+   */
+  definirVencedorRally(partida_id, numSet, pontoTime1, pontoTime2, vencedor) {
+    const transaction = db.transaction(() => {
+      return Ponto.definirVencedorRally(partida_id, numSet, pontoTime1, pontoTime2, vencedor, db);
+    });
+
+    return transaction();
+  }
+
+  buscarDonoDoPonto(partida_id, numSet, pontoTime1, pontoTime2) {
+    return Ponto.buscarDonoDoPonto(partida_id, numSet, pontoTime1, pontoTime2, db);
+  }
+
+  /** Pontos ganhos e cedidos por atleta na partida. Base dos relatorios. */
+  buscarPontosPorAtleta(partida_id) {
+    return Ponto.buscarPontosPorAtleta(partida_id, db);
   }
 }
 

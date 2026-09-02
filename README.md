@@ -14,6 +14,43 @@ O projeto foi desenvolvido como parte das atividades acadêmicas da disciplina, 
 * Consulta de informações de desempenho;
 * Interface intuitiva para acompanhamento dos dados.
 
+## 🚀 Como executar
+
+Requer Node.js 20+ e npm.
+
+```bash
+npm install     # instala as dependências
+npm start       # abre o aplicativo
+npm test        # roda a suíte de testes
+npm run make    # gera o instalador em out/
+```
+
+> `better-sqlite3` é um módulo nativo e precisa ser compilado para o ABI certo:
+> `npm test` compila para o Node e `npm run package` / `npm run make` compilam
+> para o Electron, cada um automaticamente antes de rodar. Nenhuma ação manual
+> é necessária — basta usar os scripts acima em vez de chamar as ferramentas
+> diretamente.
+
+### Onde ficam os dados
+
+No aplicativo instalado, o banco (`developVS.db`) e as imagens enviadas ficam na
+pasta de dados do usuário do sistema operacional — não dentro do programa. Em
+desenvolvimento, ficam na raiz do projeto.
+
+## 🏐 Scout: a quem pertence o ponto
+
+Durante o scout, cada ponto é creditado ao autor da **última ação registrada no
+rally**. Se a última ação foi um ataque do camisa 6, o ponto é do camisa 6.
+
+O fluxo de registro é: `Ctrl` + número da camisa → tecla da ação
+(**S**aque, **A**taque, **B**loqueio, **R**ecepção, **D**efesa) → qualidade
+(**A**, **B** ou **C**). Em seguida feche o rally no placar: `Shift + ↑` se a
+sua equipe venceu o ponto, `Alt + ↑` se o ponto foi do adversário.
+
+Essa marcação é o que separa, nos relatórios, o **ponto conquistado** do
+**ponto cedido** — sem ela um erro de ataque seria contado como ponto a favor do
+atleta. Apenas os atletas escalados da própria equipe recebem pontos.
+
 ## 👥 Integrantes da Equipe
 
 | Nome                         | RA        |
