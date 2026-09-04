@@ -207,3 +207,34 @@ export function bucketDoResultado(fundamento, qualidade) {
     if (resultado === 'ERRO') return 'Erro';
     return 'Neutra';
 }
+
+/**
+ * Nome generico de cada nivel da escala.
+ *
+ * O simbolo sozinho nao diz nada a quem le um relatorio, e o texto de
+ * `DESCRICOES` so existe dentro de um fundamento - nao serve para uma coluna
+ * que soma fundamentos diferentes. Estes nomes descrevem o NIVEL (do pior
+ * para o melhor) e valem para qualquer fundamento.
+ */
+export const NOMES_QUALIDADE = Object.freeze({
+    '=': 'Erro',
+    '/': 'Ruim',
+    '-': 'Negativa',
+    '!': 'Regular',
+    '+': 'Positiva',
+    '#': 'Excelente',
+});
+
+/** Simbolo (ou letra antiga) -> nome do nivel. String vazia fora da escala. */
+export function nomeQualidade(qualidade) {
+    const simbolo = normalizarQualidade(qualidade);
+    return simbolo ? NOMES_QUALIDADE[simbolo] : '';
+}
+
+/**
+ * Rotulo de uma acao concreta: o significado dentro do fundamento quando ele
+ * e conhecido, o nome generico do nivel quando nao e.
+ */
+export function rotularQualidade(fundamento, qualidade) {
+    return descrever(fundamento, qualidade) || nomeQualidade(qualidade);
+}

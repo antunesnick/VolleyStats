@@ -1,0 +1,57 @@
+VOLLEYSTATS 1.0.0 - VERSAO DE TESTE
+===================================
+
+COMO INSTALAR
+-------------
+1. Execute o arquivo "volleystats-1.0.0 Setup.exe" que esta nesta pasta.
+
+2. O Windows pode mostrar uma tela azul dizendo "O Windows protegeu o
+   computador". Isso acontece porque o instalador nao tem assinatura
+   digital paga - e uma versao de teste, nao e virus.
+   Clique em "Mais informacoes" e depois em "Executar assim mesmo".
+
+3. O instalador nao faz perguntas: instala e abre o aplicativo sozinho.
+   Depois disso, use o atalho "volleystats" na area de trabalho ou no
+   menu Iniciar.
+
+O QUE PRECISA TER NO COMPUTADOR
+-------------------------------
+- Windows 10 ou 11, 64 bits
+- Cerca de 500 MB livres em disco
+- Nada mais: nao precisa instalar Node.js, banco de dados nem ter
+  internet para usar o programa.
+
+ONDE FICAM OS SEUS DADOS
+------------------------
+C:\Users\SEU-USUARIO\AppData\Roaming\volleystats
+
+O banco de dados e o arquivo "developVS.db" dessa pasta. O aplicativo
+comeca vazio, sem times ou jogadores de exemplo - isso e proposital.
+
+Para comecar tudo de novo do zero: feche o programa, apague essa pasta
+e abra o aplicativo outra vez.
+
+ANTES DE COMECAR: O NOME DO SEU TIME
+------------------------------------
+Nesta versao o sistema so abre a tela de scout ao vivo para partidas
+em que um dos times se chama "Volei Prudente". Cadastre a sua equipe
+com esse nome.
+
+Se a partida nao tiver o Volei Prudente, o botao do card muda de
+"Iniciar Controle" para "Resultado / Sets", que serve apenas para
+registrar o placar dos sets - sem scout. Isso e o esperado.
+
+MANUAL
+------
+O arquivo "VolleyStats-Manual-do-Analista.pdf", nesta mesma pasta,
+explica o sistema inteiro: ordem dos cadastros, como escoutar com o
+teclado durante o jogo, a escala de qualidade, os relatorios e um
+roteiro de teste sugerido.
+
+SE ALGO DER ERRADO
+------------------
+Anote em que tela aconteceu, o que voce fez, o que esperava e o que
+aconteceu; se der, mande um print (Win + Shift + S). Se o problema for
+grave, feche o programa, compacte a pasta
+C:\Users\SEU-USUARIO\AppData\Roaming\volleystats e mande junto - ela
+tem o banco no estado exato do erro.

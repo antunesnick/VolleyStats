@@ -1,0 +1,86 @@
+VOLLEYSTATS 1.0.1 - ATUALIZACAO
+===============================
+
+Esta e uma atualizacao da versao 1.0.0 que voce ja tem instalada.
+
+SEUS DADOS NAO SE PERDEM
+------------------------
+Os times, jogadores, torneios e partidas que voce ja cadastrou ficam
+guardados numa pasta separada do programa:
+
+  C:\Users\SEU-USUARIO\AppData\Roaming\volleystats
+
+O instalador nao encosta nessa pasta. Ele troca so o programa, que
+fica em outro lugar do disco. Depois de atualizar, tudo o que voce
+cadastrou continua exatamente como estava - inclusive as fotos dos
+jogadores.
+
+Esta atualizacao tambem nao muda a estrutura do banco de dados, entao
+nao ha nada a converter: o arquivo que voce ja tem abre direto.
+
+ANTES DE ATUALIZAR: FACA UMA COPIA (2 MINUTOS)
+----------------------------------------------
+Nao e obrigatorio, mas e barato e evita dor de cabeca:
+
+1. Feche o VolleyStats.
+
+2. Aperte Win + R, escreva o texto abaixo e de Enter:
+
+     %APPDATA%
+
+3. Vai abrir uma janela do Explorador. Ache a pasta "volleystats".
+
+4. Clique nela com o botao direito > Copiar. Cole a copia na sua Area
+   de Trabalho (Ctrl + V). Pronto, esse e o seu backup.
+
+Se algo der errado depois da atualizacao, feche o programa, apague a
+pasta "volleystats" de dentro do %APPDATA% e coloque a copia da Area
+de Trabalho no lugar dela.
+
+COMO ATUALIZAR
+--------------
+1. Feche o VolleyStats, se estiver aberto.
+
+2. Execute o arquivo "volleystats-1.0.1 Setup.exe" desta pasta.
+
+3. Como na primeira vez, o Windows pode mostrar a tela azul "O Windows
+   protegeu o computador". Clique em "Mais informacoes" e depois em
+   "Executar assim mesmo".
+
+4. O instalador nao faz perguntas: instala e abre o programa sozinho.
+   Nao precisa desinstalar a versao antiga antes.
+
+5. Abra o programa e confira que seus times e jogadores continuam la.
+
+O QUE MUDOU NESTA VERSAO
+------------------------
+O problema principal: ao cadastrar um jogador com CPF invalido, o
+programa fechava a janela, nao salvava e nao dizia nada - voce ficava
+sem saber o que tinha acontecido. Agora:
+
+- O CPF invalido e apontado em vermelho embaixo do proprio campo,
+  junto com um aviso no canto da tela.
+
+- A janela do jogador so fecha quando o cadastro e realmente gravado.
+  Se algo for recusado, o formulario continua aberto com tudo o que
+  voce digitou, para voce corrigir so o campo errado.
+
+- O botao "Criar Jogador" mostra "Salvando..." enquanto grava, para
+  nao dar para clicar duas vezes sem querer.
+
+- Excluir um jogador agora pede confirmacao e avisa se nao der certo.
+
+- As mensagens de erro das outras telas (categorias, times, ginasios,
+  torneios e partidas) passaram a dizer o motivo real da recusa, em
+  vez de um texto generico.
+
+- Qualquer erro inesperado agora aparece como aviso na tela, em vez de
+  o programa simplesmente nao fazer nada.
+
+SE ALGO DER ERRADO
+------------------
+Anote em que tela aconteceu, o que voce fez, o que esperava e o que
+aconteceu; se der, mande um print (Win + Shift + S). Se o problema for
+grave, feche o programa, compacte a pasta
+C:\Users\SEU-USUARIO\AppData\Roaming\volleystats e mande junto - ela
+tem o banco no estado exato do erro.

@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import PlayerControl from '../src/Control/PlayerControl';
 import PositionControl from '../src/Control/PositionControl';
 import { resetarBanco, criarCategoria, idPosicao } from './helpers/fixtures';
@@ -39,6 +42,46 @@ describe('Jogadores', () => {
 
   it('recusa CPF invalido', async () => {
     await expect(control().createPlayer(dadosBase({ cpf: CPF_INVALIDO }))).rejects.toThrow(/CPF/);
+  });
+
+  it('recusa CPF invalido tambem na atualizacao', async () => {
+    await control().createPlayer(dadosBase());
+    const [jogador] = await control().findAllPlayers();
+
+    await expect(
+      control().updatePlayer({ ...dadosBase({ cpf: CPF_INVALIDO }), id: jogador.id })
+    ).rejects.toThrow(/CPF/);
+  });
+
+  // A validacao do CPF roda antes de a foto ser escrita em disco. Na ordem
+  // antiga cada tentativa recusada deixava um arquivo orfao em uploads/.
+  it('nao deixa foto orfa quando o CPF e recusado', async () => {
+    const dataDirOriginal = process.env.VOLLEYSTATS_DATA_DIR;
+    const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'volleystats-teste-'));
+    process.env.VOLLEYSTATS_DATA_DIR = dataDir;
+
+    const uploads = path.join(dataDir, 'uploads');
+    const listarUploads = () => (fs.existsSync(uploads) ? fs.readdirSync(uploads) : []);
+    const foto = `data:image/png;base64,${Buffer.from('conteudo-de-teste').toString('base64')}`;
+
+    try {
+      await expect(
+        control().createPlayer(dadosBase({ cpf: CPF_INVALIDO, foto }))
+      ).rejects.toThrow(/CPF/);
+
+      expect(listarUploads()).toEqual([]);
+
+      // Controle positivo: com CPF valido a foto continua sendo gravada.
+      await control().createPlayer(dadosBase({ foto }));
+      expect(listarUploads()).toHaveLength(1);
+    } finally {
+      if (dataDirOriginal === undefined) {
+        delete process.env.VOLLEYSTATS_DATA_DIR;
+      } else {
+        process.env.VOLLEYSTATS_DATA_DIR = dataDirOriginal;
+      }
+      fs.rmSync(dataDir, { recursive: true, force: true });
+    }
   });
 
   it('impede dois jogadores com o mesmo CPF', async () => {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { mensagemDeErro } from '../../utils/Alertas';
 import {
   blocoDestaques,
   blocoMetricas,
@@ -111,9 +112,10 @@ const GerenciarCategorias = () => {
             confirmButtonColor: '#920A13'
           });
         } catch (e) {
+          console.error('Erro ao excluir categoria:', e);
           Swal.fire({
             title: 'Erro!',
-            text: 'Erro ao excluir categoria.',
+            text: mensagemDeErro(e, 'Nao foi possivel excluir a categoria.'),
             icon: 'error',
             confirmButtonColor: '#920A13'
           });
@@ -163,13 +165,15 @@ const GerenciarCategorias = () => {
       setIsModalOpen(false);
       setEditandoId(null);
     } catch (e) {
+      // A mensagem vem da propria validacao (Categoria.validarIdade): o texto
+      // fixo que existia aqui escondia o motivo real da recusa.
+      console.error('Erro ao salvar categoria:', e);
       Swal.fire({
         title: 'Erro!',
-        text: 'Erro ao cadastrar categoria, Idade mínima deve ser maior ou igual a 12 e idade máxima deve ser maior ou igual a 13.',
+        text: mensagemDeErro(e, 'Nao foi possivel salvar a categoria.'),
         icon: 'error',
         confirmButtonColor: '#920A13', // Use a cor vermelha do seu projeto JPC
       });
-      // Recarrega a página para garantir que os dados estejam atualizados
     }
   };
 
@@ -277,7 +281,7 @@ const GerenciarCategorias = () => {
     } catch (e) {
       Swal.fire({
         title: 'Erro!',
-        text: e?.message || 'Nao foi possivel emitir o relatorio de categorias.',
+        text: mensagemDeErro(e, 'Nao foi possivel emitir o relatorio de categorias.'),
         icon: 'error',
         confirmButtonColor: '#920A13'
       });
@@ -310,7 +314,7 @@ const GerenciarCategorias = () => {
     } catch (e) {
       Swal.fire({
         title: 'Erro!',
-        text: e?.message || 'Nao foi possivel salvar o relatorio em PDF.',
+        text: mensagemDeErro(e, 'Nao foi possivel salvar o relatorio em PDF.'),
         icon: 'error',
         confirmButtonColor: '#920A13'
       });

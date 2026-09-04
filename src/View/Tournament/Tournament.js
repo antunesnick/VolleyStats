@@ -9,6 +9,7 @@ import {
   nomeArquivoRelatorio,
   salvarRelatorioPdf,
 } from '../../utils/relatorioPdf';
+import { mensagemDeErro } from '../../utils/Alertas';
 
 const TOURNAMENT_TYPES = [
   { value: 1, label: 'Pontos Corridos' },
@@ -418,7 +419,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
       const found = rows.find((item) => item.id === tournamentId) || rows[0] || null;
       setTournament(found);
     } catch (error) {
-      showToast('error', error.message || 'Erro ao carregar torneio.');
+      showToast('error', mensagemDeErro(error, 'Erro ao carregar torneio.'));
     } finally {
       setIsLoading(false);
     }
@@ -570,7 +571,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
         onTournamentChanged();
       }
     } catch (error) {
-      showToast('error', error.message || 'Nao foi possivel atualizar o torneio.');
+      showToast('error', mensagemDeErro(error, 'Nao foi possivel atualizar o torneio.'));
     } finally {
       setTournamentSubmitting(false);
     }
@@ -592,7 +593,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
         onTournamentDeleted();
       }
     } catch (error) {
-      showToast('error', error.message || 'Nao foi possivel excluir o torneio.');
+      showToast('error', mensagemDeErro(error, 'Nao foi possivel excluir o torneio.'));
     }
   };
 
@@ -636,7 +637,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
       setMatchReport(report);
       setMatchReportOpen(true);
     } catch (error) {
-      showToast('error', error?.message || 'Nao foi possivel emitir o relatorio do torneio.');
+      showToast('error', mensagemDeErro(error, 'Nao foi possivel emitir o relatorio do torneio.'));
     } finally {
       setMatchReportLoading(false);
     }
@@ -826,7 +827,7 @@ const TournamentView = ({ tournamentId, onBack, onTournamentChanged, onTournamen
         showToast('success', 'Relatorio do torneio salvo em PDF.');
       }
     } catch (error) {
-      showToast('error', error?.message || 'Nao foi possivel salvar o PDF.');
+      showToast('error', mensagemDeErro(error, 'Nao foi possivel salvar o PDF.'));
     } finally {
       setMatchReportPdfSaving(false);
     }

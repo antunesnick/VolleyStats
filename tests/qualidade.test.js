@@ -9,9 +9,41 @@ import {
   TIPO_ACAO_PARA_FUNDAMENTO,
   classificar,
   legendaDoFundamento,
+  nomeQualidade,
   normalizarQualidade,
+  rotularQualidade,
 } from '../src/Model/Qualidade';
 import { sqlContagemPorResultado, sqlEhErro, sqlEhNeutra, sqlEhPonto } from '../src/Model/SqlQualidade';
+
+describe('Nomes da escala nos relatorios', () => {
+  // Os relatorios nao mostram simbolo: quem le nao tem a legenda do scout na mao.
+  it('da um nome a cada nivel da escala', () => {
+    ESCALA.forEach((simbolo) => {
+      expect(nomeQualidade(simbolo)).toBeTruthy();
+    });
+
+    const nomes = ESCALA.map((simbolo) => nomeQualidade(simbolo));
+    expect(new Set(nomes).size).toBe(ESCALA.length);
+  });
+
+  it('nomeia tambem a escala antiga de 3 niveis', () => {
+    expect(nomeQualidade('A')).toBe(nomeQualidade('#'));
+    expect(nomeQualidade('C')).toBe(nomeQualidade('='));
+  });
+
+  it('devolve string vazia fora da escala', () => {
+    expect(nomeQualidade('Z')).toBe('');
+    expect(nomeQualidade(null)).toBe('');
+  });
+
+  // Com o fundamento em maos vale o significado especifico; sem ele, o nome do nivel.
+  it('rotula pelo fundamento quando ele e conhecido', () => {
+    expect(rotularQualidade('Saque', '#')).toBe('Ace');
+    expect(rotularQualidade('Ataque', '/')).toBe('Bloqueado');
+    expect(rotularQualidade('', '#')).toBe(nomeQualidade('#'));
+    expect(rotularQualidade('Fundamento inexistente', '+')).toBe(nomeQualidade('+'));
+  });
+});
 
 describe('Escala de qualidade', () => {
   it('aceita o simbolo novo e devolve ele mesmo', () => {

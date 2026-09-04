@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import * as Style from "./PlayerRegStyle"; 
+import { cpf as validadorCpf } from "cpf-cnpj-validator";
 import PositionControl from "../../Control/PositionControl";
-import CategoriaControl from "../../Control/CategoriaControl"; 
+import CategoriaControl from "../../Control/CategoriaControl";
+import { Alertas } from "../../utils/Alertas";
 
 export function PlayerRegView({ open, onClose, onSave, player }) {
   const [formData, setFormData] = useState(
@@ -19,14 +21,23 @@ export function PlayerRegView({ open, onClose, onSave, player }) {
   );
 
   const [positions, setPositions] = useState([]);
-  const [categories, setCategories] = useState([]); 
+  const [categories, setCategories] = useState([]);
+  const [erroCpf, setErroCpf] = useState("");
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     if (open) {
+      setErroCpf("");
+      setSalvando(false);
+
       const positionControl = PositionControl.getInstance();
-      positionControl.findAllPositions().then((data) => {
-        setPositions(data);
-      });
+      positionControl
+        .findAllPositions()
+        .then((data) => setPositions(data))
+        .catch((error) => {
+          console.error("Erro ao carregar posicoes:", error);
+          Alertas.erro("Nao foi possivel carregar as posicoes.");
+        });
 
       // 3. BUSCA AS CATEGORIAS
       // Como o CategoriaControl é um singleton, usamos getInstance()
@@ -34,7 +45,10 @@ export function PlayerRegView({ open, onClose, onSave, player }) {
         .then((data) => {
           setCategories(data);
         })
-        .catch((error) => console.error("Erro ao carregar categorias:", error));
+        .catch((error) => {
+          console.error("Erro ao carregar categorias:", error);
+          Alertas.erro("Nao foi possivel carregar as categorias.");
+        });
     }
   }, [open]);
 
@@ -63,10 +77,48 @@ export function PlayerRegView({ open, onClose, onSave, player }) {
       .replace(/\.(\d{3})([a-zA-Z0-9]+)$/, ".$1-$2"); 
   };
 
-  const handleSubmit = (e) => {
+  /**
+   * O CPF e opcional, mas se preenchido tem que ser valido. A checagem e feita
+   * aqui tambem (o PlayerControl ja valida antes de gravar) para o analista ver
+   * o erro no proprio campo, sem perder o que digitou.
+   */
+  const validarCpfDigitado = (valor) => {
+    const texto = String(valor || "").trim();
+
+    if (!texto) return "";
+    if (!validadorCpf.isValid(texto)) return "CPF invalido. Confira os digitos.";
+
+    return "";
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (onSave) onSave(formData);
-    if (onClose) onClose();
+
+    if (salvando) return;
+
+    const problemaCpf = validarCpfDigitado(formData.cpf);
+    if (problemaCpf) {
+      setErroCpf(problemaCpf);
+      Alertas.erro(problemaCpf);
+      return;
+    }
+
+    setErroCpf("");
+
+    if (!onSave) {
+      if (onClose) onClose();
+      return;
+    }
+
+    setSalvando(true);
+    try {
+      // O modal so fecha quando o cadastro confirma a gravacao. Se a validacao
+      // do Control recusar, o formulario continua aberto e preenchido.
+      const salvou = await onSave(formData);
+      if (salvou !== false && onClose) onClose();
+    } finally {
+      setSalvando(false);
+    }
   };
 
   if (!open) return null;
@@ -170,8 +222,15 @@ export function PlayerRegView({ open, onClose, onSave, player }) {
                 type="text"
                 placeholder="000.000.000-00"
                 value={formData.cpf}
-                onChange={(e) => setFormData({ ...formData, cpf: maskCPF(e.target.value) })}
+                onChange={(e) => {
+                  const valor = maskCPF(e.target.value);
+                  setFormData({ ...formData, cpf: valor });
+                  if (erroCpf) setErroCpf(validarCpfDigitado(valor));
+                }}
+                onBlur={(e) => setErroCpf(validarCpfDigitado(e.target.value))}
+                aria-invalid={erroCpf ? "true" : "false"}
               />
+              {erroCpf && <Style.ErrorText>{erroCpf}</Style.ErrorText>}
             </Style.InputGroup>
 
             <Style.InputGroup>
@@ -216,8 +275,8 @@ export function PlayerRegView({ open, onClose, onSave, player }) {
             <Style.Button type="button" onClick={onClose} $variant="cancel">
               Cancelar
             </Style.Button>
-            <Style.Button type="submit">
-              {player ? "Salvar" : "Criar Jogador"}
+            <Style.Button type="submit" disabled={salvando}>
+              {salvando ? "Salvando..." : player ? "Salvar" : "Criar Jogador"}
             </Style.Button>
           </Style.Footer>
         </Style.Form>

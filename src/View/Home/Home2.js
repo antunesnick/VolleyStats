@@ -12,6 +12,7 @@ import {
   nomeArquivoRelatorio,
   salvarRelatorioPdf,
 } from '../../utils/relatorioPdf';
+import { mensagemDeErro } from '../../utils/Alertas';
 
 /**
  * Pilulas do menu do topo. `whitespace-nowrap` mantem o rotulo em uma linha
@@ -232,7 +233,7 @@ const handleConfirmarImportacao = async () => {
         setHistoricoExcel([]);
       }
     } catch (error) {
-      showToast('error', error.message || 'Nao foi possivel carregar o historico de importacoes.');
+      showToast('error', mensagemDeErro(error, 'Nao foi possivel carregar o historico de importacoes.'));
       setHistoricoExcel([]);
     } finally {
       setHistoricoExcelLoading(false);
@@ -267,7 +268,7 @@ const handleConfirmarImportacao = async () => {
         showToast('error', result?.error || 'Nao foi possivel reverter a importacao.');
       }
     } catch (error) {
-      showToast('error', error.message || 'Nao foi possivel reverter a importacao.');
+      showToast('error', mensagemDeErro(error, 'Nao foi possivel reverter a importacao.'));
     } finally {
       setHistoricoExcelReverting(null);
     }
@@ -280,7 +281,7 @@ const handleConfirmarImportacao = async () => {
       const rows = await TournamentControl.listTournaments();
       setTournaments(rows);
     } catch (error) {
-      showToast('error', error.message || 'Erro ao carregar torneios.');
+      showToast('error', mensagemDeErro(error, 'Erro ao carregar torneios.'));
     } finally {
       setIsLoading(false);
     }
@@ -291,7 +292,9 @@ const handleConfirmarImportacao = async () => {
       const rows = await TimesControl.getInstance().listarTimes();
       setTimesCadastrados(rows || []);
     } catch (error) {
+      console.error('Erro ao carregar times:', error);
       setTimesCadastrados([]);
+      showToast('error', mensagemDeErro(error, 'Nao foi possivel carregar os times cadastrados.'));
     }
   };
 
@@ -395,7 +398,7 @@ const handleConfirmarImportacao = async () => {
       closeModal();
       await loadTournaments();
     } catch (error) {
-      showToast('error', error.message || 'Nao foi possivel salvar o torneio.');
+      showToast('error', mensagemDeErro(error, 'Nao foi possivel salvar o torneio.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -411,7 +414,7 @@ const handleConfirmarImportacao = async () => {
       showToast('success', 'Torneio excluido com sucesso.');
       await loadTournaments();
     } catch (error) {
-      showToast('error', error.message || 'Nao foi possivel excluir o torneio.');
+      showToast('error', mensagemDeErro(error, 'Nao foi possivel excluir o torneio.'));
     }
   };
 
@@ -426,7 +429,7 @@ const handleConfirmarImportacao = async () => {
       setGeneralTournamentReport(report);
       setGeneralTournamentReportOpen(true);
     } catch (error) {
-      showToast('error', error?.message || 'Nao foi possivel emitir o relatorio geral de torneios.');
+      showToast('error', mensagemDeErro(error, 'Nao foi possivel emitir o relatorio geral de torneios.'));
     } finally {
       setGeneralTournamentReportLoading(false);
     }
@@ -602,7 +605,7 @@ const handleConfirmarImportacao = async () => {
         showToast('success', 'Relatorio geral de torneios salvo em PDF.');
       }
     } catch (error) {
-      showToast('error', error?.message || 'Nao foi possivel salvar o relatorio em PDF.');
+      showToast('error', mensagemDeErro(error, 'Nao foi possivel salvar o relatorio em PDF.'));
     } finally {
       setGeneralTournamentReportPdfSaving(false);
     }
@@ -651,7 +654,7 @@ const handleConfirmarImportacao = async () => {
       setMatchReport(result.relatorio);
       setMatchReportOpen(true);
     } catch (error) {
-      showToast('error', error?.message || 'Nao foi possivel emitir o relatorio de partidas.');
+      showToast('error', mensagemDeErro(error, 'Nao foi possivel emitir o relatorio de partidas.'));
     } finally {
       setMatchReportLoading(false);
     }
@@ -760,7 +763,7 @@ const handleConfirmarImportacao = async () => {
         showToast('success', 'Relatorio de partidas salvo em PDF.');
       }
     } catch (error) {
-      showToast('error', error?.message || 'Nao foi possivel salvar o relatorio de partidas em PDF.');
+      showToast('error', mensagemDeErro(error, 'Nao foi possivel salvar o relatorio de partidas em PDF.'));
     } finally {
       setMatchReportPdfSaving(false);
     }

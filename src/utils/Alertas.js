@@ -1,5 +1,26 @@
 import Swal from 'sweetalert2';
 
+/**
+ * Extrai a mensagem util de um erro para exibir ao usuario.
+ *
+ * Erros que atravessam o IPC chegam ao renderer embrulhados pelo Electron
+ * ("Error invoking remote method 'salvar-categoria': Error: <mensagem>"), e
+ * mostrar isso na tela nao ajuda ninguem. Aqui a casca e removida e sobra a
+ * mensagem que a validacao escreveu.
+ */
+export const mensagemDeErro = (erro, padrao = 'Ocorreu um erro inesperado.') => {
+  const texto = String(erro?.message || erro || '').trim();
+
+  if (!texto) {
+    return padrao;
+  }
+
+  const semIpc = texto.replace(/^Error invoking remote method '[^']*':\s*/, '');
+  const semPrefixo = semIpc.replace(/^(Uncaught\s+)?Error:\s*/, '').trim();
+
+  return semPrefixo || padrao;
+};
+
 // Cria um "molde" base para todos os toasts
 const Toast = Swal.mixin({
   toast: true,

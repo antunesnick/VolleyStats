@@ -14,7 +14,7 @@ import ControlePartida from './ControlePartida';
 import EstatisticaView from './EstatisticaView';
 import TimesControl from '../../Control/TimesControl';
 import EstatisticaControl from '../../Control/EstatisticaControl';
-import { Alertas } from '../../utils/Alertas';
+import { Alertas, mensagemDeErro } from '../../utils/Alertas';
 
 const ACTIVE_MATCH_STORAGE_KEY = 'volleystats.activeMatch';
 const NOSSO_TIME_NOME = 'volei prudente';
@@ -387,7 +387,7 @@ const formatarDataBrasil = (dataString) => {
       await carregarTudo();
       fecharModal();
     } catch (error) {
-      showToast('error', error?.message || 'Falha ao salvar partida na base de dados.');
+      showToast('error', mensagemDeErro(error, 'Falha ao salvar partida na base de dados.'));
     }
   };
 
@@ -406,7 +406,7 @@ const formatarDataBrasil = (dataString) => {
       Alertas.sucesso("Partida apagada com sucesso.");
     } catch (error) {
       console.error("Erro ao apagar partida:", error);
-      Alertas.erro(error?.message || "Erro ao comunicar com o banco de dados.");
+      Alertas.erro(mensagemDeErro(error, "Erro ao comunicar com o banco de dados."));
     }
   };
 
@@ -440,7 +440,7 @@ const formatarDataBrasil = (dataString) => {
       showToast('success', 'Link de video atualizado com sucesso.');
       await carregarTudo();
     } catch (error) {
-      showToast('error', error?.message || 'Nao foi possivel atualizar o link de video.');
+      showToast('error', mensagemDeErro(error, 'Nao foi possivel atualizar o link de video.'));
     } finally {
       setVideoLinkAtualizando(false);
     }
@@ -471,7 +471,7 @@ const formatarDataBrasil = (dataString) => {
       fecharModalVideoFinalizado();
       Alertas.sucesso('Link do video salvo com sucesso.');
     } catch (error) {
-      Alertas.erro(error?.message || 'Nao foi possivel salvar o link do video.');
+      Alertas.erro(mensagemDeErro(error, 'Nao foi possivel salvar o link do video.'));
     } finally {
       setVideoModalSaving(false);
     }
@@ -593,7 +593,7 @@ const formatarDataBrasil = (dataString) => {
       setRelatorioGeral(result.relatorio);
       setRelatorioGeralOpen(true);
     } catch (error) {
-      Alertas.erro(error?.message || 'Nao foi possivel emitir o relatorio de partidas.');
+      Alertas.erro(mensagemDeErro(error, 'Nao foi possivel emitir o relatorio de partidas.'));
     } finally {
       setRelatorioGeralLoading(false);
     }
@@ -779,7 +779,7 @@ const formatarDataBrasil = (dataString) => {
         Alertas.sucesso('Relatorio de partidas salvo em PDF.');
       }
     } catch (error) {
-      Alertas.erro(error?.message || 'Nao foi possivel salvar o relatorio de partidas em PDF.');
+      Alertas.erro(mensagemDeErro(error, 'Nao foi possivel salvar o relatorio de partidas em PDF.'));
     } finally {
       setRelatorioGeralPdfSaving(false);
     }
@@ -796,7 +796,7 @@ const formatarDataBrasil = (dataString) => {
       fecharResumoFinalizacao();
       Alertas.sucesso('Resultado salvo com sucesso.');
     } catch (error) {
-      Alertas.erro(error?.message || 'Nao foi possivel salvar o resultado.');
+      Alertas.erro(mensagemDeErro(error, 'Nao foi possivel salvar o resultado.'));
     }
   };
 

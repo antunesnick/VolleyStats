@@ -37,6 +37,12 @@ class PlayerControl {
         return urlSegura.replace('file://', 'local://');
     }
     async createPlayer(data) {
+        // A validacao vem antes de gravar a foto: com o CPF recusado depois da
+        // escrita, cada tentativa invalida deixava um arquivo orfao em uploads/.
+        if (!new Player().validarCPF(data.cpf)) {
+            throw new Error("CPF invalido. Confira os digitos e tente novamente.");
+        }
+
         const caminhoDaFoto = this.#salvarFotoLocalmente(data.foto, data.nome);
 
         const newPlayer = new Player(
@@ -46,10 +52,6 @@ class PlayerControl {
             caminhoDaFoto,
             data.categoria_id ? Number(data.categoria_id) : null
         );
-
-        if (!newPlayer.validarCPF(newPlayer.cpf)) {
-            throw new Error("CPF inválido. Por favor, insira um CPF válido.");
-        }
         
         const insertTransaction = db.transaction((playerObj) => {
             return playerObj.insertPlayer(db);
@@ -64,6 +66,9 @@ class PlayerControl {
     }
 
     async updatePlayer(data) {
+        if (!new Player().validarCPF(data.cpf)) {
+            throw new Error("CPF invalido. Confira os digitos e tente novamente.");
+        }
 
         const caminhoDaFoto = this.#salvarFotoLocalmente(data.foto, data.nome);
 
@@ -74,10 +79,6 @@ class PlayerControl {
             caminhoDaFoto,
             data.categoria_id ? Number(data.categoria_id) : null
         );    
-
-        if (!playerToUpdate.validarCPF(playerToUpdate.cpf)) {
-            throw new Error("CPF inválido. Por favor, insira um CPF válido.");
-        }
         
         const updateTransaction = db.transaction((playerObj) => {
             playerObj.updatePlayer(db);

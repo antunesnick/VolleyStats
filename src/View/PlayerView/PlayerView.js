@@ -6,7 +6,7 @@ import PositionControl from "../../Control/PositionControl";
 import { PlayerRegView } from "../PlayerRegister/PlayerRegView";
 import PlayerReportModal from "./PlayerReportModal";
 import PlayerRanking from "./PlayerRanking";
-import { Alertas } from "../../utils/Alertas";
+import { Alertas, mensagemDeErro } from "../../utils/Alertas";
 
 const PlayerAvatar = ({ player }) => {
   const [imageError, setImageError] = useState(false);
@@ -43,7 +43,13 @@ export function PlayerView({ onOpenMatchReport, matchReportLoading = false }) {
 
   useEffect(() => {
     const positionControl = PositionControl.getInstance();
-    positionControl.findAllPositions().then((data) => setPositions(data));
+    positionControl
+      .findAllPositions()
+      .then((data) => setPositions(data))
+      .catch((error) => {
+        console.error("Erro ao carregar posicoes:", error);
+        Alertas.erro(mensagemDeErro(error, "Nao foi possivel carregar as posicoes."));
+      });
   }, []);
 
   useEffect(() => {
@@ -53,7 +59,7 @@ export function PlayerView({ onOpenMatchReport, matchReportLoading = false }) {
   function fetchPlayers(nome = "", posicaoId = "") {
     const playerControl = PlayerControl.getInstance();
     playerControl.findPlayerFiltered({ nome, posicaoId }).then((data) => {
-      const formattedPlayers = data.map((p) => ({
+      const formattedPlayers = (data || []).map((p) => ({
         id: p.id,
         nome: p.nome, 
         numCamisa: p.numCamisa, 
@@ -69,15 +75,29 @@ export function PlayerView({ onOpenMatchReport, matchReportLoading = false }) {
         dataNasc: p.dataNasc, 
       }));
       setPlayers(formattedPlayers);
+    })
+    .catch((error) => {
+      console.error("Erro ao carregar jogadores:", error);
+      Alertas.erro(mensagemDeErro(error, "Nao foi possivel carregar os jogadores."));
     });
   }
 
-  const deletePlayer = (id) => {
-    if (window.confirm("Tem certeza que deseja excluir este jogador?")) {
-      const playerControl = PlayerControl.getInstance();
-      playerControl.deletePlayer(id).then(() => {
-        fetchPlayers(searchTerm, selectedPosition); 
-      });
+  const deletePlayer = async (id) => {
+    const confirmado = await Alertas.confirmacao(
+      "Esta acao e irreversivel. Deseja realmente excluir este jogador?"
+    );
+
+    if (!confirmado) {
+      return;
+    }
+
+    try {
+      await PlayerControl.getInstance().deletePlayer(id);
+      fetchPlayers(searchTerm, selectedPosition);
+      Alertas.sucesso("Jogador excluido com sucesso.");
+    } catch (error) {
+      console.error("Erro ao excluir jogador:", error);
+      Alertas.erro(mensagemDeErro(error, "Nao foi possivel excluir o jogador."));
     }
   };
 
@@ -91,19 +111,31 @@ export function PlayerView({ onOpenMatchReport, matchReportLoading = false }) {
     setIsModalOpen(true);      
   };
 
-  const handleSavePlayer = (formData) => {
+  /**
+   * Devolve true quando o jogador foi gravado. O modal so fecha nesse caso: em
+   * erro de validacao (CPF invalido, por exemplo) o analista precisa ver a
+   * mensagem com o formulario ainda preenchido para corrigir o campo.
+   */
+  const handleSavePlayer = async (formData) => {
     const playerControl = PlayerControl.getInstance();
 
-    if (formData.id) {
-      playerControl.updatePlayer(formData).then(() => {
-        fetchPlayers(searchTerm, selectedPosition); 
-      });
-    } else {
-      playerControl.createPlayer(formData).then(() => {
-        fetchPlayers(searchTerm, selectedPosition); 
-      });
+    try {
+      if (formData.id) {
+        await playerControl.updatePlayer(formData);
+        Alertas.sucesso("Jogador atualizado com sucesso.");
+      } else {
+        await playerControl.createPlayer(formData);
+        Alertas.sucesso("Jogador cadastrado com sucesso.");
+      }
+
+      fetchPlayers(searchTerm, selectedPosition);
+      setIsModalOpen(false);
+      return true;
+    } catch (error) {
+      console.error("Erro ao salvar jogador:", error);
+      Alertas.erro(mensagemDeErro(error, "Nao foi possivel salvar o jogador."));
+      return false;
     }
-    setIsModalOpen(false); 
   };
 
   const handleCloseReport = () => {

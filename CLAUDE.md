@@ -140,6 +140,8 @@ Ao mexer no placar use **sempre** `aplicarPonto(side, delta)` em `ControlePartid
 
 Quem precisa dessa decisão usa `classificar(fundamento, qualidade)` → `PONTO | ERRO | NEUTRO`; a tela do scout usa `legendaDoFundamento()`, e os relatórios resumidos usam os baldes `Ponto / Neutra / Erro`.
 
+**Símbolo não vai para a tela nem para o relatório.** Quem lê um relatório não tem a legenda do scout na mão, então a saída é sempre por nome: `nomeQualidade(simbolo)` dá o nome genérico do nível (`= Erro`, `/ Ruim`, `- Negativa`, `! Regular`, `+ Positiva`, `# Excelente`), usado nas colunas que somam fundamentos diferentes; `rotularQualidade(fundamento, qualidade)` dá o significado dentro do fundamento (`descrever()`) e cai no nome genérico quando o fundamento não é conhecido. O símbolo cru só aparece onde ensina a digitação: o buffer do scout e a tabela do `HelpModal`.
+
 **A mesma regra existe duas vezes**, porque parte dos relatórios agrega no SQL: `Model/SqlQualidade.js` reproduz `classificar()` como fragmento de `CASE WHEN`. Mudar uma sem a outra é o erro esperado aqui — `tests/qualidade.test.js` compara as duas em todas as 30 combinações de fundamento × símbolo e falha se divergirem.
 
 A coluna `Acao.Qualidade` tem `CHECK` para os 6 símbolos, então gravar a letra antiga estoura no banco. `normalizarQualidade()` continua traduzindo `A → #`, `B → !`, `C → =` na **leitura** de linhas antigas.

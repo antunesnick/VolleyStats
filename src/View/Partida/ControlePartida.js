@@ -7,6 +7,8 @@ import {
   TECLA_PARA_FUNDAMENTO,
   TECLA_PARA_QUALIDADE,
   legendaDoFundamento,
+  nomeQualidade,
+  rotularQualidade,
 } from '../../Model/Qualidade';
   import PlayerControl from '../../Control/PlayerControl';
   import SubstituicaoControl from '../../Control/SubstituicaoControl';
@@ -700,7 +702,9 @@ import {
             setIsEscalacaoLoaded(false);
           }
         } catch (error) {
+          // Sem aviso aqui a escalacao aparecia vazia sem explicacao nenhuma.
           console.error('Erro ao carregar jogadores:', error);
+          mostrarAviso('erro', `Nao foi possivel carregar a escalacao: ${error.message}`);
         }
       };
       loadPlayers();
@@ -742,7 +746,7 @@ import {
     }, [players, escalados.home, benchPlayers]);
 
 const handleExcluirAcao = (acao) => {
-  if (!window.confirm(`Excluir ação de ${acao.jogadorNome}? (${acao.tipoAcaoNome} - ${acao.qualidade})`)) return;
+  if (!window.confirm(`Excluir ação de ${acao.jogadorNome}? (${acao.tipoAcaoNome} - ${rotularQualidade(acao.tipoAcaoNome, acao.qualidade)})`)) return;
   try {
     PontoControl.getInstance().removerAcao(acao.id);
     carregarDadosDoSet(currentSet);
@@ -1404,8 +1408,11 @@ const handleExcluirAcao = (acao) => {
                   </span>
                   <div className="flex gap-2 items-center flex-shrink-0">
                     <span className="font-bold text-gray-800">{acao.tipoAcaoNome}</span>
-                    <span className="font-bold bg-white border border-gray-200 px-2 py-0.5 rounded text-10px shadow-sm">
-                      {acao.qualidade}
+                    <span
+                      className="font-bold bg-white border border-gray-200 px-2 py-0.5 rounded text-10px shadow-sm whitespace-nowrap"
+                      title={rotularQualidade(acao.tipoAcaoNome, acao.qualidade)}
+                    >
+                      {nomeQualidade(acao.qualidade)}
                     </span>
                     {/* ✅ Botão de excluir a ação */}
                     <button

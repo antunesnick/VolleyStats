@@ -1,7 +1,7 @@
 {
   "name": "volleystats",
   "productName": "volleystats",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Scout ao vivo e gestao de equipes de volei",
   "main": ".webpack/main",
   "private": true,

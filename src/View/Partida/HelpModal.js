@@ -6,6 +6,7 @@ import {
   FUNDAMENTOS,
   QUALIDADE_PARA_TECLA,
   classificar,
+  nomeQualidade,
 } from '../../Model/Qualidade';
 
 // Os fundamentos sao normalizados sem acento no Model; aqui eles aparecem para
@@ -143,6 +144,9 @@ function HelpScoutModal({ open, onClose }) {
                           {QUALIDADE_PARA_TECLA[simbolo]}
                         </span>
                         {simbolo}
+                        <span className="block text-[10px] font-bold normal-case text-gray-500">
+                          {nomeQualidade(simbolo)}
+                        </span>
                       </th>
                     ))}
                   </tr>

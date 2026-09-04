@@ -114,6 +114,13 @@ export const Select = styled.select`
   cursor: pointer;
 `;
 
+/* Mensagem de validacao abaixo do campo, no vermelho do tema */
+export const ErrorText = styled.span`
+  font-size: 12px;
+  font-weight: 600;
+  color: #dc2626;
+`;
+
 export const Footer = styled.div`
   display: flex;
   justify-content: flex-end;
@@ -130,7 +137,13 @@ export const Button = styled.button`
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
-  
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
   /* Se receber a prop 'variant="cancel"', fica cinza claro */
   ${(props) =>
     props.$variant === "cancel"

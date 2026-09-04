@@ -7,6 +7,8 @@ import {
   QUALIDADE_PARA_TECLA,
   TIPO_ACAO_PARA_FUNDAMENTO,
   descrever,
+  nomeQualidade,
+  rotularQualidade,
 } from '../../Model/Qualidade';
 import {
   blocoMetricas,
@@ -455,8 +457,9 @@ const EstatisticaView = ({
           colunas: [
             'Jogador',
             ...['Acoes', 'Pontos', 'Cedidos', 'PTS', 'V-P'].map((rotulo) => ({ rotulo, center: true })),
-            // A escala de qualidade crua, na ordem das teclas 1..6.
-            ...ESCALA.map((simbolo) => ({ rotulo: simbolo, center: true })),
+            // A escala de qualidade, na ordem das teclas 1..6, pelo nome do nivel:
+            // o simbolo sozinho nao diz nada a quem le o relatorio.
+            ...ESCALA.map((simbolo) => ({ rotulo: nomeQualidade(simbolo), center: true })),
             ...[
               'Saq Tot', 'Saq Pts', 'Saq A+B', 'Saq C+X', 'Saq Err', 'Saq Eff',
               'Rec Tot', 'Rec A', 'Rec B', 'Rec C', 'Rec X', 'Rec Err', 'Rec Pos%', 'Rec Prf%',
@@ -677,9 +680,9 @@ const EstatisticaView = ({
                       <th
                         key={simbolo}
                         className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest"
-                        title={`Tecla ${QUALIDADE_PARA_TECLA[simbolo]} no scout`}
+                        title={`Tecla ${QUALIDADE_PARA_TECLA[simbolo]} no scout (${simbolo})`}
                       >
-                        {simbolo}
+                        {nomeQualidade(simbolo)}
                       </th>
                     ))}
                     <th className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest">Tot</th>
@@ -801,7 +804,7 @@ const EstatisticaView = ({
                   <div className="mt-3 flex flex-wrap gap-2">
                     {Object.entries(jogador.qualidade).map(([qualidade, total]) => (
                       <span key={qualidade} className="rounded-full bg-white border border-gray-100 px-4 py-2 text-xs font-black text-gray-700">
-                        Qualidade {qualidade}: {total}
+                        {nomeQualidade(qualidade)}: {total}
                       </span>
                     ))}
                   </div>
@@ -852,7 +855,7 @@ const EstatisticaView = ({
                               Set {acao.numSet} - {acao.pontoTime1} x {acao.pontoTime2}
                             </p>
                             <p className="text-xs font-bold text-gray-500">
-                              {acao.tipoAcaoNome} - Qualidade {acao.qualidade}
+                              {acao.tipoAcaoNome} - {rotularQualidade(acao.tipoAcaoNome, acao.qualidade)}
                             </p>
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
@@ -1115,20 +1118,20 @@ const EstatisticaView = ({
                   <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
                     Qualidade
                   </label>
-                  <div className="grid grid-cols-6 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     {editOptions.qualidades.map((qualidade) => (
                       <button
                         key={qualidade}
                         type="button"
                         onClick={() => handleDraftActionChange('qualidade', qualidade)}
                         title={descrever(TIPO_ACAO_PARA_FUNDAMENTO[Number(draftAction.tipoAcaoId)], qualidade)}
-                        className={`rounded-2xl px-2 py-3 text-sm font-black transition-colors ${
+                        className={`rounded-2xl px-2 py-3 text-xs font-black transition-colors ${
                           draftAction.qualidade === qualidade
                             ? 'bg-gray-900 text-white'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
-                        {qualidade}
+                        {nomeQualidade(qualidade)}
                       </button>
                     ))}
                   </div>

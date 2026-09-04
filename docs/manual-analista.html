@@ -1,0 +1,1309 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>VolleyStats — Manual do Analista</title>
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #171717;
+    font-size: 10.5px;
+    line-height: 1.55;
+  }
+  h1, h2, h3, h4 { margin: 0; font-weight: 900; letter-spacing: -0.02em; }
+  p { margin: 0 0 8px; }
+  ul, ol { margin: 0 0 10px; padding-left: 18px; }
+  li { margin-bottom: 4px; }
+  strong { font-weight: 800; }
+  code, kbd { font-family: "Consolas", monospace; }
+  kbd {
+    display: inline-block; border: 1px solid #d4d4d4; border-bottom-width: 2px;
+    border-radius: 4px; background: #fafafa; padding: 0 5px; font-size: 9.5px;
+    font-weight: 700; white-space: nowrap;
+  }
+  /* Rótulo de botão, como ele aparece na tela */
+  .b {
+    display: inline-block; background: #171717; color: #fff; border-radius: 999px;
+    padding: 1px 8px; font-size: 9px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.06em; white-space: nowrap;
+  }
+  .b.vermelho { background: #DC2626; }
+  .b.claro { background: #f5f5f5; color: #404040; border: 1px solid #e5e5e5; }
+  .b.verde { background: #059669; }
+
+  .capa { border-bottom: 4px solid #DC2626; padding-bottom: 18px; margin-bottom: 20px; }
+  .capa .eyebrow {
+    font-size: 10px; font-weight: 900; letter-spacing: 0.3em;
+    text-transform: uppercase; color: #DC2626;
+  }
+  .capa h1 { font-size: 34px; margin: 6px 0 4px; text-transform: uppercase; font-style: italic; }
+  .capa .sub { font-size: 12px; color: #525252; font-weight: 600; }
+  .capa .meta { margin-top: 10px; font-size: 10px; color: #737373; }
+
+  section { margin-bottom: 18px; }
+  h2 {
+    font-size: 15px; text-transform: uppercase; color: #000;
+    border-left: 4px solid #DC2626; padding-left: 8px; margin: 22px 0 10px;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 12px; text-transform: uppercase; color: #DC2626;
+    margin: 14px 0 6px; letter-spacing: 0.04em; page-break-after: avoid;
+  }
+  h4 { font-size: 11px; margin: 10px 0 4px; color: #171717; page-break-after: avoid; }
+
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 9.5px; }
+  th {
+    background: #000; color: #fff; text-align: left; padding: 6px 8px;
+    font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 900;
+  }
+  td { padding: 6px 8px; border-bottom: 1px solid #e5e5e5; vertical-align: top; }
+  tr { page-break-inside: avoid; }
+  td.center, th.center { text-align: center; }
+  td.nivel { font-weight: 800; white-space: nowrap; }
+  .ponto { color: #047857; }
+  .erro { color: #b91c1c; }
+
+  .caixa {
+    border: 1px solid #e5e5e5; border-left: 4px solid #DC2626; background: #fafafa;
+    padding: 9px 12px; margin: 10px 0; border-radius: 0 8px 8px 0;
+    page-break-inside: avoid;
+  }
+  .caixa .titulo {
+    font-size: 8.5px; font-weight: 900; text-transform: uppercase;
+    letter-spacing: 0.18em; color: #DC2626; margin-bottom: 4px;
+  }
+  .caixa.neutra { border-left-color: #171717; }
+  .caixa.neutra .titulo { color: #171717; }
+  .caixa.atencao { border-left-color: #b45309; background: #fffbeb; border-color: #fde68a; }
+  .caixa.atencao .titulo { color: #b45309; }
+
+  /* Bloco de tela */
+  .tela { border: 1px solid #e5e5e5; border-radius: 10px; overflow: hidden; margin: 12px 0 16px; }
+  .tela > .cabecalho { background: #171717; color: #fff; padding: 8px 12px; }
+  .tela > .cabecalho .nome {
+    font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em;
+  }
+  .tela > .cabecalho .caminho {
+    font-size: 8.5px; color: #a3a3a3; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; margin-top: 2px;
+  }
+  .tela > .corpo { padding: 10px 12px 2px; }
+  .tela table { margin-top: 4px; }
+
+  .fluxo { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 14px; }
+  .fluxo .passo {
+    flex: 1 1 30%; border: 1px solid #e5e5e5; border-top: 3px solid #DC2626;
+    border-radius: 8px; padding: 8px 10px; background: #fff; page-break-inside: avoid;
+  }
+  .fluxo .passo .n { font-size: 8.5px; font-weight: 900; color: #DC2626; letter-spacing: 0.15em; }
+  .fluxo .passo .t { font-size: 11px; font-weight: 900; margin: 2px 0; }
+  .fluxo .passo .d { font-size: 9px; color: #525252; line-height: 1.4; }
+
+  .sumario { columns: 2; column-gap: 24px; font-size: 10px; }
+  .sumario ol { padding-left: 20px; margin: 0; }
+  .sumario li { margin-bottom: 3px; break-inside: avoid; }
+
+  .rodape-nota { font-size: 9px; color: #737373; font-style: italic; }
+  .quebra { page-break-before: always; }
+
+  @media screen { body { padding: 28px 34px; max-width: 940px; margin: 0 auto; } }
+</style>
+</head>
+<body>
+
+<div class="capa">
+  <div class="eyebrow">VolleyStats &middot; Versão 1.0.0</div>
+  <h1>Manual do Analista</h1>
+  <div class="sub">Guia completo: cada tela, cada botão, o que ele faz e quando ele aparece.</div>
+  <div class="meta">Aplicativo desktop para Windows &middot; Projeto liderado por Nickolas Antunes Almeida</div>
+</div>
+
+<section>
+  <h3 style="margin-top:0">Índice</h3>
+  <div class="sumario">
+    <ol>
+      <li>O que é o VolleyStats</li>
+      <li>Instalação e primeiros passos</li>
+      <li>Como o sistema se organiza</li>
+      <li>Ordem obrigatória de cadastro</li>
+      <li>Tela inicial (Torneios)</li>
+      <li>Seção Elenco (jogadores)</li>
+      <li>Tela de Categorias</li>
+      <li>Tela de Ginásios</li>
+      <li>Tela de Times</li>
+      <li>Dentro de um torneio</li>
+      <li>Cronograma de Jogos (partidas)</li>
+      <li>Tela do jogo: o scout ao vivo</li>
+      <li>Estatísticas e encerramento da partida</li>
+      <li>A escala de qualidade (teclas 1 a 6)</li>
+      <li>Todos os relatórios em PDF</li>
+      <li>Botões que só aparecem em certas situações</li>
+      <li>Mensagens do sistema e o que fazer</li>
+      <li>Problemas comuns</li>
+      <li>Roteiro de teste sugerido</li>
+      <li>Como enviar o retorno</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <h2>1. O que é o VolleyStats</h2>
+  <p>
+    O VolleyStats é um aplicativo de computador (não é site e não precisa de internet) para
+    <strong>escoutar partidas de vôlei ao vivo</strong> e organizar a rotina da equipe: categorias,
+    ginásios, times, jogadores, torneios e partidas. Cada lance digitado durante o jogo vira
+    estatística e, ao final, relatório em PDF.
+  </p>
+
+  <div class="caixa">
+    <div class="titulo">O essencial em uma frase</div>
+    Você cadastra o time e os jogadores, cria o torneio e a partida, escala quem entra em quadra e,
+    durante o jogo, digita cada ação com três toques no teclado. O resto — placar por set, pontos por
+    atleta, percentuais, PDF — o sistema calcula sozinho.
+  </div>
+
+  <h3>O que já está pronto para uso</h3>
+  <ul>
+    <li>Cadastro de categorias, ginásios, times e jogadores (com foto e logo).</li>
+    <li>Torneios com classificação, chaveamento e cronograma de jogos.</li>
+    <li>Scout ao vivo por atalhos de teclado, com placar, substituições e desfazer.</li>
+    <li>Estatísticas da partida por jogador, por set e por fundamento, com edição de lances.</li>
+    <li>Nove relatórios diferentes, todos exportáveis em PDF.</li>
+    <li>Importação da planilha antiga de estatísticas em Excel, com histórico e opção de reverter.</li>
+  </ul>
+
+  <h3>O que ainda não faz (limitações conhecidas, não são defeitos)</h3>
+  <ul>
+    <li><strong>Só se escouta a própria equipe.</strong> Do time adversário registra-se apenas o placar.</li>
+    <li><strong>Substituição e encerramento de set não entram no <kbd>Ctrl</kbd>+<kbd>Z</kbd>.</strong>
+        Cada um tem correção própria: a tela de escalação e o botão “Reabrir set”.</li>
+    <li>Não há gráficos: toda estatística é apresentada em tabela.</li>
+    <li>É monousuário e local — os dados ficam no computador onde o app foi instalado, sem nuvem e sem
+        sincronização.</li>
+    <li>O botão <span class="b claro">Exportar</span> da tela inicial ainda não tem função; a exportação
+        hoje é feita pelos botões de relatório em PDF.</li>
+    <li>O jogador não é vinculado a um time pela interface: o elenco é único e todos os jogadores
+        cadastrados aparecem na hora de escalar.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>2. Instalação e primeiros passos</h2>
+
+  <h3>O que o computador precisa ter</h3>
+  <ul>
+    <li>Windows 10 ou 11, 64 bits.</li>
+    <li>Cerca de 500 MB livres em disco.</li>
+    <li><strong>Nada mais.</strong> Não é preciso instalar Node.js, banco de dados ou qualquer outro
+        programa, nem ter internet para usar.</li>
+  </ul>
+
+  <h3>Passo a passo</h3>
+  <ol>
+    <li>Descompacte o arquivo <code>.zip</code> recebido (botão direito &rarr; <em>Extrair tudo…</em>).</li>
+    <li>Dentro da pasta, execute <code>volleystats-1.0.0 Setup.exe</code>.</li>
+    <li>O Windows pode exibir a tela azul <em>“O Windows protegeu o computador”</em>. Isso acontece
+        porque o instalador não tem assinatura digital paga — é uma versão de teste. Clique em
+        <strong>Mais informações</strong> e depois em <strong>Executar assim mesmo</strong>.</li>
+    <li>O instalador não faz perguntas: instala e <strong>abre o aplicativo sozinho</strong> ao terminar.</li>
+    <li>Nas próximas vezes, abra pelo atalho <strong>volleystats</strong> na área de trabalho ou no menu
+        Iniciar.</li>
+  </ol>
+
+  <table>
+    <thead><tr><th>O quê</th><th>Onde fica</th></tr></thead>
+    <tbody>
+      <tr><td>Programa instalado</td><td><code>C:\Users\SEU-USUÁRIO\AppData\Local\volleystats</code></td></tr>
+      <tr><td>Seus dados (banco e fotos)</td><td><code>C:\Users\SEU-USUÁRIO\AppData\Roaming\volleystats</code></td></tr>
+      <tr><td>Arquivo do banco de dados</td><td><code>…\Roaming\volleystats\developVS.db</code></td></tr>
+      <tr><td>Fotos e logos enviados</td><td><code>…\Roaming\volleystats\uploads</code></td></tr>
+    </tbody>
+  </table>
+
+  <div class="caixa neutra">
+    <div class="titulo">Começar do zero quando quiser</div>
+    Feche o VolleyStats, apague a pasta <code>…\AppData\Roaming\volleystats</code> e abra o app de novo:
+    ele recria um banco vazio. Para <em>enviar</em> seus dados de teste, é o arquivo
+    <code>developVS.db</code> dessa pasta que deve ser anexado.
+  </div>
+
+  <h3>Desinstalar</h3>
+  <p>
+    Menu Iniciar &rarr; Configurações &rarr; Aplicativos &rarr; <strong>volleystats</strong> &rarr; Desinstalar.
+    A desinstalação não apaga a pasta de dados: para remover tudo, apague também
+    <code>…\AppData\Roaming\volleystats</code>.
+  </p>
+</section>
+
+<section class="quebra">
+  <h2>3. Como o sistema se organiza</h2>
+
+  <h3>O mapa das telas</h3>
+  <p>
+    O VolleyStats tem <strong>uma tela inicial</strong> e tudo parte dela. Três telas de cadastro abrem
+    “por fora” (com botão <span class="b">Voltar</span>) e o fluxo de jogo abre “por dentro”, uma tela
+    sobre a outra:
+  </p>
+
+  <table>
+    <thead><tr><th class="center" style="width:8%">Nível</th><th style="width:30%">Tela</th><th>Como se chega</th><th style="width:24%">Como se volta</th></tr></thead>
+    <tbody>
+      <tr><td class="center">1</td><td><strong>Tela inicial</strong> (Torneios + Elenco + Agenda)</td><td>Abre com o aplicativo</td><td>—</td></tr>
+      <tr><td class="center">2</td><td>Categorias</td><td>Botão <span class="b claro">Categorias</span> no menu do topo</td><td>Botão <span class="b">Voltar</span></td></tr>
+      <tr><td class="center">2</td><td>Ginásios</td><td>Botão <span class="b claro">Ginásios</span> no menu do topo</td><td>Botão <span class="b">Voltar</span></td></tr>
+      <tr><td class="center">2</td><td>Times</td><td>Botão <span class="b claro">Times</span> no menu do topo</td><td>Botão <span class="b">Voltar</span></td></tr>
+      <tr><td class="center">2</td><td><strong>Torneio</strong> (Jogos / Classificação / Chaveamento)</td><td>Clique no card de um torneio</td><td>Seta <span class="b claro">←</span> no canto superior esquerdo</td></tr>
+      <tr><td class="center">3</td><td><strong>Tela do jogo</strong> (scout ao vivo)</td><td>Botão <span class="b vermelho">Iniciar Controle</span> no card da partida</td><td>Seta <span class="b claro">←</span> no canto superior esquerdo</td></tr>
+      <tr><td class="center">4</td><td>Estatísticas / relatório da partida</td><td><span class="b vermelho">Finalizar Partida</span> (durante o jogo) ou <span class="b">Relatorio da Partida</span> (partida finalizada)</td><td><span class="b claro">Fechar</span> / <span class="b claro">Cancelar</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Convenções visuais que se repetem em todo o app</h3>
+  <table>
+    <thead><tr><th style="width:32%">Elemento</th><th>Significa</th></tr></thead>
+    <tbody>
+      <tr><td>Botão <strong>vermelho</strong></td><td>Ação principal da tela (criar, salvar, confirmar, iniciar).</td></tr>
+      <tr><td>Botão <strong>preto</strong></td><td>Ação secundária (relatórios, editar, aplicar filtro).</td></tr>
+      <tr><td>Botão <strong>cinza</strong></td><td>Cancelar, limpar, fechar.</td></tr>
+      <tr><td>Botão <strong>verde</strong></td><td>Confirmar resultado / finalizar partida.</td></tr>
+      <tr><td>Modo <strong>Gerenciar</strong></td><td>Vários lugares escondem os botões de editar e excluir até você ligar o modo de edição. Enquanto ligado, o botão muda para <span class="b">Concluir</span>.</td></tr>
+      <tr><td>Avisos no canto superior direito</td><td>Confirmação (verde) ou erro (vermelho); somem sozinhos em poucos segundos.</td></tr>
+      <tr><td>Balão no topo do centro <em>(só na tela do jogo)</em></td><td>Aviso do scout: some sozinho e não interrompe a digitação.</td></tr>
+      <tr><td>Caixa preta no canto inferior esquerdo <em>(só na tela do jogo)</em></td><td>Mostra o que você está digitando agora, com a legenda do fundamento.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>4. Ordem obrigatória de cadastro</h2>
+  <p>
+    Os cadastros dependem uns dos outros — uma partida precisa de times e de um ginásio; escalar precisa
+    de jogadores. Na primeira vez, siga esta ordem:
+  </p>
+
+  <div class="fluxo">
+    <div class="passo"><div class="n">PASSO 1</div><div class="t">Categorias</div><div class="d">Sub-15, Sub-17, Adulto… Usada no cadastro do jogador e nos filtros do ranking.</div></div>
+    <div class="passo"><div class="n">PASSO 2</div><div class="t">Ginásios</div><div class="d">Onde os jogos acontecem. A partida exige um ginásio.</div></div>
+    <div class="passo"><div class="n">PASSO 3</div><div class="t">Times</div><div class="d">Sua equipe e os adversários (nome, cidade e logo).</div></div>
+    <div class="passo"><div class="n">PASSO 4</div><div class="t">Jogadores</div><div class="d">Elenco com número da camisa, posição, categoria e foto.</div></div>
+    <div class="passo"><div class="n">PASSO 5</div><div class="t">Torneio</div><div class="d">Competição, formato e período.</div></div>
+    <div class="passo"><div class="n">PASSO 6</div><div class="t">Partida</div><div class="d">Nome, data, fase, formato, ginásio e os dois times.</div></div>
+    <div class="passo"><div class="n">PASSO 7</div><div class="t">Escalação</div><div class="d">6 em quadra e o banco, antes do primeiro saque.</div></div>
+    <div class="passo"><div class="n">PASSO 8</div><div class="t">Scout ao vivo</div><div class="d">Digitação lance a lance durante o jogo.</div></div>
+    <div class="passo"><div class="n">PASSO 9</div><div class="t">Relatórios</div><div class="d">Conferir os números e salvar em PDF.</div></div>
+  </div>
+
+  <div class="caixa atencao">
+    <div class="titulo">A regra mais importante deste manual</div>
+    <p style="margin-bottom:6px">
+      O sistema só abre a tela de scout para partidas em que <strong>um dos times é o “Vôlei
+      Prudente”</strong> — esse nome está fixo no programa nesta versão. O botão do card da partida muda
+      conforme isso:
+    </p>
+    <ul style="margin-bottom:0">
+      <li><span class="b vermelho">Iniciar Controle</span> — aparece quando um dos times se chama Vôlei
+          Prudente (ou contém esse nome). Abre o scout ao vivo.</li>
+      <li><span class="b vermelho">Resultado / Sets</span> — aparece quando <em>nenhum</em> dos dois times
+          é o Vôlei Prudente. Não abre o scout: abre apenas uma janela para digitar o placar dos sets — é
+          assim que se registram os jogos das outras equipes do torneio.</li>
+    </ul>
+    <p style="margin:6px 0 0">
+      <strong>Ao testar</strong>, cadastre a sua equipe com o nome <strong>Vôlei Prudente</strong>. Se
+      preferir outro nome, registre isso no retorno: tornar esse nome configurável é um dos pontos a decidir.
+    </p>
+  </div>
+
+  <div class="caixa">
+    <div class="titulo">O aplicativo começa vazio</div>
+    Não há times, jogadores ou torneios de exemplo. É proposital: o cadastro também faz parte do teste.
+  </div>
+</section>
+
+<section class="quebra">
+  <h2>5. Tela inicial (Torneios)</h2>
+
+  <div class="tela">
+    <div class="cabecalho">
+      <div class="nome">Menu do topo</div>
+      <div class="caminho">Visível em toda a tela inicial · fixo ao rolar a página</div>
+    </div>
+    <div class="corpo">
+      <table>
+        <thead><tr><th style="width:22%">Botão</th><th>O que faz</th><th style="width:26%">Observação</th></tr></thead>
+        <tbody>
+          <tr><td><span class="b claro">Categorias</span></td><td>Abre a tela de categorias (faixas etárias).</td><td>Tela cheia, com <span class="b">Voltar</span>.</td></tr>
+          <tr><td><span class="b claro">Ginásios</span></td><td>Abre a tela de ginásios.</td><td>Tela cheia, com <span class="b">Voltar</span>.</td></tr>
+          <tr><td><span class="b claro">Times</span></td><td>Abre a tela de times.</td><td>Tela cheia, com <span class="b">Voltar</span>.</td></tr>
+          <tr><td><span class="b claro">Importar</span></td><td>Abre o seletor de arquivos do Windows para escolher uma planilha (.xlsx, .xls, .csv) e mostra uma prévia antes de gravar.</td><td>Espera a planilha antiga da equipe, com uma aba chamada <em>Temporada</em>. Enquanto lê, vira “Lendo...”.</td></tr>
+          <tr><td><span class="b claro">Histórico</span></td><td>Lista as planilhas já importadas, com data e quantidade — e permite desfazer uma importação.</td><td>Enquanto carrega, vira “Carregando...”.</td></tr>
+          <tr><td><span class="b claro">Exportar</span></td><td><strong>Nada. Sem função nesta versão.</strong></td><td>Use os botões de relatório para gerar PDF.</td></tr>
+          <tr><td><span class="b">Relatório Torneios</span></td><td>Abre o relatório consolidado de todos os torneios, com filtros e exportação em PDF.</td><td>Enquanto monta, vira “Emitindo...”.</td></tr>
+          <tr><td><span class="b claro">Gerenciar Torneios</span></td><td><strong>Liga o modo de edição dos torneios.</strong> Enquanto ligado, fica preto e escrito <span class="b">Concluir</span>.</td><td>É ele que revela criar, editar e excluir torneio (seção 5.2).</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h3>5.1 As três seções da tela inicial</h3>
+  <table>
+    <thead><tr><th style="width:20%">Seção</th><th>O que mostra</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Ao vivo agora</strong></td>
+        <td>Cards grandes, com borda vermelha, dos torneios cujo período inclui a data de hoje. Cada card tem
+            <span class="b">Ver detalhes</span> — mas <em>clicar em qualquer ponto do card</em> também abre o torneio.</td>
+      </tr>
+      <tr>
+        <td><strong>Elenco</strong></td>
+        <td>Os jogadores cadastrados, com busca, ranking e relatórios. Detalhada na seção 6.</td>
+      </tr>
+      <tr>
+        <td><strong>Agenda</strong></td>
+        <td>Cards menores dos torneios que ainda vão começar (“Em breve”) e dos já encerrados (“Finalizado”,
+            em cinza). Tem o campo <em>Filtrar por nome</em> e o botão
+            <span class="b claro">Ordenar: Data / Nome (A-Z)</span>, que alterna entre as duas ordens a cada
+            clique. Clicar no card abre o torneio.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="caixa atencao">
+    <div class="titulo">Diferença que confunde</div>
+    O estado do torneio (<em>Ao vivo</em>, <em>Em breve</em>, <em>Finalizado</em>) é calculado
+    <strong>pelas datas de início e término</strong> que você digitou — não existe botão de “iniciar
+    torneio”. Se o torneio não aparece em “Ao vivo agora”, confira o período cadastrado.
+  </div>
+
+  <h3>5.2 O modo “Gerenciar Torneios”</h3>
+  <p>Com o modo ligado (botão escrito <span class="b">Concluir</span>), aparecem na seção <strong>Ao vivo agora</strong>:</p>
+  <table>
+    <thead><tr><th style="width:30%">O que aparece</th><th>O que faz</th></tr></thead>
+    <tbody>
+      <tr><td>Card tracejado <span class="b claro">+ Novo torneio</span></td><td>Abre o formulário de cadastro de torneio.</td></tr>
+      <tr><td><span class="b claro">Editar</span> em cada card</td><td>Abre o mesmo formulário já preenchido.</td></tr>
+      <tr><td><span class="b vermelho">Excluir</span> em cada card</td><td>Pergunta “Deseja realmente excluir este torneio?” e apaga.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="caixa atencao">
+    <div class="titulo">Atenção: os cards da Agenda não ganham esses botões</div>
+    Editar e excluir só aparecem nos torneios <strong>ao vivo</strong>. Para alterar ou apagar um torneio
+    futuro ou já encerrado, <strong>abra o torneio</strong> (clique no card) e use, lá dentro,
+    <span class="b claro">Gerenciar</span> &rarr; <span class="b claro">Editar Torneio</span> /
+    <span class="b vermelho">Excluir Torneio</span>.
+  </div>
+
+  <h4>Formulário “Cadastro de Torneio”</h4>
+  <table>
+    <thead><tr><th style="width:24%">Campo</th><th>Regra</th></tr></thead>
+    <tbody>
+      <tr><td>Nome do torneio *</td><td>Obrigatório. Ex.: <em>Campeonato Nacional 2026</em>.</td></tr>
+      <tr><td>Tipo do torneio *</td><td>Pontos Corridos, Mata-Mata ou Pontos + Mata-Mata. <strong>Define quais abas o torneio terá</strong> (seção 10).</td></tr>
+      <tr><td>Status previsto</td><td>Não é digitável: o sistema calcula (Futuro / Em andamento / Finalizado) pelas datas.</td></tr>
+      <tr><td>Data de início *</td><td>Obrigatória. Limita a data das partidas do torneio.</td></tr>
+      <tr><td>Data de término *</td><td>Obrigatória. Idem.</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Rodapé: <span class="b claro">Cancelar</span> e <span class="b vermelho">Criar Torneio</span> (ou
+    <span class="b vermelho">Salvar</span>, ao editar).
+  </p>
+
+  <h3>5.3 Importar planilha (Excel)</h3>
+  <ol>
+    <li><span class="b claro">Importar</span> abre o seletor de arquivos do Windows.</li>
+    <li>O sistema lê a planilha e abre a janela <strong>Confirmar Importação</strong>, com o nome do arquivo
+        e uma prévia dos <strong>10 primeiros registros</strong> (o rodapé informa o total).</li>
+    <li><span class="b vermelho">Confirmar e Salvar</span> grava as ações e <strong>recarrega o
+        aplicativo</strong> para os jogadores aparecerem. <span class="b claro">Cancelar</span> descarta.</li>
+    <li>Se a planilha não tiver a estrutura esperada, aparece um aviso vermelho explicando o que faltou
+        (por exemplo, a aba <em>Temporada</em>).</li>
+  </ol>
+  <p>
+    Em <span class="b claro">Histórico</span> ficam as importações já feitas. Cada linha tem
+    <span class="b vermelho">Reverter</span>, que pergunta antes e <strong>remove as ações importadas
+    daquele arquivo</strong> — dá para desfazer uma importação errada sem mexer no resto.
+  </p>
+
+  <h3>5.4 Relatório Torneios (consolidado)</h3>
+  <ul>
+    <li><strong>Filtros</strong>: Data de início, Data de fim, Tipo de Torneio e Time, com
+        <span class="b vermelho">Aplicar</span> e <span class="b">Limpar</span>. O cabeçalho sempre mostra
+        quais filtros estão valendo.</li>
+    <li><strong>Cartões de destaque</strong>: time que mais venceu, melhor jogador do time principal,
+        aproveitamento, total de torneios, partidas, sets, média de partidas por torneio, time mais
+        presente, torneio com mais partidas.</li>
+    <li><strong>Tabelas</strong>: Torneios (com campeão estimado), Ranking Geral dos Times e Jogadores do
+        Time Principal.</li>
+    <li><strong>Rodapé</strong>: <span class="b vermelho">Salvar como PDF</span> e
+        <span class="b claro">Fechar</span>.</li>
+  </ul>
+</section>
+
+<section class="quebra">
+  <h2>6. Seção Elenco (jogadores)</h2>
+  <p>
+    Fica no meio da tela inicial, abaixo dos torneios ao vivo. É onde o elenco é cadastrado e onde ficam
+    dois relatórios.
+  </p>
+
+  <div class="tela">
+    <div class="cabecalho">
+      <div class="nome">Barra da seção Elenco</div>
+      <div class="caminho">Tela inicial · acima do título “Elenco”</div>
+    </div>
+    <div class="corpo">
+      <table>
+        <thead><tr><th style="width:28%">Botão</th><th>O que faz</th></tr></thead>
+        <tbody>
+          <tr><td><span class="b claro">Ranking</span></td><td>Abre o ranking geral de jogadores (seção 6.3).</td></tr>
+          <tr><td><span class="b claro">Relatorio Partidas</span></td><td>Abre o relatório de partidas de <strong>todos</strong> os torneios (seção 15).</td></tr>
+          <tr><td><span class="b claro">Gerenciar Elenco</span></td><td><strong>Liga o modo de edição do elenco.</strong> Enquanto ligado, escrito <span class="b">Concluir Edição</span>.</td></tr>
+        </tbody>
+      </table>
+      <p style="margin:8px 0 10px">
+        Abaixo: o campo <em>Buscar jogador por nome...</em> e a lista <em>Todas as Posições</em>. Os dois
+        filtram a lista na hora, sem botão de aplicar. O contador ao lado do título mostra quantos atletas
+        atendem ao filtro.
+      </p>
+    </div>
+  </div>
+
+  <h3>6.1 Os cards de jogador</h3>
+  <ul>
+    <li><strong>Clicar no card</strong> (em qualquer modo) abre o <strong>relatório do jogador</strong>.</li>
+    <li>Com o <strong>Gerenciar Elenco ligado</strong>, aparecem sobre a foto dois ícones:
+        <strong>lixeira</strong> (excluir, com confirmação) e <strong>lápis</strong> (editar) — e, ao final
+        da lista, o card <span class="b claro">+ Add Player</span> para cadastrar um novo atleta.</li>
+    <li>Sem foto, o card mostra as iniciais do nome.</li>
+  </ul>
+
+  <h4>Formulário “Novo Jogador” / “Editar Jogador”</h4>
+  <table>
+    <thead><tr><th style="width:24%">Campo</th><th>Regra</th></tr></thead>
+    <tbody>
+      <tr><td>Nome *</td><td>Obrigatório.</td></tr>
+      <tr><td>Número *</td><td>Obrigatório — é o número da camisa que você digitará no scout.</td></tr>
+      <tr><td>Categoria</td><td>Opcional; lista as categorias cadastradas.</td></tr>
+      <tr><td>Posição *</td><td>Obrigatória: Levantador, Ponteiro, Central, Oposto ou Líbero. <strong>É por aqui que o sistema reconhece o líbero</strong> nas regras de substituição.</td></tr>
+      <tr><td>Altura (m)</td><td>Opcional. Ex.: 1.85.</td></tr>
+      <tr><td>Data de Nascimento</td><td>Opcional.</td></tr>
+      <tr><td>CPF / RG</td><td>Opcionais; a formatação é aplicada enquanto você digita.</td></tr>
+      <tr><td>Foto do Jogador</td><td>Opcional; mostra a prévia logo acima do seletor de arquivo.</td></tr>
+    </tbody>
+  </table>
+  <p>Rodapé: <span class="b claro">Cancelar</span> e <span class="b vermelho">Criar Jogador</span> / <span class="b vermelho">Salvar</span>.</p>
+
+  <div class="caixa">
+    <div class="titulo">Não existe “elenco por time” nesta versão</div>
+    O jogador não é vinculado a um time pela interface. Todo jogador cadastrado aparece na escalação de
+    qualquer partida. Se dois times tiverem atletas com o mesmo número, isso atrapalha — vale registrar no
+    retorno.
+  </div>
+
+  <h3>6.2 Relatório do jogador (clique no card)</h3>
+  <ul>
+    <li>Cabeçalho com foto, camisa, nome, posição e categoria.</li>
+    <li>Cinco números: Ações, Partidas, Torneios, Pontos e Neutras (os Erros aparecem no bloco seguinte).</li>
+    <li><strong>Ações por tipo</strong>: um cartão por fundamento, cada um com Pts / Neutras / Erros.</li>
+    <li><strong>Resumo por partida</strong>: uma linha por jogo, com data, torneio, total de ações e os três números.</li>
+    <li><strong>Presença por torneio</strong>: partidas (P) e ações (A) em cada torneio.</li>
+    <li>No topo à direita: <span class="b">Exportar PDF</span> e <span class="b claro">X</span> para fechar.</li>
+  </ul>
+
+  <h3>6.3 Ranking de jogadores</h3>
+  <ul>
+    <li>Filtros: <em>Todas as posições</em> e <em>Todas as categorias</em>.</li>
+    <li>Ordenação por <span class="b claro">Efetividade</span>, <span class="b claro">Pontos</span> ou
+        <span class="b claro">Bloqueios</span> — o botão selecionado fica preto.</li>
+    <li>Topo: líder, número de jogadores e total de ações registradas.</li>
+    <li>Lista com posição (troféu no 1º), foto, camisa, posição, categoria, Pontos, Bloqueios e Efetividade.</li>
+    <li>Fecha no <span class="b claro">X</span>. Este ranking <strong>não</strong> tem exportação em PDF.</li>
+  </ul>
+</section>
+
+<section class="quebra">
+  <h2>7. Tela de Categorias</h2>
+  <p class="rodape-nota">Menu do topo &rarr; <span class="b claro">Categorias</span></p>
+
+  <table>
+    <thead><tr><th style="width:26%">Botão</th><th>O que faz</th></tr></thead>
+    <tbody>
+      <tr><td><span class="b">Voltar</span> (esquerda)</td><td>Volta para a tela inicial.</td></tr>
+      <tr><td><span class="b">Relatório</span></td><td>Abre o relatório de categorias, com filtros por time, posição e torneio.</td></tr>
+      <tr><td><span class="b vermelho">Nova Categoria</span></td><td>Abre o formulário de cadastro.</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    Abaixo do cabeçalho há uma barra de filtros com <em>Nome da Categoria</em>, <em>Idade Mín</em>,
+    <em>Idade Máx</em> e o link <span class="b claro">Limpar Filtros</span>. A lista filtra enquanto você
+    digita.
+  </p>
+  <p>
+    Cada categoria vira um card com nome, idade mínima e máxima, e os botões
+    <span class="b claro">Editar</span> e <span class="b vermelho">Excluir</span> — sempre visíveis, esta
+    tela não tem modo de edição. O formulário pede <strong>Nome da Categoria</strong>, <strong>Idade
+    Mínima</strong> e <strong>Idade Máxima</strong>, com <span class="b claro">Cancelar</span> e
+    <span class="b vermelho">Salvar</span>.
+  </p>
+  <p>
+    O relatório traz destaques (categoria com mais jogadores, maior e menor faixa etária) e a tabela
+    Categoria / Mín / Máx / Amplitude / Jogadores; no rodapé,
+    <span class="b vermelho">Salvar como PDF</span> e <span class="b claro">Fechar</span>.
+  </p>
+
+  <h2>8. Tela de Ginásios</h2>
+  <p class="rodape-nota">Menu do topo &rarr; <span class="b claro">Ginásios</span></p>
+  <ul>
+    <li>Cabeçalho: <span class="b">Voltar</span> e <span class="b vermelho">Novo Ginásio</span>.</li>
+    <li>Filtros: <em>Pesquisar por nome</em>, lista de <em>estados (UF)</em> e <em>Pesquisar por cidade</em>,
+        com <span class="b">Pesquisar</span> e <span class="b claro">Limpar</span>.</li>
+    <li>Cada card mostra nome, cidade/estado e endereço, com três botões:
+        <span class="b claro">Alterar</span>, <span class="b vermelho">Excluir</span> e
+        <span class="b claro">Relatório</span> (relatório daquele ginásio: as partidas realizadas ali).</li>
+    <li>Formulário: <strong>Nome</strong>, <strong>Cidade</strong>, <strong>Estado</strong> (lista de UFs) e
+        <strong>Endereço</strong>.</li>
+  </ul>
+
+  <h2>9. Tela de Times</h2>
+  <p class="rodape-nota">Menu do topo &rarr; <span class="b claro">Times</span></p>
+  <ul>
+    <li>Cabeçalho: <span class="b">Voltar</span>, <span class="b">Relatorio Geral</span> (todos os times) e
+        <span class="b vermelho">Novo Time</span>.</li>
+    <li>Filtros: <em>Pesquisar por nome</em> e <em>por cidade</em>, com <span class="b">Pesquisar</span> e
+        <span class="b claro">Limpar</span>.</li>
+    <li>Cada card mostra logo, nome e cidade, e tem três botões:
+        <span class="b claro">Emitir Relatorio</span> (campanha daquele time),
+        <span class="b claro">Alterar</span> e <span class="b vermelho">Excluir</span>.</li>
+    <li>Formulário: <strong>Nome do Time *</strong>, <strong>Cidade *</strong> e <strong>Imagem do
+        Time</strong> (com prévia). Erros de preenchimento aparecem em vermelho abaixo do campo.</li>
+    <li>Os dois relatórios têm <span class="b vermelho">Salvar como PDF</span> no rodapé.</li>
+  </ul>
+
+  <div class="caixa atencao">
+    <div class="titulo">Lembrete do nome do time</div>
+    Para conseguir escoutar, a sua equipe precisa se chamar <strong>Vôlei Prudente</strong>. É o nome que o
+    sistema procura para liberar o botão <span class="b vermelho">Iniciar Controle</span> no card da partida.
+  </div>
+</section>
+
+<section class="quebra">
+  <h2>10. Dentro de um torneio</h2>
+  <p class="rodape-nota">Tela inicial &rarr; clique no card de um torneio</p>
+
+  <div class="tela">
+    <div class="cabecalho">
+      <div class="nome">Cabeçalho do torneio</div>
+      <div class="caminho">Fixo no topo · mostra o nome, o tipo e a aba aberta</div>
+    </div>
+    <div class="corpo">
+      <table>
+        <thead><tr><th style="width:26%">Botão</th><th>O que faz</th><th style="width:24%">Quando aparece</th></tr></thead>
+        <tbody>
+          <tr><td><span class="b claro">←</span> (canto esquerdo)</td><td>Volta para a tela inicial.</td><td>Sempre.</td></tr>
+          <tr><td><span class="b claro">Relatorio do Torneio</span></td><td>Abre o relatório do torneio, com filtros por time, fase e data.</td><td>Sempre. Enquanto monta, vira “Emitindo...”.</td></tr>
+          <tr><td><span class="b claro">Gerenciar</span></td><td>Liga o modo de edição do torneio. Ligado, fica preto e escrito <span class="b">Concluir</span>.</td><td>Sempre.</td></tr>
+          <tr><td><span class="b claro">Editar Torneio</span></td><td>Abre o formulário do torneio (nome, tipo, datas).</td><td><strong>Só com o Gerenciar ligado.</strong></td></tr>
+          <tr><td><span class="b vermelho">Excluir Torneio</span></td><td>Pergunta e apaga o torneio inteiro, voltando para a tela inicial.</td><td><strong>Só com o Gerenciar ligado.</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h3>10.1 As abas: Jogos, Classificação e Chaveamento</h3>
+  <p>
+    O torneio abre sempre em <strong>Jogos</strong> (o cronograma). À direita do título ficam os botões das
+    outras visões — e <strong>quais existem depende do tipo de torneio</strong>:
+  </p>
+  <table>
+    <thead><tr><th style="width:30%">Tipo do torneio</th><th class="center">Classificação</th><th class="center">Chaveamento</th></tr></thead>
+    <tbody>
+      <tr><td>Pontos Corridos</td><td class="center ponto">Sim</td><td class="center erro">Não</td></tr>
+      <tr><td>Mata-Mata</td><td class="center erro">Não</td><td class="center ponto">Sim</td></tr>
+      <tr><td>Pontos + Mata-Mata</td><td class="center ponto">Sim</td><td class="center ponto">Sim</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Clicar no botão da aba abre aquela visão; <strong>clicar de novo no mesmo botão volta para Jogos</strong>
+    (funciona como uma chave liga/desliga).
+  </p>
+
+  <h4>Classificação</h4>
+  <ul>
+    <li>Colunas: <strong>P</strong> (pontos), <strong>J</strong> (jogos), <strong>V</strong> (vitórias) e
+        <strong>S.S</strong> (saldo de sets). Os quatro primeiros ficam com o número em vermelho —
+        “classificado para a próxima fase”.</li>
+    <li>Só entram <strong>partidas finalizadas</strong>. Enquanto não houver nenhuma, a tela mostra
+        “Adicione partidas finalizadas para visualizar a classificação”.</li>
+    <li>A pontuação usada é <strong>3 pontos por vitória</strong> (não é o critério oficial 3/2/1 da
+        FIVB por 3-0/3-1/3-2). Se isso for importante para a sua competição, registre no retorno.</li>
+    <li>Os times da tabela saem <strong>das partidas cadastradas</strong> — não existe uma tela de
+        “inscrever times no torneio”. Um time passa a fazer parte do torneio no momento em que aparece em
+        uma partida dele.</li>
+  </ul>
+
+  <h4>Chaveamento</h4>
+  <ul>
+    <li>Monta as chaves a partir da <strong>fase</strong> escolhida em cada partida (Oitavas, Quartas,
+        Semifinal, Grande Final).</li>
+    <li>Confrontos ainda não cadastrados aparecem como <strong>TBD</strong>.</li>
+    <li>Quando a final está finalizada, o campeão aparece em destaque no fim da chave.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>11. Cronograma de Jogos (partidas)</h2>
+  <p class="rodape-nota">Dentro do torneio, aba <strong>Jogos</strong> (é a que abre por padrão)</p>
+
+  <h3>11.1 Topo e filtros</h3>
+  <ul>
+    <li><span class="b vermelho">+ Nova Partida</span> — abre o formulário de cadastro do confronto.</li>
+    <li><strong>Filtros de Busca</strong>: <em>Data da Partida</em> e <em>Time</em>, com
+        <span class="b vermelho">Aplicar Filtros</span> e <span class="b claro">Limpar Filtros</span>.
+        Diferente de outras telas, aqui é preciso clicar em Aplicar.</li>
+    <li>Sem partidas, aparece a caixa tracejada “Nenhuma partida cadastrada atualmente”.</li>
+  </ul>
+  <p class="rodape-nota">
+    Observação: o botão <span class="b">Relatorio Partidas</span> não aparece aqui dentro do torneio — este
+    relatório é aberto pela seção Elenco, na tela inicial.
+  </p>
+
+  <h3>11.2 O card da partida</h3>
+  <p>
+    Cada partida vira um card com: faixa superior preta (fase à esquerda, <strong>status</strong> à direita),
+    data, ID, nome da partida, os dois times, o ginásio — e, quando finalizada, o <strong>Placar
+    Final</strong> em destaque. Os botões mudam conforme o status:
+  </p>
+
+  <table>
+    <thead><tr><th style="width:30%">Botão</th><th>O que faz</th><th style="width:26%">Aparece quando</th></tr></thead>
+    <tbody>
+      <tr><td><span class="b">Editar Confronto</span></td><td>Abre o formulário da partida já preenchido.</td><td>Status <strong>diferente</strong> de FINALIZADA.</td></tr>
+      <tr><td><span class="b vermelho">Iniciar Controle</span></td><td>Abre a tela de scout ao vivo.</td><td>Não finalizada <strong>e</strong> um dos times é o Vôlei Prudente.</td></tr>
+      <tr><td><span class="b vermelho">Resultado / Sets</span></td><td>Abre a janela de digitação do placar dos sets (sem scout).</td><td>Não finalizada <strong>e</strong> nenhum dos times é o Vôlei Prudente.</td></tr>
+      <tr><td><span class="b">Relatorio da Partida</span></td><td>Abre o relatório completo do jogo, em modo leitura, com exportação em PDF.</td><td><strong>Só quando FINALIZADA.</strong></td></tr>
+      <tr><td><span class="b vermelho">Adicionar / Alterar Link da Partida</span></td><td>Abre uma janela para colar o link do vídeo do jogo.</td><td><strong>Só quando FINALIZADA.</strong></td></tr>
+      <tr><td><span class="b claro">Assistir Video da Partida</span></td><td>Abre o vídeo no navegador.</td><td>Só quando existe um link salvo.</td></tr>
+      <tr><td><span class="b claro">Apagar</span></td><td>Pergunta “Esta ação é irreversível…” e apaga a partida <strong>com todo o scout dela</strong>.</td><td>Sempre.</td></tr>
+      <tr><td><span class="b claro">Finalizada</span> (cinza, desabilitado)</td><td>Nada — é só um selo indicando que o jogo está fechado.</td><td>Só quando FINALIZADA.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="caixa atencao">
+    <div class="titulo">Partida finalizada não volta atrás</div>
+    Depois de finalizada, a partida não aceita mais scout nem alteração de placar — só o link do vídeo pode
+    ser trocado. Se tentar abrir o controle, aparece “Partida finalizada. O resultado não pode mais ser
+    alterado.”. Para refazer um teste, apague a partida e crie outra.
+  </div>
+
+  <h3>11.3 Formulário “Cadastrar Confronto”</h3>
+  <table>
+    <thead><tr><th style="width:26%">Campo</th><th>Regra</th></tr></thead>
+    <tbody>
+      <tr><td>Identificação da Partida *</td><td>Nome livre. Ex.: <em>Semifinal - Jogo 1</em>.</td></tr>
+      <tr><td>Time 1 (Mandante) *</td><td>Lista os times cadastrados, com a cidade entre parênteses. <strong>É o time da esquerda no placar e o único escoutável.</strong></td></tr>
+      <tr><td>Time 2 (Visitante) *</td><td>Idem. Não pode ser igual ao Time 1 (o sistema avisa).</td></tr>
+      <tr><td>Data do Confronto *</td><td>Precisa estar <strong>dentro do período do torneio</strong>; fora dele, o sistema mostra o intervalo permitido e não salva.</td></tr>
+      <tr><td>Tipo de Competição *</td><td>Fase de Grupos, Oitavas, Quartas, Semifinal, Grande Final ou Amistoso/Treino. É o que alimenta o chaveamento.</td></tr>
+      <tr><td>Formato *</td><td><strong>Melhor de 5</strong> (3 sets, 5º de 15) ou <strong>Melhor de 3</strong> (2 sets, 3º de 15). Define quando cada set fecha e quando a partida acaba.</td></tr>
+      <tr><td>Local (Ginásio) *</td><td>Lista os ginásios cadastrados.</td></tr>
+      <tr><td>Link do Video da Partida</td><td><strong>Só aparece ao editar</strong> uma partida já criada. Cole o link e clique em <span class="b claro">Anexar Video</span> — sem isso o link não é salvo (o sistema avisa).</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Rodapé: <span class="b claro">Cancelar</span> e <span class="b vermelho">Confirmar Cadastro</span>
+    (ou <span class="b vermelho">Salvar Alterações</span>).
+  </p>
+
+  <h3>11.4 A janela “Resultado / Sets” (jogos de outras equipes)</h3>
+  <p>
+    Para partidas sem o Vôlei Prudente, o botão do card abre esta janela em vez do scout. Ela tem só as abas
+    <strong>Geral</strong> e <strong>Sets</strong>:
+  </p>
+  <ul>
+    <li><span class="b">Adicionar set</span> cria o próximo set; os dois campos grandes recebem o placar.</li>
+    <li><span class="b vermelho">Excluir set</span> aparece <strong>apenas no último set</strong> da lista.</li>
+    <li><span class="b verde">Salvar resultado</span> valida e finaliza a partida (regras na seção 13.4).</li>
+    <li><span class="b claro">Cancelar</span> fecha <strong>desfazendo</strong> o que foi digitado.</li>
+  </ul>
+</section>
+
+<section class="quebra">
+  <h2>12. Tela do jogo: o scout ao vivo</h2>
+  <p class="rodape-nota">
+    Card da partida &rarr; <span class="b vermelho">Iniciar Controle</span>. Ocupa a tela inteira; volta pela seta
+    <span class="b claro">←</span> no canto superior esquerdo.
+  </p>
+
+  <h3>12.1 Onde fica cada coisa</h3>
+  <table>
+    <thead><tr><th style="width:26%">Região da tela</th><th>O que tem ali</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Canto superior esquerdo</strong></td><td>Seta <span class="b claro">←</span>: sai do jogo e volta ao cronograma (o scout já está salvo).</td></tr>
+      <tr><td><strong>Faixa superior</strong></td><td>Nome do ginásio, selo de status (<em>Aguardando</em>, <strong>AO VIVO</strong> piscando, <em>Finalizada</em>) e o botão <span class="b claro">Help</span>, que abre a ajuda com todos os atalhos e a tabela de qualidade.</td></tr>
+      <tr><td><strong>Coluna da esquerda</strong></td><td>Lista das <strong>substituições do set atual</strong>, cada uma com o placar do momento, quem saiu (vermelho) e quem entrou (verde). Em telas estreitas ela some.</td></tr>
+      <tr><td><strong>Centro</strong></td><td>A quadra. Em cima, seis círculos laranja fixos representam o adversário (não são clicáveis). Embaixo, os seis atletas em quadra: <strong>clicar em um deles abre a ficha rápida</strong> (nome, camisa, posição).</td></tr>
+      <tr><td><strong>Barra inferior central</strong></td><td>Botões de <span class="b claro">Escalação</span>, <span class="b claro">Substituição</span> e o botão de estado da partida (seção 12.2).</td></tr>
+      <tr><td><strong>Painel da direita</strong></td><td>Sets da partida, placar do set atual, situação do set, encerrar/reabrir, desfazer e a lista de rallies. É o painel que você mais vai olhar.</td></tr>
+      <tr><td><strong>Canto inferior esquerdo</strong></td><td>A caixa preta de digitação: aparece assim que você começa a digitar e some quando o lance é gravado.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>12.2 A barra inferior</h3>
+  <table>
+    <thead><tr><th style="width:28%">Botão</th><th>O que faz</th><th style="width:24%">Quando aparece</th></tr></thead>
+    <tbody>
+      <tr><td><span class="b claro">Escalação</span></td><td>Abre a janela de montar a escalação (seção 12.5).</td><td>Sempre.</td></tr>
+      <tr><td><span class="b claro">Substituição</span></td><td>Abre o painel de troca de atletas (seção 12.6).</td><td>Sempre.</td></tr>
+      <tr><td><span class="b verde">Iniciar Partida</span></td><td>Marca a partida como “em andamento”; o selo do topo passa a <strong>AO VIVO</strong>.</td><td>Só enquanto o status é <em>Aguardando</em>.</td></tr>
+      <tr><td><span class="b vermelho">Finalizar Partida</span></td><td>Abre a janela de <strong>estatísticas e encerramento</strong> (seção 13).</td><td>Só depois de iniciada.</td></tr>
+      <tr><td><span class="b verde">Partida Finalizada</span></td><td>Apenas um selo; não é clicável.</td><td>Depois de finalizada.</td></tr>
+    </tbody>
+  </table>
+  <p class="rodape-nota">
+    Não é obrigatório clicar em <em>Iniciar Partida</em> para escoutar — mas é ele que acende o
+    <strong>AO VIVO</strong> e libera o botão de finalizar.
+  </p>
+
+  <h3>12.3 O painel da direita, de cima para baixo</h3>
+  <table>
+    <thead><tr><th style="width:30%">Bloco</th><th>O que faz</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Nome e data da partida</strong></td><td>Só informativo.</td></tr>
+      <tr><td><strong>Sets da Partida</strong></td><td>Quantos sets cada lado já ganhou e o formato (“Melhor de 5”). <strong>Esse número não é digitado</strong>: é contado a partir dos sets encerrados.</td></tr>
+      <tr><td><strong>Fileira de bolinhas (1º 25-20 ✓)</strong></td><td>Um botão por set: <strong>clicar navega para aquele set</strong>. Cinza com ✓ = encerrado; amarelo = em aberto; preto = o set aberto na tela.</td></tr>
+      <tr><td><span class="b verde">Finalizar partida (3 x 1)</span></td><td>Aparece <strong>só quando um dos times já venceu os sets necessários</strong>. Abre a confirmação de encerramento.</td></tr>
+      <tr><td><strong>Placar do set</strong></td><td>Dois retângulos: preto (mandante) e laranja (visitante). <strong>Clicar soma um ponto</strong> para aquele lado — mesmo efeito dos atalhos.</td></tr>
+      <tr><td><strong>Linha de situação</strong></td><td>Diz quantos pontos faltam para fechar, avisa <em>Set point</em>, avisa que o set está decidido ou que já foi encerrado.</td></tr>
+      <tr><td><span class="b claro">Encerrar set N</span></td><td>Fecha o set e abre o próximo. Fica preto (destacado) quando o set já está decidido.</td></tr>
+      <tr><td><span class="b claro">Reabrir set N</span></td><td>Aparece <strong>no lugar do anterior</strong> quando o set está encerrado. Reabre para correção; a contagem de sets se ajusta sozinha.</td></tr>
+      <tr><td><span class="b claro">Ctrl+Z desfaz: …</span></td><td>Mostra qual será o próximo lance desfeito e serve de botão para quem prefere o mouse. Some quando não há nada a desfazer.</td></tr>
+      <tr><td><strong>Pontos — Set N</strong></td><td>Um cartão por rally, do primeiro ao último, com o placar, quem levou o ponto (<em>Ponto de</em> / <em>Ponto cedido</em>) e as ações registradas naquele rally, cada uma com uma <strong>lixeira</strong> para excluir. As setas <span class="b claro">‹</span> <span class="b claro">›</span> navegam entre sets.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>12.4 Como digitar o scout</h3>
+  <p>
+    Cada ação é registrada em <strong>três etapas</strong>, sempre na mesma ordem. É feito para ser digitado
+    sem olhar para o teclado, no ritmo do jogo.
+  </p>
+
+  <div class="fluxo">
+    <div class="passo">
+      <div class="n">ETAPA 1 &middot; QUEM</div>
+      <div class="t">Segure <kbd>Ctrl</kbd> e digite o número</div>
+      <div class="d">Número da camisa, até 3 dígitos. Ex.: <kbd>Ctrl</kbd>+<kbd>1</kbd><kbd>2</kbd> para o camisa 12.</div>
+    </div>
+    <div class="passo">
+      <div class="n">ETAPA 2 &middot; O QUÊ</div>
+      <div class="t">Solte o <kbd>Ctrl</kbd> e escolha o fundamento</div>
+      <div class="d"><kbd>S</kbd> saque &middot; <kbd>A</kbd> ataque &middot; <kbd>B</kbd> bloqueio &middot; <kbd>R</kbd> recepção &middot; <kbd>D</kbd> defesa.</div>
+    </div>
+    <div class="passo">
+      <div class="n">ETAPA 3 &middot; COMO</div>
+      <div class="t">Digite a qualidade, de <kbd>1</kbd> a <kbd>6</kbd></div>
+      <div class="d">Sempre do pior para o melhor. Ao digitar, a ação é gravada e o campo se limpa.</div>
+    </div>
+  </div>
+
+  <p>
+    Assim que você começa, a <strong>caixa preta no canto inferior esquerdo</strong> mostra o que já foi
+    digitado (número, fundamento e qualidade) e, depois da etapa 2, exibe a
+    <strong>legenda daquele fundamento</strong> — o que significa cada tecla de 1 a 6, com verde para ponto
+    e vermelho para erro. Não é preciso decorar nada.
+  </p>
+
+  <div class="caixa">
+    <div class="titulo">Exemplo completo</div>
+    <kbd>Ctrl</kbd>+<kbd>1</kbd><kbd>2</kbd> &rarr; solta o Ctrl &rarr; <kbd>A</kbd> &rarr; <kbd>6</kbd>
+    grava “camisa 12, ataque, nível Excelente” — ou seja, um ponto de ataque.
+  </div>
+
+  <h4>Todos os atalhos</h4>
+  <table>
+    <thead><tr><th style="width:30%">Atalho</th><th>O que faz</th></tr></thead>
+    <tbody>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd>…<kbd>9</kbd></td><td>Digita o número da camisa (até 3 dígitos).</td></tr>
+      <tr><td><kbd>S</kbd> <kbd>A</kbd> <kbd>B</kbd> <kbd>R</kbd> <kbd>D</kbd></td><td>Saque, Ataque, Bloqueio, Recepção, Defesa.</td></tr>
+      <tr><td><kbd>1</kbd> a <kbd>6</kbd></td><td>Qualidade da ação, do erro ao ponto. Grava e limpa o campo.</td></tr>
+      <tr><td><kbd>Shift</kbd>+<kbd>&uarr;</kbd> / <kbd>Shift</kbd>+<kbd>&darr;</kbd></td><td>Soma ou tira ponto do <strong>mandante</strong> (a sua equipe).</td></tr>
+      <tr><td><kbd>Alt</kbd>+<kbd>&uarr;</kbd> / <kbd>Alt</kbd>+<kbd>&darr;</kbd></td><td>Soma ou tira ponto do <strong>visitante</strong>.</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Desfaz o último lance digitado (ação ou ponto), até 50 vezes.</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Limpa a digitação em andamento, antes de ela virar registro.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="caixa neutra">
+    <div class="titulo">O que o Ctrl+Z alcança — e o que não</div>
+    Desfaz <strong>ações e pontos do placar</strong>, apenas do set aberto na tela, e só enquanto a tela do
+    jogo estiver aberta (é um desfazer de digitação, não um histórico da partida). <strong>Não</strong>
+    desfaz substituição nem encerramento de set — para esses, use a tela de Escalação e o botão
+    <span class="b claro">Reabrir set</span>.
+  </div>
+
+  <h3>12.5 Janela “Escalação”</h3>
+  <p>Três colunas, lado a lado:</p>
+  <table>
+    <thead><tr><th style="width:24%">Coluna</th><th>O que faz</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Em Quadra</strong> (0/6)</td><td>Quem está jogando. Cada linha tem <span class="b vermelho">Remover</span>.</td></tr>
+      <tr><td><strong>Banco de Reservas</strong> (0/8)</td><td>Quem pode entrar. Cada linha tem <span class="b vermelho">Remover</span>.</td></tr>
+      <tr><td><strong>Disponíveis</strong></td><td>Todos os demais jogadores cadastrados. Cada um tem dois botões: <span class="b">Linha</span> (manda para a quadra) e <span class="b vermelho">Banco</span>.</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Limite: <strong>6 em quadra + 8 no banco = 14</strong>. Passando disso, aparece a mensagem
+        “Máximo de 14 jogadores na escalação”.</li>
+    <li>A escalação é <strong>salva na hora</strong>, a cada clique — não há botão de salvar, só
+        <span class="b claro">Fechar</span>.</li>
+    <li>Ao abrir uma partida nova, o sistema <strong>já preenche</strong> a escalação com os primeiros 6
+        jogadores cadastrados na quadra e os 8 seguintes no banco. <strong>Confira e ajuste</strong> antes
+        de começar: essa ordem é a de cadastro, não a escalação real.</li>
+    <li>Reabrindo a partida depois, a escalação volta exatamente como estava.</li>
+  </ul>
+
+  <h3>12.6 Janela “Substituição de Atletas”</h3>
+  <ol>
+    <li>À esquerda, clique no atleta <strong>em campo</strong> que vai sair (fica preto quando selecionado).</li>
+    <li>À direita, clique no atleta do <strong>banco</strong> que vai entrar (fica verde).</li>
+    <li>O resumo no rodapé mostra <em>Saindo</em> e <em>Entrando</em>; o botão
+        <span class="b">Confirmar Troca</span> só habilita com os dois escolhidos.</li>
+    <li>Dando certo, aparece a mensagem verde e a janela fecha sozinha; a troca entra no log da esquerda
+        da tela do jogo, com o placar do momento.</li>
+  </ol>
+  <p>As regras de vôlei são checadas pelo sistema e, se alguma for violada, a mensagem aparece em vermelho dentro da própria janela:</p>
+  <ul>
+    <li>Máximo de <strong>6 substituições por set</strong>.</li>
+    <li>O reserva que entrou só pode voltar <strong>pelo mesmo titular</strong> que substituiu.</li>
+    <li>O <strong>líbero</strong> é isento desse limite (por isso a posição precisa estar certa no cadastro).</li>
+  </ul>
+
+  <h3>12.7 Encerrando sets e a partida</h3>
+  <ul>
+    <li><span class="b claro">Encerrar set</span> fecha o placar do set e abre o próximo já zerado. Se o set
+        ainda não atingiu a pontuação necessária, o sistema pergunta antes (“…ainda não atingiu 25 pontos
+        com 2 de vantagem. Encerrar assim mesmo?”) — útil para jogo interrompido ou W.O.</li>
+    <li>Um set <strong>não pode terminar empatado</strong>: nesse caso o encerramento é recusado.</li>
+    <li>Quando um dos lados alcança os sets necessários, aparece a janela <strong>Partida decidida</strong>,
+        com o placar de sets e a lista de todos eles. Ali você escolhe entre
+        <span class="b claro">Cancelar</span> (para reabrir e corrigir algum set) e
+        <span class="b verde">Finalizar partida</span>.</li>
+    <li>Depois de finalizada, a partida vira somente leitura.</li>
+  </ul>
+</section>
+
+<section class="quebra">
+  <h2>13. Estatísticas e encerramento da partida</h2>
+  <p>
+    É a mesma janela em <strong>três modos diferentes</strong> — e é por isso que ela às vezes mostra mais,
+    às vezes menos:
+  </p>
+
+  <table>
+    <thead><tr><th style="width:24%">Modo</th><th>Como se chega</th><th>Abas</th><th>Botões do rodapé</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Encerramento</strong><br><span class="rodape-nota">“Finalizar Partida”</span></td>
+        <td>Na tela do jogo, botão <span class="b vermelho">Finalizar Partida</span>.</td>
+        <td>Geral, Jogadores, Sets</td>
+        <td><span class="b claro">Cancelar</span> · <span class="b verde">Confirmar resultado</span></td>
+      </tr>
+      <tr>
+        <td><strong>Resumo</strong><br><span class="rodape-nota">“Resultado e Sets”</span></td>
+        <td>Card da partida, botão <span class="b vermelho">Resultado / Sets</span> (jogos sem a sua equipe).</td>
+        <td>Geral, Sets</td>
+        <td><span class="b claro">Cancelar</span> · <span class="b verde">Salvar resultado</span></td>
+      </tr>
+      <tr>
+        <td><strong>Leitura</strong><br><span class="rodape-nota">“Relatorio da partida”</span></td>
+        <td>Card de uma partida finalizada, botão <span class="b">Relatorio da Partida</span>.</td>
+        <td>Geral, Jogadores, Sets</td>
+        <td><span class="b vermelho">Salvar como PDF</span> · <span class="b claro">Fechar</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="caixa atencao">
+    <div class="titulo">Cancelar desfaz de verdade</div>
+    No modo <strong>Encerramento</strong>, tudo o que você mexer aqui (placar de sets, ações editadas) é
+    <strong>desfeito</strong> ao clicar em <span class="b claro">Cancelar</span> ou no <span class="b claro">X</span>.
+    Só o <span class="b verde">Confirmar resultado</span> torna as mudanças definitivas.
+  </div>
+
+  <h3>13.1 Aba Geral</h3>
+  <ul>
+    <li>Quatro números no topo: sets da partida, sets registrados, pontos registrados e ações registradas.</li>
+    <li><strong>Scout no padrão da planilha</strong>: o resumo do time em saque, recepção, ataque, bloqueio e
+        defesa, no formato a que a comissão já está acostumada.</li>
+    <li><strong>Dados da partida</strong> (nome, data, ginásio, mandante e visitante) e o
+        <strong>vencedor de cada set</strong>.</li>
+  </ul>
+
+  <h3>13.2 Aba Jogadores</h3>
+  <ul>
+    <li>Busca por <em>Nome</em> ou <em>Número</em> — os dois botões ao lado do campo escolhem o modo.</li>
+    <li>A tabela grande (role para o lado) traz, por atleta: Ações, Pontos, Cedidos, PTS, V-P, os seis níveis
+        de qualidade e depois os blocos de Saque, Recepção, Ataque, Bloqueio e Defesa com totais e percentuais.</li>
+    <li>Abaixo da tabela, um cartão por jogador com as ações por fundamento e as contagens por nível.</li>
+    <li><strong>Ações registradas</strong> (não aparece no modo leitura): a lista de lances do atleta, cada
+        um com <span class="b">Editar</span> e <span class="b vermelho">Excluir</span>. Editar abre uma
+        janelinha onde se troca o <strong>jogador</strong>, o <strong>fundamento</strong> e a
+        <strong>qualidade</strong> — os seis níveis viram seis botões, e embaixo aparece o significado
+        daquele nível no fundamento escolhido.</li>
+  </ul>
+
+  <h3>13.3 Aba Sets</h3>
+  <ul>
+    <li>Um bloco por set, com o vencedor, os dois placares editáveis e as substituições daquele set.</li>
+    <li><span class="b">Adicionar set</span> cria o próximo set (não aparece no modo leitura).</li>
+    <li><span class="b vermelho">Excluir set</span> aparece <strong>só no último set</strong>; tentar excluir
+        outro mostra “Somente o ultimo set pode ser excluido.”.</li>
+  </ul>
+
+  <h3>13.4 O que o sistema exige para encerrar a partida</h3>
+  <p>Ao confirmar, cada regra abaixo vira uma mensagem em vermelho no topo da janela se não for cumprida:</p>
+  <ul>
+    <li>Os sets precisam estar <strong>em ordem, sem pular número</strong>.</li>
+    <li>Nenhum set pode <strong>terminar empatado</strong>.</li>
+    <li>O vencedor de cada set precisa dos <strong>pontos do formato</strong> (25, ou 15 no set decisivo) e de
+        <strong>2 pontos de diferença</strong>.</li>
+    <li>Não pode haver <strong>set a mais depois de a partida estar decidida</strong>.</li>
+    <li>Um dos times precisa ter <strong>vencido os sets necessários</strong> (3 na melhor de 5; 2 na melhor de 3).</li>
+    <li>O número de sets não pode passar do máximo do formato.</li>
+  </ul>
+</section>
+
+<section class="quebra">
+  <h2>14. A escala de qualidade (teclas 1 a 6)</h2>
+  <p>
+    A tecla é sempre de <kbd>1</kbd> a <kbd>6</kbd>, do erro ao ponto. O <strong>nível</strong> é o mesmo em
+    todos os fundamentos, mas o <strong>significado</strong> muda conforme o fundamento — é o padrão
+    DataVolley, usado no vôlei profissional. Não é preciso decorar: durante o scout a legenda do fundamento
+    aparece na caixa preta, e o botão <span class="b claro">Help</span> mostra a tabela inteira.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="center" style="width:10%">Tecla</th>
+        <th style="width:26%">Nível (é este nome que aparece nos relatórios)</th>
+        <th>Leitura rápida</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="center"><kbd>1</kbd></td><td class="nivel">Erro</td><td>A bola morre a favor do adversário.</td></tr>
+      <tr><td class="center"><kbd>2</kbd></td><td class="nivel">Ruim</td><td>Ação muito ruim — com uma exceção importante: no saque é uma boa bola.</td></tr>
+      <tr><td class="center"><kbd>3</kbd></td><td class="nivel">Negativa</td><td>A jogada continua, em desvantagem para a equipe.</td></tr>
+      <tr><td class="center"><kbd>4</kbd></td><td class="nivel">Regular</td><td>Dá para jogar, com limitações.</td></tr>
+      <tr><td class="center"><kbd>5</kbd></td><td class="nivel">Positiva</td><td>Boa ação, jogada montada.</td></tr>
+      <tr><td class="center"><kbd>6</kbd></td><td class="nivel">Excelente</td><td>O melhor resultado possível — em saque, ataque e bloqueio, é ponto.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>O que cada nível significa em cada fundamento</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Fundamento</th>
+        <th class="center">1 · Erro</th>
+        <th class="center">2 · Ruim</th>
+        <th class="center">3 · Negativa</th>
+        <th class="center">4 · Regular</th>
+        <th class="center">5 · Positiva</th>
+        <th class="center">6 · Excelente</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="nivel">Saque</td>
+        <td class="erro">Erro de saque</td>
+        <td>Adversário sem ataque</td>
+        <td>Adversário ataca livre</td>
+        <td>Adversário sem 1º tempo</td>
+        <td>Adversário com ataque limitado</td>
+        <td class="ponto">Ace</td>
+      </tr>
+      <tr>
+        <td class="nivel">Recepção</td>
+        <td class="erro">Erro de recepção</td>
+        <td>Ruim, sem ataque</td>
+        <td>Negativa, ataque limitado</td>
+        <td>Ok, sem 1º tempo</td>
+        <td>Positiva, ataque montado</td>
+        <td>Perfeita</td>
+      </tr>
+      <tr>
+        <td class="nivel">Ataque</td>
+        <td class="erro">Erro de ataque</td>
+        <td class="erro">Bloqueado</td>
+        <td>Fácil de defender</td>
+        <td>Bloqueado para recontra-ataque</td>
+        <td>Bom ataque</td>
+        <td class="ponto">Ponto de ataque</td>
+      </tr>
+      <tr>
+        <td class="nivel">Bloqueio</td>
+        <td class="erro">Erro de bloqueio</td>
+        <td class="erro">Invasão</td>
+        <td>Adversário reataca</td>
+        <td>Adversário reataca</td>
+        <td>Tocou no bloqueio</td>
+        <td class="ponto">Ponto de bloqueio</td>
+      </tr>
+      <tr>
+        <td class="nivel">Defesa</td>
+        <td class="erro">Erro de defesa</td>
+        <td>Devolveu direto para o adversário</td>
+        <td>Sem ataque estruturado</td>
+        <td>Ok, sem 1º tempo</td>
+        <td>Boa defesa</td>
+        <td>Defesa perfeita</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="rodape-nota">
+    Em verde, a ação encerra o rally a favor da equipe; em vermelho, a favor do adversário; em preto, a
+    jogada continua.
+  </p>
+
+  <div class="caixa">
+    <div class="titulo">Duas exceções que valem memorizar</div>
+    <ul style="margin-bottom:0">
+      <li>No <strong>saque</strong>, o nível <em>Ruim</em> é bom: significa que o adversário não conseguiu
+          montar ataque nenhum.</li>
+      <li>No <strong>ataque</strong> e no <strong>bloqueio</strong>, o nível <em>Ruim</em> é erro — bola
+          bloqueada ou invasão, e o ponto vai para o adversário.</li>
+    </ul>
+  </div>
+
+  <div class="caixa neutra">
+    <div class="titulo">Como o ponto é atribuído a um atleta</div>
+    O dono do ponto é o autor da <strong>última ação registrada no rally</strong>. Por isso a ordem de
+    digitação importa: se a jogada terminou em ataque, registre o ataque por último. Se você excluir ou
+    editar a última ação, o dono do ponto é recalculado automaticamente.
+  </div>
+</section>
+
+<section>
+  <h2>15. Todos os relatórios em PDF</h2>
+  <p>
+    Todo relatório é montado primeiro na tela; o botão de PDF abre a janela “Salvar como” do Windows para
+    você escolher a pasta. São nove:
+  </p>
+  <table>
+    <thead><tr><th style="width:22%">Relatório</th><th style="width:34%">Onde fica o botão</th><th>O que traz</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Partida</strong></td><td>Card da partida finalizada &rarr; <span class="b">Relatorio da Partida</span> &rarr; <span class="b vermelho">Salvar como PDF</span></td><td>Scout completo por jogador e placar set a set.</td></tr>
+      <tr><td><strong>Partidas (geral)</strong></td><td>Tela inicial, seção Elenco &rarr; <span class="b claro">Relatorio Partidas</span></td><td>Lista filtrável de partidas, resumo por fase, por local e desempenho por time.</td></tr>
+      <tr><td><strong>Torneio</strong></td><td>Dentro do torneio &rarr; <span class="b claro">Relatorio do Torneio</span></td><td>Classificação, destaques, top jogadores, fundamentos, locais e partidas.</td></tr>
+      <tr><td><strong>Torneios (consolidado)</strong></td><td>Menu do topo &rarr; <span class="b">Relatório Torneios</span></td><td>Todos os torneios, ranking de times e jogadores do time principal.</td></tr>
+      <tr><td><strong>Jogador</strong></td><td>Card do jogador &rarr; <span class="b">Exportar PDF</span></td><td>Números do atleta por partida e por torneio.</td></tr>
+      <tr><td><strong>Time</strong></td><td>Tela de Times &rarr; card &rarr; <span class="b claro">Emitir Relatorio</span></td><td>Campanha do time: jogos, adversários e resultados.</td></tr>
+      <tr><td><strong>Times (geral)</strong></td><td>Tela de Times &rarr; <span class="b">Relatorio Geral</span></td><td>Comparativo de todos os times.</td></tr>
+      <tr><td><strong>Ginásio</strong></td><td>Tela de Ginásios &rarr; card &rarr; <span class="b claro">Relatório</span></td><td>Partidas realizadas naquele local.</td></tr>
+      <tr><td><strong>Categorias</strong></td><td>Tela de Categorias &rarr; <span class="b">Relatório</span></td><td>Faixas etárias e quantos jogadores há em cada uma.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Como ler as colunas principais</h3>
+  <table>
+    <thead><tr><th style="width:30%">Coluna</th><th>Significado</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Ações</strong></td><td>Quantas ações do atleta foram registradas.</td></tr>
+      <tr><td><strong>Pontos</strong></td><td>Rallies ganhos em que a última ação registrada foi dele.</td></tr>
+      <tr><td><strong>Cedidos</strong></td><td>Rallies perdidos em que a última ação registrada foi dele.</td></tr>
+      <tr><td><strong>PTS / V-P</strong></td><td>Pontos de scout do atleta e o saldo entre pontos feitos e cedidos.</td></tr>
+      <tr><td><strong>Erro · Ruim · Negativa · Regular · Positiva · Excelente</strong></td><td>Quantas ações do atleta caíram em cada nível da escala.</td></tr>
+      <tr><td><strong>Eff (eficiência)</strong></td><td>Percentual do fundamento já descontados os erros.</td></tr>
+      <tr><td><strong>Rec Pos% / Rec Prf%</strong></td><td>Percentual de recepções positivas e de recepções perfeitas.</td></tr>
+      <tr><td><strong>P / J / V / S.S</strong></td><td>Na classificação: pontos, jogos, vitórias e saldo de sets.</td></tr>
+    </tbody>
+  </table>
+  <p class="rodape-nota">
+    Nos relatórios não aparecem os símbolos técnicos do scout: cada nível é mostrado pelo nome, para quem lê
+    o PDF não precisar da legenda ao lado.
+  </p>
+</section>
+
+<section class="quebra">
+  <h2>16. Botões que só aparecem em certas situações</h2>
+  <p>
+    Esta é a tabela para consultar quando algo “sumiu”. Nada aqui é defeito: são botões que dependem do
+    estado da tela.
+  </p>
+  <table>
+    <thead><tr><th style="width:30%">Botão / recurso</th><th style="width:32%">Só aparece quando…</th><th>Onde</th></tr></thead>
+    <tbody>
+      <tr><td><span class="b claro">+ Novo torneio</span>, <span class="b claro">Editar</span>, <span class="b vermelho">Excluir</span> (cards)</td><td>o modo <strong>Gerenciar Torneios</strong> está ligado <strong>e</strong> o torneio está “ao vivo”</td><td>Tela inicial</td></tr>
+      <tr><td><span class="b claro">Editar Torneio</span> e <span class="b vermelho">Excluir Torneio</span></td><td>o modo <strong>Gerenciar</strong> está ligado</td><td>Dentro do torneio</td></tr>
+      <tr><td>Lixeira e lápis no card do jogador, e <span class="b claro">+ Add Player</span></td><td>o modo <strong>Gerenciar Elenco</strong> está ligado</td><td>Seção Elenco</td></tr>
+      <tr><td>Aba <span class="b claro">Classificação</span></td><td>o torneio é <em>Pontos Corridos</em> ou <em>Pontos + Mata-Mata</em></td><td>Dentro do torneio</td></tr>
+      <tr><td>Aba <span class="b claro">Chaveamento</span></td><td>o torneio é <em>Mata-Mata</em> ou <em>Pontos + Mata-Mata</em></td><td>Dentro do torneio</td></tr>
+      <tr><td><span class="b vermelho">Iniciar Controle</span></td><td>a partida não está finalizada <strong>e</strong> um dos times é o Vôlei Prudente</td><td>Card da partida</td></tr>
+      <tr><td><span class="b vermelho">Resultado / Sets</span></td><td>a partida não está finalizada <strong>e</strong> nenhum time é o Vôlei Prudente</td><td>Card da partida</td></tr>
+      <tr><td><span class="b">Editar Confronto</span></td><td>a partida <strong>não</strong> está finalizada</td><td>Card da partida</td></tr>
+      <tr><td><span class="b">Relatorio da Partida</span> e os botões de vídeo</td><td>a partida <strong>está</strong> finalizada</td><td>Card da partida</td></tr>
+      <tr><td>Campo <em>Link do Video</em> + <span class="b claro">Anexar Video</span></td><td>você está <strong>editando</strong> uma partida já criada (não aparece ao criar)</td><td>Formulário da partida</td></tr>
+      <tr><td><span class="b verde">Iniciar Partida</span></td><td>o status ainda é <em>Aguardando</em></td><td>Tela do jogo</td></tr>
+      <tr><td><span class="b vermelho">Finalizar Partida</span></td><td>a partida já foi iniciada</td><td>Tela do jogo</td></tr>
+      <tr><td><span class="b verde">Finalizar partida (3 x 1)</span></td><td>um dos times já venceu os sets necessários</td><td>Painel direito da tela do jogo</td></tr>
+      <tr><td><span class="b claro">Reabrir set</span></td><td>o set atual <strong>está encerrado</strong> (no lugar de “Encerrar set”)</td><td>Painel direito da tela do jogo</td></tr>
+      <tr><td><span class="b claro">Ctrl+Z desfaz: …</span></td><td>existe algum lance para desfazer no set aberto</td><td>Painel direito da tela do jogo</td></tr>
+      <tr><td>Aba <strong>Jogadores</strong> nas estatísticas</td><td>a janela <strong>não</strong> está no modo “Resultado / Sets”</td><td>Janela de estatísticas</td></tr>
+      <tr><td><span class="b">Adicionar set</span> / <span class="b vermelho">Excluir set</span></td><td>a janela <strong>não</strong> está em modo leitura — e Excluir só no último set</td><td>Janela de estatísticas, aba Sets</td></tr>
+      <tr><td><span class="b">Editar</span> / <span class="b vermelho">Excluir</span> de uma ação</td><td>a janela <strong>não</strong> está em modo leitura</td><td>Janela de estatísticas, aba Jogadores</td></tr>
+      <tr><td><span class="b vermelho">Salvar como PDF</span> do relatório da partida</td><td>a janela está em <strong>modo leitura</strong> (partida finalizada)</td><td>Janela de estatísticas</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>17. Mensagens do sistema e o que fazer</h2>
+  <table>
+    <thead><tr><th style="width:44%">Mensagem</th><th>O que significa / o que fazer</th></tr></thead>
+    <tbody>
+      <tr><td>“Set N está encerrado. Reabra o set para corrigir o placar.”</td><td>O set foi fechado. Clique em <span class="b claro">Reabrir set N</span> e corrija.</td></tr>
+      <tr><td>“Set N decidido em 25 x 20. Corrija o placar ou encerre o set.”</td><td>O set já tem vencedor: não dá para somar mais pontos. Encerre-o ou corrija para baixo.</td></tr>
+      <tr><td>“O Set N está empatado em X. Um set não pode terminar empatado.”</td><td>Ajuste o placar antes de encerrar.</td></tr>
+      <tr><td>“…ainda não atingiu 25 pontos com 2 de vantagem. Encerrar assim mesmo?”</td><td>Encerramento antecipado (jogo interrompido, W.O.). Confirme só se for isso mesmo.</td></tr>
+      <tr><td>“O último lance foi no set N. Volte para ele para desfazer.”</td><td>O <kbd>Ctrl</kbd>+<kbd>Z</kbd> só age no set aberto. Navegue até aquele set pelas bolinhas do painel.</td></tr>
+      <tr><td>“Nada para desfazer.”</td><td>A pilha de desfazer está vazia (ela zera ao sair da tela do jogo).</td></tr>
+      <tr><td>“Máximo de 14 jogadores na escalação.”</td><td>São 6 em quadra + 8 no banco. Remova alguém antes de incluir outro.</td></tr>
+      <tr><td>“Selecione um jogador em campo e um jogador do banco.”</td><td>Faltou escolher um dos dois lados da substituição.</td></tr>
+      <tr><td>“A data da partida deve estar entre … (Período do Torneio).”</td><td>A data está fora do intervalo do torneio. Corrija a data ou edite o período do torneio.</td></tr>
+      <tr><td>“O Time 1 nao pode ser igual ao Time 2.”</td><td>Escolha times diferentes.</td></tr>
+      <tr><td>“Link de video nao validado. Use ‘Anexar Video’ para salvar o link.”</td><td>Colar o link não basta: clique em <span class="b claro">Anexar Video</span>.</td></tr>
+      <tr><td>“Partida finalizada. O resultado nao pode mais ser alterado.”</td><td>Jogo fechado. Só o link do vídeo pode mudar; para refazer, apague e recrie a partida.</td></tr>
+      <tr><td>“Somente o ultimo set pode ser excluido.”</td><td>Exclua os sets de trás para frente.</td></tr>
+      <tr><td>“Para encerrar a partida, um dos times precisa vencer N sets.”</td><td>Faltam sets para a partida estar decidida — confira os placares na aba Sets.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="quebra">
+  <h2>18. Problemas comuns</h2>
+  <table>
+    <thead><tr><th style="width:38%">Situação</th><th>Explicação</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>“O botão Iniciar Controle não aparece; só aparece Resultado / Sets.”</strong></td>
+        <td>Nenhum dos times da partida se chama <strong>Vôlei Prudente</strong>. Renomeie sua equipe na tela de Times (seção 4).</td>
+      </tr>
+      <tr>
+        <td><strong>“Não consigo editar um torneio da Agenda.”</strong></td>
+        <td>Editar/excluir na tela inicial só existe para torneios ao vivo. Abra o torneio e use <span class="b claro">Gerenciar</span> lá dentro.</td>
+      </tr>
+      <tr>
+        <td><strong>“Meu torneio não aparece em ‘Ao vivo agora’.”</strong></td>
+        <td>O estado vem das datas. Se hoje está fora do período, ele fica em “Em breve” ou “Finalizado”, na Agenda.</td>
+      </tr>
+      <tr>
+        <td><strong>“A classificação está vazia.”</strong></td>
+        <td>Ela só conta partidas <strong>finalizadas</strong>. Finalize ao menos um jogo.</td>
+      </tr>
+      <tr>
+        <td><strong>“O placar não sobe.”</strong></td>
+        <td>Ou o set está encerrado (reabra), ou o set já está decidido (encerre-o). A linha de situação, abaixo do placar, diz qual é o caso.</td>
+      </tr>
+      <tr>
+        <td><strong>“Digitei o número da camisa e nada aconteceu.”</strong></td>
+        <td>O número precisa ser digitado <strong>segurando o Ctrl</strong>. Sem o Ctrl, os números de 1 a 6 são interpretados como qualidade.</td>
+      </tr>
+      <tr>
+        <td><strong>“O sistema não aceita a ação daquele jogador.”</strong></td>
+        <td>Só quem está <strong>em quadra</strong> recebe ação. Abra <span class="b claro">Escalação</span> e confira, ou faça a substituição.</td>
+      </tr>
+      <tr>
+        <td><strong>“Apareceram jogadores de outro time na escalação.”</strong></td>
+        <td>Comportamento atual: o elenco é único e não há vínculo jogador–time. Ajuste manualmente na tela de Escalação.</td>
+      </tr>
+      <tr>
+        <td><strong>“Reabri um set e o placar de sets mudou sozinho.”</strong></td>
+        <td>Correto: os sets ganhos são contados a partir dos sets encerrados. Ao reabrir, aquele set deixa de contar até ser encerrado de novo.</td>
+      </tr>
+      <tr>
+        <td><strong>“Fechei a janela de estatísticas e perdi o que editei.”</strong></td>
+        <td>No modo Encerramento, <span class="b claro">Cancelar</span> desfaz tudo de propósito. Use <span class="b verde">Confirmar resultado</span> para gravar.</td>
+      </tr>
+      <tr>
+        <td><strong>“Cliquei em Exportar e não aconteceu nada.”</strong></td>
+        <td>Esse botão não tem função nesta versão. Use os botões de relatório.</td>
+      </tr>
+      <tr>
+        <td><strong>“O aplicativo travou / fechou sozinho.”</strong></td>
+        <td>Reabra: nada se perde, tudo é gravado na hora. Depois envie o relato com o que estava fazendo (seção 20).</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>19. Roteiro de teste sugerido</h2>
+  <p>
+    Um caminho que passa por tudo o que existe hoje. Percorrê-lo inteiro, anotando o que incomodar, já é um
+    retorno muito útil.
+  </p>
+  <ol>
+    <li>Instalar e abrir o app. <em>Abriu sem erro? Demorou quanto?</em></li>
+    <li>Criar uma categoria e um ginásio.</li>
+    <li>Criar dois times — <strong>um deles chamado Vôlei Prudente</strong> — e subir uma logo em um deles.</li>
+    <li>Cadastrar de 10 a 14 jogadores, com número, posição e foto; <strong>inclua um líbero</strong>.</li>
+    <li>Criar um torneio do tipo <em>Pontos + Mata-Mata</em>, com o período incluindo a data de hoje
+        (assim ele aparece em “Ao vivo agora”).</li>
+    <li>Abrir o torneio e criar uma partida entre os dois times, com data dentro do período.</li>
+    <li>Testar a validação: tentar salvar uma partida com data fora do período e com os dois times iguais.</li>
+    <li>Abrir a partida em <span class="b vermelho">Iniciar Controle</span>, ajustar a
+        <span class="b claro">Escalação</span> (6 em quadra) e clicar em
+        <span class="b verde">Iniciar Partida</span>.</li>
+    <li>Escoutar um set inteiro de verdade (ou acompanhando um jogo gravado): saques, recepções, ataques,
+        bloqueios e defesas, movimentando o placar dos dois lados.</li>
+    <li>Errar de propósito e corrigir de três formas: <kbd>Ctrl</kbd>+<kbd>Z</kbd>, lixeira na lista de
+        rallies e edição de ação na janela de estatísticas.</li>
+    <li>Fazer duas substituições, incluindo a volta do titular; tentar uma troca proibida para ver a mensagem.</li>
+    <li>Encerrar o set, conferir o placar, <span class="b claro">Reabrir set</span> e encerrar de novo.</li>
+    <li>Escoutar até o fim e finalizar a partida pela janela de encerramento.</li>
+    <li>Conferir as estatísticas: <em>os números batem com o que você digitou?</em></li>
+    <li>Voltar ao torneio e olhar a <strong>Classificação</strong> e o <strong>Chaveamento</strong>.</li>
+    <li>Criar uma segunda partida <strong>sem</strong> o Vôlei Prudente e registrar o resultado por
+        <span class="b vermelho">Resultado / Sets</span>.</li>
+    <li>Salvar em PDF pelo menos cinco relatórios diferentes e abrir cada um.</li>
+    <li>Fechar o app, abrir de novo e verificar se tudo continua lá.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>20. Como enviar o retorno</h2>
+  <p>Para cada problema ou incômodo, o mais útil é registrar:</p>
+  <ul>
+    <li><strong>Em que tela</strong> aconteceu (ex.: “tela do jogo, painel da direita, durante o set 2”).</li>
+    <li><strong>O que você fez</strong>, na ordem — de preferência algo que dê para repetir.</li>
+    <li><strong>O que esperava</strong> que acontecesse e <strong>o que aconteceu</strong>.</li>
+    <li>Um <strong>print da tela</strong> (<kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> recorta e copia).</li>
+    <li>Se for erro de número, <strong>qual número apareceu</strong> e qual deveria aparecer.</li>
+  </ul>
+  <p>Além dos defeitos, estas perguntas ajudam muito:</p>
+  <ul>
+    <li>A digitação acompanha o ritmo do jogo? Faltou algum atalho?</li>
+    <li>Falta algum fundamento, alguma informação ou alguma coluna nos relatórios?</li>
+    <li>O nome fixo “Vôlei Prudente” atrapalha o seu uso?</li>
+    <li>Qual tela deveria ser a próxima a melhorar?</li>
+  </ul>
+  <div class="caixa">
+    <div class="titulo">Se algo quebrar feio</div>
+    Feche o app, compacte a pasta <code>C:\Users\SEU-USUÁRIO\AppData\Roaming\volleystats</code> e envie
+    junto com o relato: ela contém o banco de dados no estado exato em que o problema aconteceu.
+  </div>
+</section>
+
+<p class="rodape-nota" style="margin-top:22px; border-top:1px solid #e5e5e5; padding-top:10px;">
+  VolleyStats 1.0.0 — versão de avaliação, distribuída para teste. Documento gerado a partir do próprio
+  código do aplicativo; a tabela de qualidade da seção 14 reproduz exatamente a escala usada pelo sistema.
+</p>
+
+</body>
+</html>
