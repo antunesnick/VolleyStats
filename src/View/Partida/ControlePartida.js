@@ -3,6 +3,7 @@
   import { VENCEDOR } from '../../Model/Ponto';
 import { avaliarPartida, avaliarSet, normalizarSetsParaVencer, podeIncrementar, totalDeSets } from '../../Model/RegrasSet';
 import {
+  FUNDAMENTOS,
   FUNDAMENTO_PARA_TIPO_ACAO,
   TECLA_PARA_FUNDAMENTO,
   TECLA_PARA_QUALIDADE,
@@ -10,9 +11,13 @@ import {
   nomeQualidade,
   rotularQualidade,
 } from '../../Model/Qualidade';
+
+// Os fundamentos vem sem acento do Model; na tela eles voltam acentuados.
+const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
   import PlayerControl from '../../Control/PlayerControl';
   import SubstituicaoControl from '../../Control/SubstituicaoControl';
   import TimesPartidaControl from '../../Control/TimesPartidaControl';
+  import AcaoAdversarioControl from '../../Control/AcaoAdversarioControl';
    import { ArrowLeft, ChevronDown, LayoutGrid, Play, Square, Download, Trash2,RefreshCw, MapPin, AlertCircle, CheckCircle,HelpCircle,X} from 'lucide-react';
   import { useHotkeys } from 'react-hotkeys-hook';
   import EstatisticaView from './EstatisticaView';
@@ -135,6 +140,10 @@ import {
     const [setsDaPartida, setSetsDaPartida] = useState([]);
     const [pontosDoSet, setPontosDoSet] = useState([]);
     const [substituicoesDoSet, setSubstituicoesDoSet] = useState([]);
+    // Scout do adversario: acoes do set aberto e o resumo acumulado da partida.
+    const [acoesAdversarioDoSet, setAcoesAdversarioDoSet] = useState([]);
+    const [resumoAdversario, setResumoAdversario] = useState(null);
+    const [escopoAdversario, setEscopoAdversario] = useState('set');
     const [showSubstituicao, setShowSubstituicao] = useState(false);
     const [showFinalizarPartida, setShowFinalizarPartida] = useState(false);
   const [selectedFieldPlayer, setSelectedFieldPlayer] = useState(null);
@@ -321,6 +330,9 @@ import {
         if (ultimo.tipo === 'acao') {
           PontoControl.getInstance().removerAcao(ultimo.acaoId);
           carregarDadosDoSet(currentSetRef.current);
+        } else if (ultimo.tipo === 'acaoAdversario') {
+          AcaoAdversarioControl.getInstance().remover(ultimo.acaoAdversarioId);
+          carregarDadosDoSet(currentSetRef.current);
         } else if (!aplicarPonto(ultimo.side, -ultimo.delta, { registrarUndo: false })) {
           // aplicarPonto ja explicou o motivo; a pilha fica como estava.
           return;
@@ -336,15 +348,59 @@ import {
 
     useHotkeys('ctrl+z', (event) => { event.preventDefault(); desfazerUltimoLance(); }, { enableOnFormTags: false });
 
-    const [buffer, setBuffer] = useState({ numero: '', acao: '', qualidade: '' });
+    /**
+     * Buffer do scout.
+     *
+     * `alvo` diz de qual lado da rede e a acao que esta sendo digitada:
+     * 'nossa' (Ctrl + numero) ou 'adversario' (Alt + numero). O modificador do
+     * PRIMEIRO digito decide o alvo do lance inteiro.
+     */
+    const BUFFER_VAZIO = { numero: '', acao: '', qualidade: '', alvo: 'nossa' };
+    const [buffer, setBuffer] = useState(BUFFER_VAZIO);
+
+    /**
+     * O digito da tecla, independente do layout.
+     *
+     * `event.key` com um modificador segurado nem sempre e o digito (em alguns
+     * layouts o Alt muda o caractere gerado). `event.code` e fisico: Digit1 e a
+     * tecla 1 em qualquer teclado.
+     */
+    const digitoDaTecla = (event) => {
+      const fisico = String(event.code || '').match(/^(?:Digit|Numpad)(\d)$/);
+      if (fisico) return fisico[1];
+      return /^\d$/.test(event.key) ? event.key : null;
+    };
+
+    /**
+     * Um digito da camisa, com o alvo definido pelo modificador.
+     *
+     * Alt = adversario e a mesma convencao que o placar ja usa (Shift+Seta e a
+     * nossa equipe, Alt+Seta e o adversario), entao nao ha um segundo mapa de
+     * teclas para o analista decorar no meio do rally. Alt+digito tambem nao
+     * colide com nada: os atalhos de placar sao Alt+Seta, e a qualidade
+     * (estagio 3) e digito sem modificador nenhum.
+     */
+    const digitarCamisa = (digito, alvo) => {
+      if (!digito) return;
+      setBuffer((prev) => {
+        if (prev.acao) return prev;
+        // O alvo e do lance, nao do digito: quem manda e o primeiro apertado.
+        const alvoDoLance = prev.numero ? prev.alvo : alvo;
+        if (prev.numero.length >= 3) return { ...prev, alvo: alvoDoLance };
+        return { ...prev, numero: prev.numero + digito, alvo: alvoDoLance };
+      });
+    };
 
     useHotkeys('ctrl+1, ctrl+2, ctrl+3, ctrl+4, ctrl+5, ctrl+6, ctrl+7, ctrl+8, ctrl+9, ctrl+0', (event) => {
       event.preventDefault(); 
-      const num = event.key;
-      setBuffer((prev) => {
-            if (prev.numero.length >= 3 || prev.acao) return prev;
-        return { ...prev, numero: prev.numero + num };
-      });
+      digitarCamisa(digitoDaTecla(event), 'nossa');
+    }, { enableOnFormTags: false }, [buffer])
+
+    // Mesmo fluxo, do outro lado da rede. A camisa 0 vale como "adversario nao
+    // identificado": o analista nem sempre consegue ler o numero a tempo.
+    useHotkeys('alt+1, alt+2, alt+3, alt+4, alt+5, alt+6, alt+7, alt+8, alt+9, alt+0', (event) => {
+      event.preventDefault();
+      digitarCamisa(digitoDaTecla(event), 'adversario');
     }, { enableOnFormTags: false }, [buffer])
 
     // 2. Soltou o Control e digitou o fundamento (S=Saque, A=Ataque, B=Bloqueio, R=Recepção, D=Defesa)
@@ -368,67 +424,105 @@ import {
       if (!qualidade) return;
 
       if (setEncerradoRef.current) {
-        alert(`Set ${currentSetRef.current} está encerrado. Reabra o set para registrar ações.`);
-        setBuffer({ numero: '', acao: '', qualidade: '' });
+        mostrarAviso('erro', `Set ${currentSetRef.current} está encerrado. Reabra o set para registrar ações.`);
+        setBuffer(BUFFER_VAZIO);
         return;
       }
 
-      const idTipoAcao = FUNDAMENTO_PARA_TIPO_ACAO[TECLA_PARA_FUNDAMENTO[buffer.acao]];
+      const fundamento = TECLA_PARA_FUNDAMENTO[buffer.acao];
+      const idTipoAcao = FUNDAMENTO_PARA_TIPO_ACAO[fundamento];
+
+      if (!partida?.id) {
+        setBuffer(BUFFER_VAZIO);
+        return;
+      }
+
+      // Set e placar vem dos refs: os handlers do scout sao memoizados por
+      // [buffer], entao o valor da renderizacao pode estar atrasado.
+      const numSet = parseInt(currentSetRef.current);
+      const placar = scoreRef.current;
+
+      // Lance do adversario: nao ha atleta cadastrado do outro lado da rede, o
+      // registro e pela camisa lida na quadra e vai para a tabela propria.
+      if (buffer.alvo === 'adversario') {
+        try {
+          const numCamisa = Number(buffer.numero);
+          const acaoAdversarioId = AcaoAdversarioControl.getInstance().gravar({
+            partidaId: parseInt(partida.id),
+            numSet,
+            pontoTime1: placar.home,
+            pontoTime2: placar.away,
+            // 0 e a convencao para "nao identificado".
+            numCamisa: numCamisa > 0 ? numCamisa : null,
+            idTipoAcao,
+            qualidade,
+          });
+
+          empilharUndo({
+            tipo: 'acaoAdversario',
+            acaoAdversarioId,
+            numSet,
+            descricao: `ADV #${buffer.numero} ${buffer.acao}${qualidade}`,
+          });
+
+          carregarDadosDoSet(numSet);
+        } catch (error) {
+          mostrarAviso('erro', `Erro ao registrar ação do adversário: ${error.message}`);
+        }
+
+        setBuffer(BUFFER_VAZIO);
+        return;
+      }
+
       const normalizarCamisa = (value) => String(value || '').replace(/^0+/, '') || '0';
       const jogador = players.find((p) => normalizarCamisa(p.numero) === normalizarCamisa(buffer.numero));
 
       if (!jogador) {
-        alert('Jogador não encontrado para o número: ' + buffer.numero);
-        setBuffer({ numero: '', acao: '', qualidade: '' });
+        mostrarAviso('erro', `Nenhum atleta da equipe com a camisa ${buffer.numero}. Para o adversário use Alt + número.`);
+        setBuffer(BUFFER_VAZIO);
         return;
       }
 
       try {
-        if (partida?.id) {
-          // Set e placar vem dos refs: os handlers do scout sao memoizados por
-          // [buffer], entao o valor da renderizacao pode estar atrasado.
-          const numSet = parseInt(currentSetRef.current);
-          const placar = scoreRef.current;
+        const ponto = PontoControl.getInstance().gravarPonto(
+          { ...partida, id: parseInt(partida.id) },
+          numSet,
+          placar.home,
+          placar.away,
+          jogador,
+          { idTipoAcao },
+          qualidade
+        );
 
-          const ponto = PontoControl.getInstance().gravarPonto(
-            { ...partida, id: parseInt(partida.id) },
+        const acaoId = ponto?.ultimaAcaoGravada?.();
+        if (acaoId) {
+          empilharUndo({
+            tipo: 'acao',
+            acaoId,
             numSet,
-            placar.home,
-            placar.away,
-            jogador,
-            { idTipoAcao },
-            qualidade
-          );
-
-          const acaoId = ponto?.ultimaAcaoGravada?.();
-          if (acaoId) {
-            empilharUndo({
-              tipo: 'acao',
-              acaoId,
-              numSet,
-              descricao: `#${jogador.numero} ${buffer.acao}${qualidade}`,
-            });
-          }
-
-          carregarDadosDoSet(numSet); // Atualiza a barra lateral
+            descricao: `#${jogador.numero} ${buffer.acao}${qualidade}`,
+          });
         }
+
+        carregarDadosDoSet(numSet); // Atualiza a barra lateral
       } catch (error) {
-        alert('Erro ao registrar ponto: ' + error.message);
+        mostrarAviso('erro', `Erro ao registrar ação: ${error.message}`);
       }
 
       // Limpa o buffer para o próximo rally
-      setBuffer({ numero: '', acao: '', qualidade: '' });
-    }, { enableOnFormTags: false }, [buffer]);
+      setBuffer(BUFFER_VAZIO);
+    }, { enableOnFormTags: false }, [buffer, players]);
 
     useHotkeys('esc', () => {
       if (showHelpModal) {
         setShowHelpModal(false);
         return;
       }
-      setBuffer({ numero: '', acao: '', qualidade: '' });
+      setBuffer(BUFFER_VAZIO);
     });
 
     const estaDigitando = buffer.numero.length > 0;
+    const escoutandoAdversario = buffer.alvo === 'adversario';
 
     const currentSetRef = useRef(currentSet);
     useEffect(() => { currentSetRef.current = currentSet; }, [currentSet]);
@@ -480,6 +574,13 @@ import {
       setSubstituicoesDoSet(
         SubstituicaoControl.getInstance().buscarSubstituicoesDoSet(partidaId, set)
       );
+
+      const adversarioControl = AcaoAdversarioControl.getInstance();
+      setAcoesAdversarioDoSet(adversarioControl.buscarPorSet(partidaId, set));
+      setResumoAdversario({
+        set: adversarioControl.resumo(partidaId, set),
+        partida: adversarioControl.resumo(partidaId, null),
+      });
     } catch (error) {
       console.error('Erro ao carregar dados do set:', error.message);
       alert(`Erro ao carregar set ${numSet}: ${error.message}`);
@@ -755,6 +856,35 @@ const handleExcluirAcao = (acao) => {
   }
 };
 
+const handleExcluirAcaoAdversario = (acao) => {
+  const camisa = acao.numCamisa == null ? 'não identificado' : `#${acao.numCamisa}`;
+  if (!window.confirm(`Excluir ação do adversário ${camisa}? (${acao.tipoAcaoNome} - ${rotularQualidade(acao.tipoAcaoNome, acao.qualidade)})`)) return;
+  try {
+    AcaoAdversarioControl.getInstance().remover(acao.id);
+    carregarDadosDoSet(currentSet);
+  } catch (error) {
+    mostrarAviso('erro', `Erro ao excluir ação do adversário: ${error.message}`);
+  }
+};
+
+/**
+ * Acoes do adversario indexadas pelo rally, para aparecerem dentro do mesmo
+ * cartao do rally no painel - a leitura do lance so faz sentido com os dois
+ * lados juntos.
+ */
+const acoesAdversarioPorRally = useMemo(() => {
+  const mapa = new Map();
+  acoesAdversarioDoSet.forEach((acao) => {
+    const chave = `${acao.pontoTime1}-${acao.pontoTime2}`;
+    if (!mapa.has(chave)) mapa.set(chave, []);
+    mapa.get(chave).push(acao);
+  });
+  return mapa;
+}, [acoesAdversarioDoSet]);
+
+/** Resumo exibido: o set aberto ou a partida inteira. */
+const resumoAdversarioAtivo = resumoAdversario?.[escopoAdversario] || null;
+
     const addPlayerToEscalacao = async (player, section) => {
       const timePartida = timesPartidaRef.current.home;
       if (!timePartida) return;
@@ -989,15 +1119,21 @@ const handleExcluirAcao = (acao) => {
 
        {estaDigitando && (
         <div className="fixed bottom-8 left-8 z-[10000] pointer-events-none transition-all">
-          <div className="bg-slate-900 text-white px-6 py-5 rounded-3xl shadow-2xl border border-slate-700 flex flex-col items-start animate-in slide-in-from-bottom-6 fade-in duration-200">
-            <p className="text-[10px] uppercase tracking-[0.25em] font-bold text-slate-400 mb-2 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-              Registrando Scout
+          <div className={`bg-slate-900 text-white px-6 py-5 rounded-3xl shadow-2xl border flex flex-col items-start animate-in slide-in-from-bottom-6 fade-in duration-200 ${
+            escoutandoAdversario ? 'border-orange-500' : 'border-slate-700'
+          }`}>
+            {/* De qual lado da rede e o lance. Sem isso o analista so descobre
+                depois de gravar - e a correcao custa mais que a digitacao. */}
+            <p className="text-[10px] uppercase tracking-[0.25em] font-bold mb-2 flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full animate-pulse ${escoutandoAdversario ? 'bg-orange-500' : 'bg-red-500'}`}></span>
+              <span className={escoutandoAdversario ? 'text-orange-400' : 'text-slate-400'}>
+                {escoutandoAdversario ? `Scout do adversário — ${awayLabel}` : `Scout — ${homeLabel}`}
+              </span>
             </p>
             
             <div className="text-5xl font-black font-mono tracking-tighter flex items-center gap-3">
               {/* Número */}
-              <span className="text-red-500 min-w-[1ch]">
+              <span className={`min-w-[1ch] ${escoutandoAdversario ? 'text-orange-500' : 'text-red-500'}`}>
                 {buffer.numero}
               </span>
               
@@ -1014,9 +1150,15 @@ const handleExcluirAcao = (acao) => {
 
             <p className="mt-3 text-[11px] font-medium text-slate-500">
               {!buffer.acao
-                ? "Solte Ctrl + Ação (S, A, B, R, D)"
+                ? `Solte ${escoutandoAdversario ? 'Alt' : 'Ctrl'} + Ação (S, A, B, R, D)`
                 : `Qualidade de ${TECLA_PARA_FUNDAMENTO[buffer.acao]} (teclas 1 a 6)`}
             </p>
+
+            {escoutandoAdversario && buffer.numero === '0' && (
+              <p className="mt-1 text-[11px] font-bold text-orange-400">
+                Camisa 0 = adversário não identificado.
+              </p>
+            )}
 
             {/* A escala é a mesma nos cinco fundamentos, o significado não.
                 A legenda evita que o analista decore cinco mapas no meio do rally. */}
@@ -1333,6 +1475,112 @@ const handleExcluirAcao = (acao) => {
 
             {/* Pontos do Set */}
 <div className="flex-1 overflow-auto p-6 bg-gray-50/30">
+
+  {/* Scout do adversario.
+      A leitura que o analista procura aqui e "onde o adversario entrega
+      ponto": erro de ataque, erro de saque, invasao de bloqueio. Por isso a
+      coluna de destaque e a de erros DELE, que sao os pontos que ganhamos. */}
+  {resumoAdversarioAtivo && (
+    <div className="mb-5 rounded-2xl border border-orange-100 bg-orange-50/60 p-4">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-600 truncate">
+          Adversário — {awayLabel}
+        </h3>
+        <div className="flex rounded-full bg-white border border-orange-200 p-0.5 shrink-0">
+          {[
+            { id: 'set', rotulo: `Set ${currentSet}` },
+            { id: 'partida', rotulo: 'Partida' },
+          ].map((opcao) => (
+            <button
+              key={opcao.id}
+              type="button"
+              onClick={() => setEscopoAdversario(opcao.id)}
+              className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-colors ${
+                escopoAdversario === opcao.id
+                  ? 'bg-orange-500 text-white'
+                  : 'text-orange-500 hover:bg-orange-50'
+              }`}
+            >
+              {opcao.rotulo}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {resumoAdversarioAtivo.totais.total === 0 ? (
+        <p className="text-[11px] font-medium text-orange-700/70">
+          Nenhuma ação do adversário registrada. Use <strong>Alt + número</strong> da camisa,
+          depois o fundamento e a qualidade.
+        </p>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="rounded-xl bg-white border border-emerald-100 px-2 py-2 text-center">
+              <p className="text-[9px] font-black uppercase tracking-wider text-emerald-600">Erros dele</p>
+              <p className="text-xl font-black text-emerald-600">{resumoAdversarioAtivo.totais.erros}</p>
+            </div>
+            <div className="rounded-xl bg-white border border-orange-100 px-2 py-2 text-center">
+              <p className="text-[9px] font-black uppercase tracking-wider text-orange-500">Pontos dele</p>
+              <p className="text-xl font-black text-orange-500">{resumoAdversarioAtivo.totais.pontos}</p>
+            </div>
+            <div className="rounded-xl bg-white border border-gray-100 px-2 py-2 text-center">
+              <p className="text-[9px] font-black uppercase tracking-wider text-gray-400">Ações</p>
+              <p className="text-xl font-black text-gray-700">{resumoAdversarioAtivo.totais.total}</p>
+            </div>
+          </div>
+
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="text-[9px] font-black uppercase tracking-wider text-orange-500/80">
+                <th className="text-left pb-1">Fundamento</th>
+                <th className="text-center pb-1">Tot</th>
+                <th className="text-center pb-1">Pts</th>
+                <th className="text-center pb-1">Err</th>
+              </tr>
+            </thead>
+            <tbody>
+              {FUNDAMENTOS.map((fundamento) => {
+                const linha = resumoAdversarioAtivo.porNome[fundamento];
+                return (
+                  <tr key={fundamento} className="border-t border-orange-100/70">
+                    <td className="py-1 font-bold text-gray-700">
+                      {ROTULO_FUNDAMENTO[fundamento] || fundamento}
+                    </td>
+                    <td className="py-1 text-center font-bold text-gray-500">{linha?.total || 0}</td>
+                    <td className="py-1 text-center font-black text-orange-500">{linha?.pontos || 0}</td>
+                    <td className="py-1 text-center font-black text-emerald-600">{linha?.erros || 0}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {resumoAdversarioAtivo.porCamisa.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-orange-100">
+              <p className="text-[9px] font-black uppercase tracking-wider text-orange-500/80 mb-1.5">
+                Por camisa
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {resumoAdversarioAtivo.porCamisa.map((item) => (
+                  <span
+                    key={item.numCamisa ?? 'sem-camisa'}
+                    title={`${item.total} ação(ões) · ${item.pontos} ponto(s) · ${item.erros} erro(s)`}
+                    className="rounded-full bg-white border border-orange-200 px-2.5 py-1 text-[10px] font-bold text-gray-700"
+                  >
+                    {item.numCamisa == null ? 'S/N' : `#${item.numCamisa}`}
+                    <span className="ml-1 text-orange-500">{item.pontos}</span>
+                    <span className="mx-0.5 text-gray-300">/</span>
+                    <span className="text-emerald-600">{item.erros}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )}
+
   <div className="flex items-center justify-between mb-4">
     <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500">
       Pontos — Set {currentSet}
@@ -1397,6 +1645,36 @@ const handleExcluirAcao = (acao) => {
                           : 'Sem atleta'}
                       </span>
                     </div>
+
+                    {/* Ações do adversário no mesmo rally */}
+                    {(acoesAdversarioPorRally.get(`${ponto.pontoTime1}-${ponto.pontoTime2}`) || []).length > 0 && (
+                      <div className="mt-1 pt-2 border-t border-orange-100 flex flex-col gap-1.5">
+                        {acoesAdversarioPorRally.get(`${ponto.pontoTime1}-${ponto.pontoTime2}`).map((acao) => (
+                          <div key={`adv-${acao.id}`} className="flex justify-between items-center text-xs text-orange-700 bg-orange-50/70 p-1.5 rounded-lg">
+                            <span className="font-medium truncate pr-2">
+                              ADV {acao.numCamisa == null ? 'S/N' : String(acao.numCamisa).padStart(2, '0')}
+                            </span>
+                            <div className="flex gap-2 items-center flex-shrink-0">
+                              <span className="font-bold text-orange-900">{acao.tipoAcaoNome}</span>
+                              <span
+                                className="font-bold bg-white border border-orange-200 px-2 py-0.5 rounded text-10px shadow-sm whitespace-nowrap"
+                                title={rotularQualidade(acao.tipoAcaoNome, acao.qualidade)}
+                              >
+                                {nomeQualidade(acao.qualidade)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleExcluirAcaoAdversario(acao)}
+                                className="w-5 h-5 rounded-md bg-red-50 hover:bg-red-500 text-red-400 hover:text-white flex items-center justify-center transition-all active:scale-90"
+                                title="Excluir ação do adversário"
+                              >
+                                <Trash2 size={10} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Lista de Ações ocorridas neste ponto */}
                     {ponto.acoes && ponto.acoes.length > 0 && (

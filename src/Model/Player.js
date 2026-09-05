@@ -2,7 +2,21 @@ import { sqlContagemPorResultado, sqlEhPonto } from './SqlQualidade';
 import { bucketDoResultado, criarContagemPorBucket } from './Qualidade';
 // Substituído require() por import para harmonizar com o export default no final
 import { cpf } from 'cpf-cnpj-validator';
+import Ponto from './Ponto';
 import db from '../db/db';
+
+/**
+ * Campo opcional com UNIQUE: vazio precisa virar NULL.
+ *
+ * `Jogadores.cpf` e `Jogadores.rg` sao UNIQUE. No SQLite dois NULL sao
+ * distintos, mas duas strings vazias nao - entao o segundo cadastro sem CPF
+ * estourava "UNIQUE constraint failed" como se o documento ja existisse.
+ * Normalizar na entrada e o que permite cadastrar varios atletas sem documento.
+ */
+export function normalizarDocumento(valor) {
+  const texto = String(valor ?? '').trim();
+  return texto === '' ? null : texto;
+}
 
 const ACTION_TYPES = ['Saque', 'Ataque', 'Bloqueio', 'Recepcao', 'Defesa'];
 
@@ -48,20 +62,29 @@ class Player {
   // Adicionado categoriaId
   constructor(id, cpfNumero, nome, dataNasc, numCamisa, rg, altura, posicaoId, foto, categoriaId = null) {
     this.id = id;
-    this.cpf = cpfNumero;
+    // CPF e RG sao UNIQUE e opcionais: string vazia colide, NULL nao.
+    this.cpf = normalizarDocumento(cpfNumero);
     this.nome = nome;
     this.dataNasc = dataNasc;
     this.numCamisa = numCamisa;
-    this.rg = rg;
+    this.rg = normalizarDocumento(rg);
     this.altura = altura;
     this.posicaoId = posicaoId;
     this.foto = foto;
     this.categoriaId = categoriaId; 
   }
 
+    /**
+     * CPF em branco e valido: o campo e opcional.
+     *
+     * Passa por `normalizarDocumento` de proposito - um campo so com espacos e
+     * "vazio" para o usuario, mas era truthy aqui e caia no validador, que o
+     * recusava como CPF invalido.
+     */
     validarCPF(cpfString) {
-      if (!cpfString) return true;
-      return cpf.isValid(cpfString);
+      const documento = normalizarDocumento(cpfString);
+      if (!documento) return true;
+      return cpf.isValid(documento);
     }
 
   static buscarJogador(jogadorId) {
@@ -92,13 +115,89 @@ class Player {
     }
   }
 
+  /**
+   * O que ficaria orfao se o atleta fosse apagado.
+   *
+   * A tela usa isso para dizer ao usuario, ANTES de confirmar, quanto de
+   * historico a exclusao leva junto.
+   */
+  static contarVinculos(id, db) {
+    const jogadorId = Number(id);
+    const contar = (sql, ...params) => Number(db.prepare(sql).get(...params)?.total) || 0;
+
+    const acoes = contar('SELECT COUNT(*) AS total FROM Acao WHERE Jogador_id = ?', jogadorId);
+    const partidas = contar(
+      `SELECT COUNT(DISTINCT Ponto_Partida_id) AS total
+       FROM Acao WHERE Jogador_id = ? AND Ponto_Partida_id IS NOT NULL`,
+      jogadorId
+    );
+    const escalacoes = contar(
+      'SELECT COUNT(*) AS total FROM TimesPartida WHERE Jogadores_id = ?',
+      jogadorId
+    );
+    const substituicoes = contar(
+      'SELECT COUNT(*) AS total FROM Substituicao WHERE JogadorEntra = ? OR JogadorSai = ?',
+      jogadorId,
+      jogadorId
+    );
+    const pontos = contar('SELECT COUNT(*) AS total FROM Ponto WHERE Jogador_id = ?', jogadorId);
+
+    return {
+      acoes,
+      partidas,
+      escalacoes,
+      substituicoes,
+      pontos,
+      total: acoes + escalacoes + substituicoes + pontos,
+    };
+  }
+
+  /**
+   * Exclusao do atleta com a cascata feita a mao.
+   *
+   * `Acao.Jogador_id`, `Ponto.Jogador_id` e `Substituicao` referenciam
+   * `Jogadores` sem ON DELETE, e o banco roda com `foreign_keys = ON`: apagar
+   * direto um atleta que ja foi escoutado estourava "FOREIGN KEY constraint
+   * failed" e o card simplesmente nao sumia da tela.
+   *
+   * A ordem importa. Os rallies em que o atleta agiu sao guardados ANTES de
+   * apagar as acoes, porque depois nao ha mais como saber quais eram - e o dono
+   * de cada um precisa ser recalculado a partir das acoes que sobraram, senao
+   * o rally ficaria sem dono mesmo tendo outro atleta na jogada.
+   */
   deletePlayer(id, db) {
-    try { 
-      const sql = db.prepare('DELETE FROM Jogadores WHERE id = ?');
-      sql.run(id);
-    } catch (e) {
-      throw e;
-    }
+    const jogadorId = Number(id);
+
+    const ralliesAfetados = db.prepare(`
+      SELECT DISTINCT
+        Ponto_Partida_id AS partidaId,
+        Ponto_NumSet AS numSet,
+        Ponto_pontoTime1 AS pontoTime1,
+        Ponto_pontoTime2 AS pontoTime2
+      FROM Acao
+      WHERE Jogador_id = ?
+        AND Ponto_Partida_id IS NOT NULL
+        AND Ponto_NumSet IS NOT NULL
+    `).all(jogadorId);
+
+    db.prepare('DELETE FROM Substituicao WHERE JogadorEntra = ? OR JogadorSai = ?')
+      .run(jogadorId, jogadorId);
+    db.prepare('DELETE FROM Acao WHERE Jogador_id = ?').run(jogadorId);
+    db.prepare('DELETE FROM TimesPartida WHERE Jogadores_id = ?').run(jogadorId);
+    db.prepare('UPDATE Ponto SET Jogador_id = NULL WHERE Jogador_id = ?').run(jogadorId);
+
+    ralliesAfetados.forEach((rally) => {
+      Ponto.sincronizarDonoDoPonto(
+        rally.partidaId,
+        rally.numSet,
+        rally.pontoTime1,
+        rally.pontoTime2,
+        db
+      );
+    });
+
+    const info = db.prepare('DELETE FROM Jogadores WHERE id = ?').run(jogadorId);
+    return { success: info.changes > 0, changes: info.changes };
   }
 
   updatePlayer(db) {

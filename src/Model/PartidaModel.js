@@ -162,6 +162,7 @@ class PartidaModel {
 
         db.prepare('DELETE FROM Substituicao WHERE Ponto_Partida_id = ?').run(partidaId);
         db.prepare('DELETE FROM Acao WHERE Ponto_Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM AcaoAdversario WHERE Partida_id = ?').run(partidaId);
         db.prepare('DELETE FROM Ponto WHERE Set_Partida_id = ?').run(partidaId);
         db.prepare('DELETE FROM "Set" WHERE Partida_id = ?').run(partidaId);
         db.prepare('DELETE FROM TimesPartida WHERE Partida_id = ?').run(partidaId);

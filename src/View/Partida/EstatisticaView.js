@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import EstatisticaControl from '../../Control/EstatisticaControl';
 import SubstituicaoControl from '../../Control/SubstituicaoControl';
+import AcaoAdversarioControl from '../../Control/AcaoAdversarioControl';
 import { Alertas } from '../../utils/Alertas';
 import {
   ESCALA,
+  FUNDAMENTOS,
   QUALIDADE_PARA_TECLA,
   TIPO_ACAO_PARA_FUNDAMENTO,
   descrever,
@@ -88,6 +90,107 @@ const ScoutResumo = ({ scout }) => {
   );
 };
 
+// Fundamentos vem sem acento do Model; na tela voltam acentuados.
+const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
+
+/**
+ * Scout do adversario.
+ *
+ * A escala de qualidade e sempre lida da perspectiva de quem executou a acao,
+ * entao "erro" aqui e erro DO ADVERSARIO - ou seja, ponto que a nossa equipe
+ * ganhou sem precisar de nada. E essa a coluna que o analista procura, por isso
+ * ela vem primeiro e em verde.
+ */
+const ResumoAdversario = ({ resumo, awayLabel }) => {
+  if (!resumo || resumo.totais.total === 0) {
+    return (
+      <div className="rounded-2xl border border-orange-100 bg-orange-50/60 p-5">
+        <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-2">
+          Adversario — {awayLabel}
+        </p>
+        <p className="text-sm font-medium text-orange-800/70">
+          Nenhuma acao do adversario registrada nesta partida. No scout ao vivo, use
+          {' '}<strong>Alt + numero</strong> da camisa para escoutar o outro lado da rede.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-orange-100 bg-orange-50/60 p-5">
+      <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-4">
+        Adversario — {awayLabel}
+      </p>
+
+      <div className="grid gap-3 sm:grid-cols-3 mb-4">
+        <div className="rounded-xl border border-emerald-100 bg-white px-4 py-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Erros do adversario</p>
+          <p className="mt-1 text-2xl font-black text-emerald-600">{resumo.totais.erros}</p>
+        </div>
+        <div className="rounded-xl border border-orange-100 bg-white px-4 py-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-orange-500">Pontos do adversario</p>
+          <p className="mt-1 text-2xl font-black text-orange-500">{resumo.totais.pontos}</p>
+        </div>
+        <div className="rounded-xl border border-gray-100 bg-white px-4 py-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Acoes escoutadas</p>
+          <p className="mt-1 text-2xl font-black text-gray-900">{resumo.totais.total}</p>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-orange-100 bg-white">
+        <table className="w-full min-w-[420px] text-left text-xs">
+          <thead className="bg-orange-100/70 text-orange-700">
+            <tr>
+              <th className="px-3 py-2 font-black uppercase tracking-widest">Fundamento</th>
+              <th className="px-3 py-2 text-center font-black uppercase tracking-widest">Total</th>
+              <th className="px-3 py-2 text-center font-black uppercase tracking-widest">Pontos dele</th>
+              <th className="px-3 py-2 text-center font-black uppercase tracking-widest">Erros dele</th>
+              <th className="px-3 py-2 text-center font-black uppercase tracking-widest">Neutras</th>
+            </tr>
+          </thead>
+          <tbody>
+            {FUNDAMENTOS.map((fundamento) => {
+              const linha = resumo.porNome[fundamento];
+              return (
+                <tr key={fundamento} className="border-b border-orange-50 last:border-0">
+                  <td className="px-3 py-2 font-black text-gray-900">
+                    {ROTULO_FUNDAMENTO[fundamento] || fundamento}
+                  </td>
+                  <td className="px-3 py-2 text-center font-bold text-gray-600">{linha?.total || 0}</td>
+                  <td className="px-3 py-2 text-center font-black text-orange-500">{linha?.pontos || 0}</td>
+                  <td className="px-3 py-2 text-center font-black text-emerald-600">{linha?.erros || 0}</td>
+                  <td className="px-3 py-2 text-center font-bold text-gray-500">{linha?.neutras || 0}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {resumo.porCamisa.length > 0 && (
+        <div className="mt-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-orange-500 mb-2">
+            Por camisa (pontos / erros)
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {resumo.porCamisa.map((item) => (
+              <span
+                key={item.numCamisa ?? 'sem-camisa'}
+                className="rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-700"
+              >
+                {item.numCamisa == null ? 'Nao identificado' : `#${item.numCamisa}`}
+                <span className="ml-2 text-orange-500">{item.pontos}</span>
+                <span className="mx-1 text-gray-300">/</span>
+                <span className="text-emerald-600">{item.erros}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const getScoreInputValue = (value) => {
   if (value === '' || value === null || value === undefined || Number(value) === 0) {
     return '';
@@ -122,6 +225,7 @@ const EstatisticaView = ({
   const [statistics, setStatistics] = useState(initialState.statistics);
   const [statisticsError, setStatisticsError] = useState(initialState.statisticsError);
   const [substituicoesPorSet, setSubstituicoesPorSet] = useState({});
+  const [resumoAdversario, setResumoAdversario] = useState(null);
   const [playerSearch, setPlayerSearch] = useState('');
   const [playerSearchMode, setPlayerSearchMode] = useState('nome');
   const [pdfSaving, setPdfSaving] = useState(false);
@@ -197,6 +301,15 @@ const EstatisticaView = ({
       setStatisticsError(resumoState.statisticsError);
       setPlayerSearch('');
       setPlayerSearchMode('nome');
+
+      try {
+        setResumoAdversario(AcaoAdversarioControl.getInstance().resumo(partidaId, null));
+      } catch (error) {
+        // O resumo do adversario e complementar: falhar aqui nao pode derrubar
+        // o restante das estatisticas da partida.
+        console.error('Erro ao carregar o scout do adversario:', error);
+        setResumoAdversario(null);
+      }
     }
   }, [open, partidaId, resumoOnly, readOnly]);
 
@@ -414,6 +527,31 @@ const EstatisticaView = ({
       </tr>
     `);
 
+    // Scout do adversario. "Erros dele" e a coluna util: sao os pontos que a
+    // equipe ganhou sem precisar construir a jogada.
+    const linhasAdversario = FUNDAMENTOS.map((fundamento) => {
+      const linha = resumoAdversario?.porNome?.[fundamento];
+      return `
+        <tr>
+          <td><strong>${escapeHtml(ROTULO_FUNDAMENTO[fundamento] || fundamento)}</strong></td>
+          <td class="center">${linha?.total || 0}</td>
+          <td class="center">${linha?.pontos || 0}</td>
+          <td class="center emph">${linha?.erros || 0}</td>
+          <td class="center">${linha?.neutras || 0}</td>
+        </tr>
+      `;
+    });
+
+    const linhasAdversarioPorCamisa = (resumoAdversario?.porCamisa || []).map((item) => `
+      <tr>
+        <td><strong>${item.numCamisa == null ? 'Nao identificado' : `#${escapeHtml(item.numCamisa)}`}</strong></td>
+        <td class="center">${item.total}</td>
+        <td class="center">${item.pontos}</td>
+        <td class="center emph">${item.erros}</td>
+        <td class="center">${item.neutras}</td>
+      </tr>
+    `);
+
     const linhasSets = draftSets.map((setScore) => {
       const homeScore = getScoreNumber(setScore.home);
       const awayScore = getScoreNumber(setScore.away);
@@ -450,6 +588,7 @@ const EstatisticaView = ({
           { rotulo: 'Ataque pontos', valor: scout.ataque?.pontos || 0 },
           { rotulo: 'Ataque eff', valor: formatPercent(scout.ataque?.eficiencia) },
           { rotulo: 'Defesa +', valor: scout.defesa?.positivas || 0 },
+          { rotulo: 'Erros do adversario', valor: resumoAdversario?.totais?.erros || 0 },
         ])}
         ${blocoTabela({
           titulo: 'Scout detalhado por jogador',
@@ -472,6 +611,32 @@ const EstatisticaView = ({
           linhas: linhasJogadores,
           vazio: 'Nenhum scout registrado.',
         })}
+        ${blocoTabela({
+          titulo: `Scout do adversario (${escapeHtml(awayLabel)}) por fundamento`,
+          estreita: true,
+          colunas: [
+            'Fundamento',
+            { rotulo: 'Total', center: true },
+            { rotulo: 'Pontos dele', center: true },
+            { rotulo: 'Erros dele', center: true },
+            { rotulo: 'Neutras', center: true },
+          ],
+          linhas: resumoAdversario && resumoAdversario.totais.total > 0 ? linhasAdversario : [],
+          vazio: 'Nenhuma acao do adversario escoutada.',
+        })}
+        ${linhasAdversarioPorCamisa.length > 0 ? blocoTabela({
+          titulo: 'Scout do adversario por camisa',
+          estreita: true,
+          colunas: [
+            'Camisa',
+            { rotulo: 'Total', center: true },
+            { rotulo: 'Pontos dele', center: true },
+            { rotulo: 'Erros dele', center: true },
+            { rotulo: 'Neutras', center: true },
+          ],
+          linhas: linhasAdversarioPorCamisa,
+          vazio: 'Nenhuma acao do adversario escoutada.',
+        }) : ''}
         ${blocoTabela({
           titulo: 'Sets',
           estreita: true,
@@ -570,6 +735,8 @@ const EstatisticaView = ({
             </div>
 
             <ScoutResumo scout={statistics.totals.scout} />
+
+            <ResumoAdversario resumo={resumoAdversario} awayLabel={awayLabel} />
 
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="rounded-3xl border border-gray-100 bg-gray-50 p-6">

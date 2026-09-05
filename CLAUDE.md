@@ -61,7 +61,7 @@ Vitest, em `tests/`. Cada arquivo roda em processo próprio (`pool: 'forks'`) e 
 
 Use `tests/helpers/fixtures.js` para montar cenários. `resetarBanco()` no `beforeEach` dropa e recria o schema; `cenarioPartidaEscalada()` devolve uma partida com 6 titulares e 2 reservas já escalados, que é o que a maior parte dos testes de scout precisa.
 
-Os testes cobrem: atribuição de ponto a atleta, regras de substituição, limites de escalação, regras de pontuação de set/partida, a escala de qualidade (inclusive o acordo entre a versão JS e a versão SQL), validação de encerramento de partida, métricas de scout, CRUD de cadastros e cascata de exclusão de partida.
+Os testes cobrem: atribuição de ponto a atleta, regras de substituição, limites de escalação, regras de pontuação de set/partida, a escala de qualidade (inclusive o acordo entre a versão JS e a versão SQL), validação de encerramento de partida, métricas de scout, scout do adversário, CRUD de cadastros, cascata de exclusão de partida e cascata de exclusão de jogador.
 
 ## Arquitetura
 
@@ -86,7 +86,7 @@ A janela usa `nodeIntegration: true`, `contextIsolation: false`, `webSecurity: f
 1. **Via IPC** — handlers em `main.js`, expostos como `window.api`, `window.ElectronAPI`, `window.tournamentAPI`, `window.excelAPI`, `window.reportAPI`. Cobre Partidas, Torneios, Categorias, Ginásios, Excel e Relatórios.
 2. **Import direto do Control no componente React** — SQLite roda no processo de renderização.
 
-`PlayerControl`, `PontoControl`, `TimesControl`, `EstatisticaControl`, `PositionControl`, `SubstituicaoControl` e `TimesPartidaControl` **não têm rota IPC**; só funcionam pelo caminho 2. E a mesma entidade é acessada pelos dois caminhos dependendo da tela (categorias via `window.ElectronAPI` em `GerenciarCategorias.js`, via `CategoriaControl` em `PlayerRanking.js`).
+`PlayerControl`, `PontoControl`, `TimesControl`, `EstatisticaControl`, `PositionControl`, `SubstituicaoControl`, `TimesPartidaControl` e `AcaoAdversarioControl` **não têm rota IPC**; só funcionam pelo caminho 2. E a mesma entidade é acessada pelos dois caminhos dependendo da tela (categorias via `window.ElectronAPI` em `GerenciarCategorias.js`, via `CategoriaControl` em `PlayerRanking.js`).
 
 **Antes de corrigir um bug de dados, descubra por qual caminho aquela tela acessa o banco.** Migrar tudo para IPC é a próxima melhoria arquitetural relevante — hoje ela é viável porque a suíte de testes cobre a camada Model/Control.
 
@@ -102,7 +102,7 @@ catch (error) { console.error("... Rollback.", error); throw error; }
 
 ### Modelo de dados do scout
 
-19 tabelas em `src/db/db.js`. O núcleo:
+20 tabelas em `src/db/db.js`. O núcleo:
 
 ```
 Partidas ──< 'Set' (NumSet, Partida_id)
@@ -116,6 +116,8 @@ Partidas ──< 'Set' (NumSet, Partida_id)
 **`Ponto` não tem `id`.** A chave primária é o próprio placar — um rally é "o ponto em que o placar virou 15×12 no set 2 da partida 7". `Acao` e `Substituicao` referenciam essa chave composta de 4 colunas.
 
 Uma ação escoutada = uma linha em `Acao` = `{qual rally, qual jogador, qual tipo, qual qualidade}`. `TipoAcao` é fixo: `1=Saque, 2=Ataque, 3=Bloqueio, 4=Recepção, 5=Defesa`.
+
+O adversário fica em **`AcaoAdversario`**, tabela separada — `Acao.Jogador_id` é `NOT NULL` e referencia `Jogadores`, e os atletas do adversário não são (nem devem ser) cadastrados. Lá o atleta é só `numCamisa`, e pode ser `NULL` (adversário não identificado). A separação é o que mantém todo relatório existente com o mesmo número: nada que conta `Acao` passa a contar o adversário. `Model/AcaoAdversario.js` + `Control/AcaoAdversarioControl.js`.
 
 As FKs de `Acao` → `Ponto` são **nullable de propósito**: linhas vindas da importação de Excel não têm rally associado.
 
@@ -174,13 +176,17 @@ Como as teclas do estágio 3 são dígitos sem modificador e as do estágio 1 s�
 
 Regras de vôlei em `Model/Substituicao.js`: líbero isento, máximo 6 substituições por set, e o reserva só volta pelo titular que substituiu. `Model/Ponto.gravarPonto` valida via `TimesPartida.jogadorNaLinha` que o jogador está em quadra.
 
-**Undo (`Ctrl+Z`)**: `ControlePartida` mantém uma pilha em memória (máx. 50) com os dois lances que o analista digita — a ação (`{ tipo: 'acao', acaoId }`) e o ponto de placar (`{ tipo: 'placar', side, delta }`). Desfazer uma ação chama `removerAcao`, que já regrava o dono do ponto; desfazer um ponto passa pelo próprio `aplicarPonto` invertido, para a marcação do vencedor do rally voltar junto com o número. A pilha só desfaz lances do set aberto na tela, e morre ao fechar a tela — é um desfazer de digitação, não histórico da partida.
+**Undo (`Ctrl+Z`)**: `ControlePartida` mantém uma pilha em memória (máx. 50) com os lances que o analista digita — a ação da equipe (`{ tipo: 'acao', acaoId }`), a ação do adversário (`{ tipo: 'acaoAdversario', acaoAdversarioId }`) e o ponto de placar (`{ tipo: 'placar', side, delta }`). Desfazer uma ação chama `removerAcao`, que já regrava o dono do ponto; desfazer um ponto passa pelo próprio `aplicarPonto` invertido, para a marcação do vencedor do rally voltar junto com o número. A pilha só desfaz lances do set aberto na tela, e morre ao fechar a tela — é um desfazer de digitação, não histórico da partida.
 
 Os handlers do scout são memoizados por `[buffer]`, então leem set e placar de `currentSetRef`/`scoreRef`, nunca do estado da renderização — que pode estar atrasado.
 
 Avisos durante o scout usam `mostrarAviso()` (balão flutuante no topo). O `substituicaoMessage` **só aparece dentro do modal de substituição**; não o use para recado de scout.
 
-Limitações intencionais (não são bugs): substituição e encerramento de set ficam fora do undo — os dois têm correção própria (tela de escalação e botão "Reabrir set"); e **o time visitante não é escoutável**.
+**Scout do adversário**: trocar `Ctrl` por `Alt` no número da camisa (`alt+0..9`) manda o lance inteiro para o outro lado da rede — mesma convenção que o placar já usa (`Shift` = mandante, `Alt` = visitante), então não há um segundo mapa de teclas. Quem decide o alvo é o **primeiro** modificador apertado; o resto do fluxo (fundamento, qualidade) é idêntico. `Alt + 0` grava como adversário não identificado. O lance vai para `AcaoAdversario` e **não** mexe em `Ponto.Jogador_id`: o dono do ponto continua sendo sempre um atleta da própria equipe.
+
+O dígito vem de `event.code` (`Digit1`/`Numpad1`), não de `event.key`: com um modificador segurado, alguns layouts geram outro caractere.
+
+Limitações intencionais (não são bugs): substituição e encerramento de set ficam fora do undo — os dois têm correção própria (tela de escalação e botão "Reabrir set"); e o adversário é escoutado por camisa, sem escalação, substituição ou dono de ponto.
 
 ### Navegação: híbrida rota + estado
 

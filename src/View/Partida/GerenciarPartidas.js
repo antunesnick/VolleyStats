@@ -25,16 +25,24 @@ const normalizarTexto = (texto) => String(texto || '')
   .trim()
   .toLowerCase();
 
-const CustomSelect = ({ label, icon, children, ...props }) => (
-  <div className="flex-1 min-w-[260px]">
-    <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+/**
+ * `wrapperClassName` existe porque o mesmo select aparece em dois layouts.
+ *
+ * A largura minima fixa que ficava aqui dentro valia para a linha "Time 1 vs
+ * Time 2", mas quebrava a grade de 4 colunas logo abaixo: 4 x 260px + gaps nao
+ * cabem na largura do modal, e os campos (Formato inclusive) saiam por cima uns
+ * dos outros. Quem posiciona o campo e quem decide a largura.
+ */
+const CustomSelect = ({ label, icon, children, wrapperClassName = 'w-full min-w-0', ...props }) => (
+  <div className={wrapperClassName}>
+    <label className="text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
       {icon}
-      {label}
+      <span className="truncate">{label}</span>
     </label>
     <div className="relative">
       <select
         {...props}
-        className="w-full appearance-none bg-white border-2 border-gray-200 text-black rounded-xl p-4 pr-10 shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all cursor-pointer text-sm font-semibold"
+        className="w-full min-w-0 appearance-none truncate bg-white border-2 border-gray-200 text-black rounded-xl py-4 pl-4 pr-10 shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all cursor-pointer text-sm font-semibold"
       >
         {children}
       </select>
@@ -1049,12 +1057,12 @@ const formatarDataBrasil = (dataString) => {
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-[2000] p-10 overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl my-auto">
 
-            <div className="bg-black px-8 py-5 flex justify-between items-center border-b-4 border-red-600 shadow-lg">
-              <h2 className="text-2xl font-black text-white tracking-wide uppercase">{editandoId ? 'Atualizar Confronto' : 'Cadastrar Confronto Temporada'}</h2>
-              <button onClick={fecharModal} className="text-gray-400 hover:text-red-500 transition-colors text-3xl font-light p-2">✕</button>
+            <div className="bg-black px-6 sm:px-8 py-5 flex justify-between items-center gap-4 border-b-4 border-red-600 shadow-lg">
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-wide uppercase">{editandoId ? 'Atualizar Confronto' : 'Cadastrar Confronto Temporada'}</h2>
+              <button onClick={fecharModal} className="shrink-0 text-gray-400 hover:text-red-500 transition-colors text-3xl font-light p-2">✕</button>
             </div>
 
-            <form onSubmit={handleSalvarPartida} className="p-10 space-y-8">
+            <form onSubmit={handleSalvarPartida} className="p-6 sm:p-10 space-y-7">
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -1064,8 +1072,9 @@ const formatarDataBrasil = (dataString) => {
                 <input type="text" name="nome" value={formData.nome} onChange={handleInputChange} required placeholder="Ex: Semifinal - Jogo 1 ou Amistoso de Verão" className="w-full bg-white border-2 border-gray-200 text-black rounded-xl p-4 shadow-inner focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm font-semibold transition-all" />
               </div>
 
-              <div className="flex gap-6 border-2 border-dashed border-gray-200 p-6 rounded-2xl bg-gray-50 shadow-inner items-end">
+              <div className="flex flex-wrap gap-4 border-2 border-dashed border-gray-200 p-6 rounded-2xl bg-gray-50 shadow-inner items-end">
                 <CustomSelect
+                  wrapperClassName="flex-1 min-w-[220px]"
                   label="Time 1 (Mandante/Principal) *"
                   name="time1"
                   value={formData.time1}
@@ -1086,6 +1095,7 @@ const formatarDataBrasil = (dataString) => {
                 </div>
 
                 <CustomSelect
+                  wrapperClassName="flex-1 min-w-[220px]"
                   label="Time 2 (Visitante/Adversário) *"
                   name="time2"
                   value={formData.time2}
@@ -1100,11 +1110,13 @@ const formatarDataBrasil = (dataString) => {
                 </CustomSelect>
               </div>
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+              {/* 4 colunas so no xl: abaixo disso os rotulos longos ("Tipo de
+                  Competicao", "Formato") nao cabem lado a lado e se sobrepoem. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+                <div className="min-w-0">
+                  <label className="text-xs font-bold text-gray-700 uppercase tracking-widest mb-2 flex items-center gap-2">
                     <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    Data do Confronto *
+                    <span className="truncate">Data do Confronto *</span>
                   </label>
                   <input type="date" name="dataPartida" value={formData.dataPartida} onChange={handleInputChange} required className="w-full bg-white border-2 border-gray-200 text-black rounded-xl p-4 shadow-inner focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm font-semibold transition-all" />
                 </div>
@@ -1134,9 +1146,16 @@ const formatarDataBrasil = (dataString) => {
                   required
                   icon={<svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>}
                 >
-                  <option value={MELHOR_DE_5}>Melhor de 5 (3 sets, decisivo de 15)</option>
-                  <option value={MELHOR_DE_3}>Melhor de 3 (2 sets, decisivo de 15)</option>
+                  <option value={MELHOR_DE_5}>Melhor de 5 sets</option>
+                  <option value={MELHOR_DE_3}>Melhor de 3 sets</option>
                 </CustomSelect>
+
+                <p className="sm:col-span-2 xl:col-span-4 -mt-2 text-xs font-medium text-gray-500">
+                  {/* So o ULTIMO set do formato e de 15: numa melhor de 5 o set 3 e comum. */}
+                  {Number(formData.setsParaVencer) === MELHOR_DE_3
+                    ? 'Melhor de 3: vence quem fizer 2 sets. Sets 1 e 2 de 25 pontos, set 3 decisivo de 15.'
+                    : 'Melhor de 5: vence quem fizer 3 sets. Sets 1 a 4 de 25 pontos, set 5 decisivo de 15.'}
+                </p>
 
                 <CustomSelect
                   label="Local (Ginásio) *"

@@ -1,6 +1,29 @@
 import db from "../db/db";
 import Player from "../Model/Player";
 import { getUploadsDir } from "../config/appPaths";
+
+/**
+ * Traduz a violacao de UNIQUE de CPF/RG para uma mensagem util.
+ *
+ * O SQLite devolve "UNIQUE constraint failed: Jogadores.cpf", que na tela nao
+ * diz a ninguem qual campo repetiu nem o que fazer.
+ */
+const traduzirErroDeGravacao = (error) => {
+    const texto = String(error?.message || '');
+    if (!texto.includes('UNIQUE constraint failed')) {
+        return error;
+    }
+
+    if (texto.includes('Jogadores.cpf')) {
+        return new Error('Ja existe um jogador cadastrado com este CPF.');
+    }
+
+    if (texto.includes('Jogadores.rg')) {
+        return new Error('Ja existe um jogador cadastrado com este RG.');
+    }
+
+    return error;
+};
 const fs = require('fs');
 const path = require('path');
 const { Buffer } = require('buffer');
@@ -61,7 +84,7 @@ class PlayerControl {
             return insertTransaction(newPlayer);
         } catch (error) {
             console.error("Failed to create player.", error);
-            throw error; 
+            throw traduzirErroDeGravacao(error);
         }
     }
 
@@ -88,15 +111,20 @@ class PlayerControl {
             return updateTransaction(playerToUpdate);
         } catch (error) {
             console.error("Failed to update player.", error);
-            throw error; 
+            throw traduzirErroDeGravacao(error);
         }
+    }
+
+    /** Historico que a exclusao do atleta levaria junto. A tela avisa antes. */
+    async contarVinculos(id) {
+        return Player.contarVinculos(id, db);
     }
 
     async deletePlayer(id) {
         const playerInstance = new Player(); 
         
         const deleteTransaction = db.transaction((playerId) => {
-            playerInstance.deletePlayer(playerId, db);
+            return playerInstance.deletePlayer(playerId, db);
         }); 
         
         try {

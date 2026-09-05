@@ -89,7 +89,39 @@ describe('Jogadores', () => {
 
     await expect(
       control().createPlayer(dadosBase({ nome: 'Outra Pessoa', rg: '98.765.432-1' }))
-    ).rejects.toThrow();
+    ).rejects.toThrow(/CPF/i);
+  });
+
+  it('impede dois jogadores com o mesmo RG', async () => {
+    await control().createPlayer(dadosBase());
+
+    await expect(
+      control().createPlayer(dadosBase({ nome: 'Outra Pessoa', cpf: '390.533.447-05' }))
+    ).rejects.toThrow(/RG/i);
+  });
+
+  // CPF e RG sao UNIQUE e opcionais. Duas strings vazias colidem no SQLite,
+  // dois NULL nao - sem a normalizacao o segundo cadastro sem documento era
+  // recusado como se o documento ja existisse.
+  it('cadastra varios jogadores sem CPF nem RG', async () => {
+    await control().createPlayer(dadosBase({ cpf: '', rg: '', nome: 'Sem Documento 1' }));
+    await control().createPlayer(dadosBase({ cpf: '', rg: '', nome: 'Sem Documento 2', numCamisa: 11 }));
+    await control().createPlayer(dadosBase({ cpf: '   ', rg: undefined, nome: 'Sem Documento 3', numCamisa: 12 }));
+
+    const jogadores = await control().findAllPlayers();
+    expect(jogadores).toHaveLength(3);
+    expect(jogadores.every((jogador) => jogador.cpf === null && jogador.rg === null)).toBe(true);
+  });
+
+  it('grava vazio como NULL tambem na atualizacao', async () => {
+    await control().createPlayer(dadosBase());
+    const [jogador] = await control().findAllPlayers();
+
+    await control().updatePlayer(dadosBase({ id: jogador.id, cpf: '', rg: '' }));
+
+    const [atualizado] = await control().findAllPlayers();
+    expect(atualizado.cpf).toBeNull();
+    expect(atualizado.rg).toBeNull();
   });
 
   it('atualiza os dados de um jogador', async () => {

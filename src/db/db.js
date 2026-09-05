@@ -418,6 +418,37 @@ function initDatabase() {
             FOREIGN KEY (importacao_id) REFERENCES ImportacaoHistorico(id) ON DELETE CASCADE
             );
 
+            -- Scout do adversario.
+            --
+            -- Fica fora de Acao de proposito: Acao.Jogador_id e NOT NULL e
+            -- referencia Jogadores, e os atletas do adversario nao estao
+            -- cadastrados (nem devem estar - eles nao sao da equipe). Aqui o
+            -- atleta e apenas o numero da camisa lido na quadra, e pode ate
+            -- faltar quando o analista nao consegue identificar quem jogou.
+            --
+            -- A separacao tambem mantem todo relatorio existente correto sem
+            -- mudanca nenhuma: nada que conta Acao passa a contar o adversario.
+            CREATE TABLE IF NOT EXISTS AcaoAdversario (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Partida_id INTEGER NOT NULL,
+                NumSet INTEGER NOT NULL,
+                -- Rally em que a acao aconteceu. Nullable pelo mesmo motivo de
+                -- Acao: uma linha pode existir sem rally correspondente.
+                Ponto_pontoTime1 INTEGER,
+                Ponto_pontoTime2 INTEGER,
+                -- Camisa lida na quadra. NULL = adversario nao identificado.
+                numCamisa INTEGER,
+                -- Mesma escala de 6 niveis de Acao, lida da perspectiva de quem
+                -- executou: um ataque '=' do adversario e erro DELE.
+                Qualidade TEXT CHECK(Qualidade IN ('=', '/', '-', '!', '+', '#')),
+                idTipoAcao INTEGER NOT NULL,
+                FOREIGN KEY (Partida_id) REFERENCES Partidas (id) ON DELETE CASCADE,
+                FOREIGN KEY (idTipoAcao) REFERENCES TipoAcao (idTipoAcao)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_acao_adversario_partida
+                ON AcaoAdversario (Partida_id, NumSet);
+
             CREATE TABLE IF NOT EXISTS Substituicao (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 Ponto_pontoTime1 INTEGER NOT NULL,

@@ -59,9 +59,12 @@ function HelpScoutModal({ open, onClose }) {
             </div>
 
             <ol className="space-y-2 list-decimal pl-5 leading-6">
-              <li>Segure a tecla <strong>Ctrl</strong>.</li>
+              <li>
+                Segure <strong>Ctrl</strong> para a <strong>sua equipe</strong> ou{' '}
+                <strong>Alt</strong> para o <strong>adversário</strong>.
+              </li>
               <li>Digite o número da camisa do jogador.</li>
-              <li>Solte o <strong>Ctrl</strong>.</li>
+              <li>Solte o modificador.</li>
               <li>Pressione a tecla da ação: <strong>S</strong>, <strong>A</strong>, <strong>B</strong>, <strong>R</strong> ou <strong>D</strong>.</li>
               <li>Depois pressione a qualidade da ação: <strong>1</strong> a <strong>6</strong>, do erro ao ponto.</li>
             </ol>
@@ -76,7 +79,49 @@ function HelpScoutModal({ open, onClose }) {
                 <strong>Ctrl + 1 + 2</strong> → depois <strong>A</strong> (ação: ataque) → depois <strong>6</strong>,
                 que grava <strong>#</strong> (ponto de ataque).
               </p>
+              <p className="leading-6 mt-3">
+                O mesmo lance, mas do adversário camisa 12:{' '}
+                <strong>Alt + 1 + 2</strong> → <strong>A</strong> → <strong>6</strong>.
+              </p>
             </div>
+          </section>
+
+          <section className="rounded-3xl border border-orange-200 bg-orange-50 p-5">
+            <h3 className="text-sm font-black uppercase tracking-widest text-orange-700 mb-3">
+              Scout do adversário
+            </h3>
+
+            <p className="leading-6 text-orange-900">
+              Troque <strong>Ctrl</strong> por <strong>Alt</strong> no número da camisa e o lance
+              inteiro passa a ser do outro lado da rede. É a mesma convenção do placar, onde{' '}
+              <strong>Shift</strong> é a sua equipe e <strong>Alt</strong> é o adversário — não há um
+              segundo mapa de teclas para decorar.
+            </p>
+
+            <p className="leading-6 mt-3 text-orange-900">
+              Os atletas do adversário não são cadastrados: o registro é feito pela camisa lida na
+              quadra. Quando não der para identificar quem jogou, use <strong>Alt + 0</strong> — a
+              ação entra como <strong>adversário não identificado</strong> e continua contando nos
+              totais por fundamento.
+            </p>
+
+            <div className="mt-4 rounded-2xl bg-white border border-orange-200 p-4">
+              <p className="text-xs font-black uppercase tracking-widest text-orange-600 mb-2">
+                O que isso responde
+              </p>
+              <p className="leading-6">
+                Quantos ataques, saques e bloqueios o adversário errou, e quantos ele converteu em
+                ponto — por fundamento e por camisa. O painel lateral mostra o resumo do set aberto
+                ou da partida inteira. A escala de qualidade é lida da perspectiva de quem executou:
+                um ataque <strong>=</strong> do adversário é <strong>erro dele</strong>, ou seja,
+                ponto seu.
+              </p>
+            </div>
+
+            <p className="leading-6 mt-3 text-orange-900">
+              O scout do adversário fica em separado do da sua equipe: nenhum relatório de atleta,
+              ranking ou estatística da equipe muda de número por causa dele.
+            </p>
           </section>
 
           <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
@@ -99,11 +144,13 @@ function HelpScoutModal({ open, onClose }) {
 
             <div className="mt-4 rounded-2xl bg-white border border-emerald-200 p-4">
               <p className="text-xs font-black uppercase tracking-widest text-emerald-600 mb-2">
-                Só a própria equipe
+                O dono do ponto é sempre da sua equipe
               </p>
               <p className="leading-6">
-                Apenas os atletas escalados da sua equipe recebem pontos. O painel lateral mostra,
-                em cada rally, de quem é o ponto — confira ali antes de seguir.
+                Apenas os atletas escalados da sua equipe recebem pontos. As ações do adversário
+                (<strong>Alt + número</strong>) entram no resumo do adversário e <strong>não</strong>{' '}
+                mudam de quem é o ponto no rally. O painel lateral mostra, em cada rally, de quem é
+                o ponto — confira ali antes de seguir.
               </p>
             </div>
           </section>
@@ -225,6 +272,17 @@ function HelpScoutModal({ open, onClose }) {
                 </div>
               </div>
 
+              <div className="rounded-2xl bg-white border border-orange-200 p-4 flex items-center gap-3 sm:col-span-2">
+                <Keyboard size={18} className="text-orange-500" />
+                <div>
+                  <strong>Alt + número</strong>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Começa um lance do adversário pela camisa. <strong>Alt + 0</strong> = adversário
+                    não identificado.
+                  </p>
+                </div>
+              </div>
+
               <div className="rounded-2xl bg-white border border-gray-200 p-4 flex items-center gap-3 sm:col-span-2">
                 <Undo2 size={18} className="text-gray-700" />
                 <div>
@@ -244,11 +302,12 @@ function HelpScoutModal({ open, onClose }) {
             </h3>
 
             <ul className="space-y-2 list-disc pl-5 leading-6 text-amber-900">
-              <li>O número da camisa é montado enquanto o <strong>Ctrl</strong> está pressionado.</li>
+              <li>O número da camisa é montado enquanto o <strong>Ctrl</strong> (sua equipe) ou o <strong>Alt</strong> (adversário) está pressionado.</li>
+              <li>Quem manda no lado do lance é o <strong>primeiro</strong> modificador apertado: começou no Alt, o lance inteiro é do adversário.</li>
               <li>A ação só é aceita depois que um número foi digitado.</li>
               <li>A qualidade só é registrada depois que a ação já foi definida.</li>
               <li><strong>Esc</strong> limpa o buffer atual de digitação do scout.</li>
-              <li><strong>Ctrl + Z</strong> desfaz o último lance: apaga a ação registrada ou devolve o ponto no placar. Só vale para o set aberto na tela.</li>
+              <li><strong>Ctrl + Z</strong> desfaz o último lance: apaga a ação registrada (sua ou do adversário) ou devolve o ponto no placar. Só vale para o set aberto na tela.</li>
             </ul>
           </section>
         </div>

@@ -82,9 +82,43 @@ export function PlayerView({ onOpenMatchReport, matchReportLoading = false }) {
     });
   }
 
+  /**
+   * Descreve, em uma frase, o historico de scout que a exclusao apaga junto.
+   *
+   * Sem isso o analista confirmava no escuro: o atleta some e leva com ele as
+   * acoes registradas nas partidas em que ja jogou.
+   */
+  const descreverVinculos = (vinculos) => {
+    const partes = [];
+
+    if (vinculos.acoes > 0) {
+      partes.push(
+        `${vinculos.acoes} acao(oes) de scout` +
+        (vinculos.partidas > 0 ? ` em ${vinculos.partidas} partida(s)` : "")
+      );
+    }
+    if (vinculos.escalacoes > 0) partes.push(`${vinculos.escalacoes} escalacao(oes)`);
+    if (vinculos.substituicoes > 0) partes.push(`${vinculos.substituicoes} substituicao(oes)`);
+
+    return partes.join(", ");
+  };
+
   const deletePlayer = async (id) => {
+    const playerControl = PlayerControl.getInstance();
+
+    let vinculos = { total: 0 };
+    try {
+      vinculos = await playerControl.contarVinculos(id);
+    } catch (error) {
+      // Sem a contagem a exclusao ainda funciona; o aviso e que fica generico.
+      console.error("Erro ao contar vinculos do jogador:", error);
+    }
+
+    const resumo = vinculos.total > 0 ? descreverVinculos(vinculos) : "";
     const confirmado = await Alertas.confirmacao(
-      "Esta acao e irreversivel. Deseja realmente excluir este jogador?"
+      resumo
+        ? `Este jogador tem ${resumo}. Excluir o jogador apaga tudo isso tambem. Esta acao e irreversivel.`
+        : "Esta acao e irreversivel. Deseja realmente excluir este jogador?"
     );
 
     if (!confirmado) {
@@ -92,7 +126,7 @@ export function PlayerView({ onOpenMatchReport, matchReportLoading = false }) {
     }
 
     try {
-      await PlayerControl.getInstance().deletePlayer(id);
+      await playerControl.deletePlayer(id);
       fetchPlayers(searchTerm, selectedPosition);
       Alertas.sucesso("Jogador excluido com sucesso.");
     } catch (error) {
