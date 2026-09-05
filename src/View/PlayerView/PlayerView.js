@@ -99,6 +99,7 @@ export function PlayerView({ onOpenMatchReport, matchReportLoading = false }) {
     }
     if (vinculos.escalacoes > 0) partes.push(`${vinculos.escalacoes} escalacao(oes)`);
     if (vinculos.substituicoes > 0) partes.push(`${vinculos.substituicoes} substituicao(oes)`);
+    if (vinculos.times > 0) partes.push(`${vinculos.times} vinculo(s) com time`);
 
     return partes.join(", ");
   };

@@ -3,7 +3,15 @@ import PlayerControl from '../src/Control/PlayerControl';
 import PontoControl from '../src/Control/PontoControl';
 import Player from '../src/Model/Player';
 import Ponto from '../src/Model/Ponto';
-import { db, resetarBanco, cenarioPartidaEscalada, TIPO_ACAO } from './helpers/fixtures';
+import {
+  db,
+  resetarBanco,
+  cenarioPartidaEscalada,
+  criarCategoria,
+  criarJogador,
+  criarTime,
+  TIPO_ACAO,
+} from './helpers/fixtures';
 
 /**
  * Exclusao de atleta.
@@ -111,6 +119,61 @@ describe('Exclusao de jogador', () => {
     expect(vinculos.partidas).toBe(1);
     expect(vinculos.escalacoes).toBe(1);
     expect(vinculos.total).toBeGreaterThan(0);
+  });
+
+  /**
+   * `JogadoresTimes` e o vinculo atleta-time-categoria, gravado pelo cadastro
+   * do time (e pelo seed de demonstracao) - nenhuma tela de scout passa por
+   * ele. Como a FK nao tem ON DELETE, ele sozinho ja recusava a exclusao de um
+   * atleta que nunca foi escalado nem escoutado.
+   */
+  describe('vinculo com time (JogadoresTimes)', () => {
+    const vincularAoTime = (jogadorId, timeId, categoriaId) => {
+      db.prepare('INSERT OR IGNORE INTO TimesCategorias (Times_id, Categorias_id) VALUES (?, ?)')
+        .run(timeId, categoriaId);
+      db.prepare(
+        'INSERT INTO JogadoresTimes (Jogadores_id, Times_id, Categorias_id) VALUES (?, ?, ?)'
+      ).run(jogadorId, timeId, categoriaId);
+    };
+
+    const criarJogadorDeTime = () => {
+      const categoriaId = criarCategoria({ nome: `Cat ${Date.now()}` });
+      const timeId = criarTime();
+      const jogadorId = criarJogador({ categoriaId });
+      vincularAoTime(jogadorId, timeId, categoriaId);
+      return jogadorId;
+    };
+
+    it('exclui um atleta vinculado a um time, sem historico nenhum', async () => {
+      const jogadorId = criarJogadorDeTime();
+
+      await control().deletePlayer(jogadorId);
+
+      const restante = db
+        .prepare('SELECT COUNT(*) AS total FROM Jogadores WHERE id = ?')
+        .get(jogadorId);
+      expect(restante.total).toBe(0);
+    });
+
+    it('leva o vinculo com o time junto', async () => {
+      const jogadorId = criarJogadorDeTime();
+
+      await control().deletePlayer(jogadorId);
+
+      const vinculo = db
+        .prepare('SELECT COUNT(*) AS total FROM JogadoresTimes WHERE Jogadores_id = ?')
+        .get(jogadorId);
+      expect(vinculo.total).toBe(0);
+    });
+
+    it('conta o vinculo com o time para a tela avisar antes', () => {
+      const jogadorId = criarJogadorDeTime();
+
+      const vinculos = Player.contarVinculos(jogadorId, db);
+
+      expect(vinculos.times).toBe(1);
+      expect(vinculos.total).toBe(1);
+    });
   });
 
   it('nao acusa vinculo nenhum para atleta sem historico', () => {

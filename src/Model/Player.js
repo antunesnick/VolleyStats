@@ -141,6 +141,10 @@ class Player {
       jogadorId
     );
     const pontos = contar('SELECT COUNT(*) AS total FROM Ponto WHERE Jogador_id = ?', jogadorId);
+    const times = contar(
+      'SELECT COUNT(*) AS total FROM JogadoresTimes WHERE Jogadores_id = ?',
+      jogadorId
+    );
 
     return {
       acoes,
@@ -148,17 +152,23 @@ class Player {
       escalacoes,
       substituicoes,
       pontos,
-      total: acoes + escalacoes + substituicoes + pontos,
+      times,
+      total: acoes + escalacoes + substituicoes + pontos + times,
     };
   }
 
   /**
    * Exclusao do atleta com a cascata feita a mao.
    *
-   * `Acao.Jogador_id`, `Ponto.Jogador_id` e `Substituicao` referenciam
-   * `Jogadores` sem ON DELETE, e o banco roda com `foreign_keys = ON`: apagar
-   * direto um atleta que ja foi escoutado estourava "FOREIGN KEY constraint
-   * failed" e o card simplesmente nao sumia da tela.
+   * `Acao.Jogador_id`, `Ponto.Jogador_id`, `Substituicao` e `JogadoresTimes`
+   * referenciam `Jogadores` sem ON DELETE, e o banco roda com
+   * `foreign_keys = ON`: apagar direto um atleta que ja foi escoutado estourava
+   * "FOREIGN KEY constraint failed" e o card simplesmente nao sumia da tela.
+   *
+   * `JogadoresTimes` (o vinculo atleta-time-categoria) e o mais facil de
+   * esquecer, porque nenhuma tela do scout o toca - quem grava ali e o
+   * cadastro do time e o seed. Por isso ate um atleta sem uma unica acao
+   * registrada recusava ser excluido.
    *
    * A ordem importa. Os rallies em que o atleta agiu sao guardados ANTES de
    * apagar as acoes, porque depois nao ha mais como saber quais eram - e o dono
@@ -184,6 +194,7 @@ class Player {
       .run(jogadorId, jogadorId);
     db.prepare('DELETE FROM Acao WHERE Jogador_id = ?').run(jogadorId);
     db.prepare('DELETE FROM TimesPartida WHERE Jogadores_id = ?').run(jogadorId);
+    db.prepare('DELETE FROM JogadoresTimes WHERE Jogadores_id = ?').run(jogadorId);
     db.prepare('UPDATE Ponto SET Jogador_id = NULL WHERE Jogador_id = ?').run(jogadorId);
 
     ralliesAfetados.forEach((rally) => {
