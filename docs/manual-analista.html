@@ -116,7 +116,7 @@
 <body>
 
 <div class="capa">
-  <div class="eyebrow">VolleyStats &middot; Versão 1.0.0</div>
+  <div class="eyebrow">VolleyStats &middot; Versão <span class="versao-app">1.2.0</span></div>
   <h1>Manual do Analista</h1>
   <div class="sub">Guia completo: cada tela, cada botão, o que ele faz e quando ele aparece.</div>
   <div class="meta">Aplicativo desktop para Windows &middot; Projeto liderado por Nickolas Antunes Almeida</div>
@@ -137,7 +137,8 @@
       <li>Tela de Times</li>
       <li>Dentro de um torneio</li>
       <li>Cronograma de Jogos (partidas)</li>
-      <li>Tela do jogo: o scout ao vivo</li>
+      <li>Tela do jogo: o scout ao vivo
+        <span class="rodape-nota">&mdash; inclui a rotação do levantador (12.8) e o scout do adversário (12.9)</span></li>
       <li>Estatísticas e encerramento da partida</li>
       <li>A escala de qualidade (teclas 1 a 6)</li>
       <li>Todos os relatórios em PDF</li>
@@ -171,6 +172,8 @@
     <li>Cadastro de categorias, ginásios, times e jogadores (com foto e logo).</li>
     <li>Torneios com classificação, chaveamento e cronograma de jogos.</li>
     <li>Scout ao vivo por atalhos de teclado, com placar, substituições e desfazer.</li>
+    <li><strong>Scout do adversário</strong> pela camisa lida na quadra, sem precisar cadastrar os atletas dele.</li>
+    <li><strong>Rotação do levantador</strong> (sistema 5-1) com side-out e break point por rotação.</li>
     <li>Estatísticas da partida por jogador, por set e por fundamento, com edição de lances.</li>
     <li>Nove relatórios diferentes, todos exportáveis em PDF.</li>
     <li>Importação da planilha antiga de estatísticas em Excel, com histórico e opção de reverter.</li>
@@ -178,7 +181,11 @@
 
   <h3>O que ainda não faz (limitações conhecidas, não são defeitos)</h3>
   <ul>
-    <li><strong>Só se escouta a própria equipe.</strong> Do time adversário registra-se apenas o placar.</li>
+    <li><strong>Do adversário registra-se a camisa, não o atleta.</strong> Ele não tem elenco, escalação,
+        rotação nem dono de ponto &mdash; só as ações por número de camisa (seção 12.9).</li>
+    <li><strong>A rotação cobre só o sistema 5-1</strong> (um levantador) e só a sua equipe.</li>
+    <li><strong>A rotação não é retroativa.</strong> Partidas escoutadas sem a formação declarada aparecem
+        como “sem rotação registrada”, e não há como descobrir depois qual era o alinhamento inicial.</li>
     <li><strong>Substituição e encerramento de set não entram no <kbd>Ctrl</kbd>+<kbd>Z</kbd>.</strong>
         Cada um tem correção própria: a tela de escalação e o botão “Reabrir set”.</li>
     <li>Não há gráficos: toda estatística é apresentada em tabela.</li>
@@ -205,7 +212,7 @@
   <h3>Passo a passo</h3>
   <ol>
     <li>Descompacte o arquivo <code>.zip</code> recebido (botão direito &rarr; <em>Extrair tudo…</em>).</li>
-    <li>Dentro da pasta, execute <code>volleystats-1.0.0 Setup.exe</code>.</li>
+    <li>Dentro da pasta, execute <code>volleystats-<span class="versao-app">1.2.0</span> Setup.exe</code>.</li>
     <li>O Windows pode exibir a tela azul <em>“O Windows protegeu o computador”</em>. Isso acontece
         porque o instalador não tem assinatura digital paga — é uma versão de teste. Clique em
         <strong>Mais informações</strong> e depois em <strong>Executar assim mesmo</strong>.</li>
@@ -747,8 +754,9 @@
       <tr><td><strong>Canto superior esquerdo</strong></td><td>Seta <span class="b claro">←</span>: sai do jogo e volta ao cronograma (o scout já está salvo).</td></tr>
       <tr><td><strong>Faixa superior</strong></td><td>Nome do ginásio, selo de status (<em>Aguardando</em>, <strong>AO VIVO</strong> piscando, <em>Finalizada</em>) e o botão <span class="b claro">Help</span>, que abre a ajuda com todos os atalhos e a tabela de qualidade.</td></tr>
       <tr><td><strong>Coluna da esquerda</strong></td><td>Lista das <strong>substituições do set atual</strong>, cada uma com o placar do momento, quem saiu (vermelho) e quem entrou (verde). Em telas estreitas ela some.</td></tr>
-      <tr><td><strong>Centro</strong></td><td>A quadra. Em cima, seis círculos laranja fixos representam o adversário (não são clicáveis). Embaixo, os seis atletas em quadra: <strong>clicar em um deles abre a ficha rápida</strong> (nome, camisa, posição).</td></tr>
-      <tr><td><strong>Barra inferior central</strong></td><td>Botões de <span class="b claro">Escalação</span>, <span class="b claro">Substituição</span> e o botão de estado da partida (seção 12.2).</td></tr>
+      <tr><td><strong>Centro</strong></td><td>A quadra, com as <strong>seis zonas reais</strong> (Z4/Z3/Z2 na frente, Z5/Z6/Z1 no fundo). Em cima, seis círculos laranja fixos representam o adversário (não são clicáveis). Embaixo, os seis atletas em quadra, cada um na zona em que está: <strong>clicar em um deles abre a ficha rápida</strong>. A quadra <strong>gira sozinha</strong> a cada side-out (seção 12.8).</td></tr>
+      <tr><td><strong>Acima da quadra</strong></td><td>O <strong>indicador de rotação</strong>: em que rotação a equipe está (R1 a R6), quem está levantando, quem está sacando e o botão <span class="b claro">↻</span> de correção. Enquanto a formação do set não é declarada, ali aparece o convite para declará-la.</td></tr>
+      <tr><td><strong>Barra inferior central</strong></td><td>Botões de <span class="b claro">Escalação</span>, <span class="b claro">Formação do set</span>, <span class="b claro">Dupla sub</span>, <span class="b claro">Substituição</span> e o botão de estado da partida (seção 12.2).</td></tr>
       <tr><td><strong>Painel da direita</strong></td><td>Sets da partida, placar do set atual, situação do set, encerrar/reabrir, desfazer e a lista de rallies. É o painel que você mais vai olhar.</td></tr>
       <tr><td><strong>Canto inferior esquerdo</strong></td><td>A caixa preta de digitação: aparece assim que você começa a digitar e some quando o lance é gravado.</td></tr>
     </tbody>
@@ -759,6 +767,8 @@
     <thead><tr><th style="width:28%">Botão</th><th>O que faz</th><th style="width:24%">Quando aparece</th></tr></thead>
     <tbody>
       <tr><td><span class="b claro">Escalação</span></td><td>Abre a janela de montar a escalação (seção 12.5).</td><td>Sempre.</td></tr>
+      <tr><td><span class="b claro">Formação do set</span></td><td>Abre a janela de posicionar os 6 nas zonas e marcar o levantador &mdash; é o que liga a rotação (seção 12.8).</td><td>Sempre.</td></tr>
+      <tr><td><span class="b claro">Dupla sub</span></td><td>Faz as duas trocas da dupla substituição de uma vez. Clicar de novo desfaz (seção 12.8).</td><td>Só com a formação do set declarada.</td></tr>
       <tr><td><span class="b claro">Substituição</span></td><td>Abre o painel de troca de atletas (seção 12.6).</td><td>Sempre.</td></tr>
       <tr><td><span class="b verde">Iniciar Partida</span></td><td>Marca a partida como “em andamento”; o selo do topo passa a <strong>AO VIVO</strong>.</td><td>Só enquanto o status é <em>Aguardando</em>.</td></tr>
       <tr><td><span class="b vermelho">Finalizar Partida</span></td><td>Abre a janela de <strong>estatísticas e encerramento</strong> (seção 13).</td><td>Só depois de iniciada.</td></tr>
@@ -783,6 +793,7 @@
       <tr><td><span class="b claro">Encerrar set N</span></td><td>Fecha o set e abre o próximo. Fica preto (destacado) quando o set já está decidido.</td></tr>
       <tr><td><span class="b claro">Reabrir set N</span></td><td>Aparece <strong>no lugar do anterior</strong> quando o set está encerrado. Reabre para correção; a contagem de sets se ajusta sozinha.</td></tr>
       <tr><td><span class="b claro">Ctrl+Z desfaz: …</span></td><td>Mostra qual será o próximo lance desfeito e serve de botão para quem prefere o mouse. Some quando não há nada a desfazer.</td></tr>
+      <tr><td><strong>Adversário</strong></td><td>Resumo do scout do adversário por fundamento e por camisa, com um seletor entre <strong>set aberto</strong> e <strong>partida inteira</strong> (seção 12.9).</td></tr>
       <tr><td><strong>Pontos — Set N</strong></td><td>Um cartão por rally, do primeiro ao último, com o placar, quem levou o ponto (<em>Ponto de</em> / <em>Ponto cedido</em>) e as ações registradas naquele rally, cada uma com uma <strong>lixeira</strong> para excluir. As setas <span class="b claro">‹</span> <span class="b claro">›</span> navegam entre sets.</td></tr>
     </tbody>
   </table>
@@ -796,8 +807,9 @@
   <div class="fluxo">
     <div class="passo">
       <div class="n">ETAPA 1 &middot; QUEM</div>
-      <div class="t">Segure <kbd>Ctrl</kbd> e digite o número</div>
-      <div class="d">Número da camisa, até 3 dígitos. Ex.: <kbd>Ctrl</kbd>+<kbd>1</kbd><kbd>2</kbd> para o camisa 12.</div>
+      <div class="t">Segure <kbd>Ctrl</kbd> (ou <kbd>Alt</kbd>) e digite o número</div>
+      <div class="d">Número da camisa, até 3 dígitos. <kbd>Ctrl</kbd> = sua equipe, <kbd>Alt</kbd> = adversário.
+        Ex.: <kbd>Ctrl</kbd>+<kbd>1</kbd><kbd>2</kbd> para o seu camisa 12.</div>
     </div>
     <div class="passo">
       <div class="n">ETAPA 2 &middot; O QUÊ</div>
@@ -828,7 +840,8 @@
   <table>
     <thead><tr><th style="width:30%">Atalho</th><th>O que faz</th></tr></thead>
     <tbody>
-      <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd>…<kbd>9</kbd></td><td>Digita o número da camisa (até 3 dígitos).</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd>…<kbd>9</kbd></td><td>Digita o número da camisa <strong>da sua equipe</strong> (até 3 dígitos).</td></tr>
+      <tr><td><kbd>Alt</kbd>+<kbd>0</kbd>…<kbd>9</kbd></td><td>O mesmo, mas para o <strong>adversário</strong>. <kbd>Alt</kbd>+<kbd>0</kbd> = adversário não identificado (seção 12.9).</td></tr>
       <tr><td><kbd>S</kbd> <kbd>A</kbd> <kbd>B</kbd> <kbd>R</kbd> <kbd>D</kbd></td><td>Saque, Ataque, Bloqueio, Recepção, Defesa.</td></tr>
       <tr><td><kbd>1</kbd> a <kbd>6</kbd></td><td>Qualidade da ação, do erro ao ponto. Grava e limpa o campo.</td></tr>
       <tr><td><kbd>Shift</kbd>+<kbd>&uarr;</kbd> / <kbd>Shift</kbd>+<kbd>&darr;</kbd></td><td>Soma ou tira ponto do <strong>mandante</strong> (a sua equipe).</td></tr>
@@ -865,6 +878,9 @@
         jogadores cadastrados na quadra e os 8 seguintes no banco. <strong>Confira e ajuste</strong> antes
         de começar: essa ordem é a de cadastro, não a escalação real.</li>
     <li>Reabrindo a partida depois, a escalação volta exatamente como estava.</li>
+    <li>O <strong>líbero entra como reserva</strong>, não como um dos 6 titulares: em quadra ele sempre está
+        no lugar de alguém, e essa entrada é registrada como substituição (que no caso dele é isenta do
+        limite do set). Ele também não ocupa zona na formação &mdash; veja a seção 12.8.</li>
   </ul>
 
   <h3>12.6 Janela “Substituição de Atletas”</h3>
@@ -895,6 +911,163 @@
         <span class="b verde">Finalizar partida</span>.</li>
     <li>Depois de finalizada, a partida vira somente leitura.</li>
   </ul>
+
+  <h3>12.8 Rotação do levantador (sistema 5-1)</h3>
+  <p>
+    A rotação diz <strong>em que alinhamento a equipe estava em cada rally</strong>. É o que responde a
+    pergunta que o técnico faz de verdade: <em>em qual rotação a gente perde o set?</em> Duas equipes com o
+    mesmo total de ataques podem ter resultados opostos porque uma delas afunda numa rotação específica.
+  </p>
+
+  <div class="caixa atencao">
+    <div class="titulo">Declare a formação ANTES de começar a escoutar</div>
+    A rotação <strong>não é retroativa</strong>: sem a formação declarada, o sistema não tem como saber qual
+    era o alinhamento inicial, e a partida fica sem nenhum dado de rotação para sempre. São uns 20 segundos
+    por set.
+  </div>
+
+  <h4>As zonas da quadra</h4>
+  <p>
+    São as seis posições oficiais, vistas de cima, na sua quadra. A numeração gira em torno da quadra e
+    começa no fundo à direita, que é de onde se saca:
+  </p>
+  <table>
+    <thead><tr><th style="width:33%">Z4 &mdash; frente esquerda</th><th style="width:33%">Z3 &mdash; frente meio</th><th>Z2 &mdash; frente direita</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Z5</strong> &mdash; fundo esquerda</td>
+        <td><strong>Z6</strong> &mdash; fundo meio</td>
+        <td><strong>Z1</strong> &mdash; fundo direita <span class="rodape-nota">(quem saca)</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="rodape-nota">A rede fica em cima, na linha Z4/Z3/Z2.</p>
+
+  <h4>Como declarar a formação</h4>
+  <ol>
+    <li>Botão <span class="b claro">Formação do set</span> na barra inferior.</li>
+    <li>Em cada zona, escolha um dos 6 que rodam. Escolher alguém que já está em outra zona
+        <strong>troca os dois de lugar</strong>, em vez de duplicar.</li>
+    <li>Marque o levantador com a <strong>estrela</strong>. <strong>A rotação é a zona dele</strong>: levantador
+        na Z2 quer dizer que o set começa na rotação <strong>R2</strong>.</li>
+    <li>Diga quem <strong>saca primeiro</strong>: nós ou o adversário. Sem isso o sistema não sabe se o
+        primeiro rally é de side-out ou de saque.</li>
+    <li><span class="b">Salvar formação</span>.</li>
+  </ol>
+  <p class="rodape-nota">
+    O botão <span class="b claro">Girar</span> dentro da janela adianta a formação uma posição inteira &mdash;
+    é o atalho para quando a equipe repete a escalação e só muda por onde começa. O set seguinte já abre com
+    a formação do set anterior preenchida.
+  </p>
+
+  <div class="caixa">
+    <div class="titulo">Quando a rotação gira</div>
+    Somente no <strong>side-out</strong>: quando a equipe ganha o rally <strong>recebendo</strong>. Aí ela
+    gira uma posição e passa a sacar. Ganhar <strong>sacando</strong> é <em>break point</em> e não gira nada.
+    Perder o rally nunca gira a nossa rotação (gira a deles). Os jogadores andam
+    Z2&rarr;Z1&rarr;Z6&rarr;Z5&rarr;Z4&rarr;Z3&rarr;Z2, ou seja, o número da zona <strong>diminui</strong>:
+    R1 &rarr; R6 &rarr; R5 &rarr; R4 &rarr; R3 &rarr; R2 &rarr; R1.
+  </div>
+
+  <h4>O indicador ao vivo</h4>
+  <p>
+    Acima da quadra aparece, por exemplo, <strong>R2 &middot; levantando: #1 (Z2) &middot; sacando: nós</strong>.
+    A quadra abaixo mostra cada atleta na zona em que está de fato, com o levantador destacado em vermelho e
+    o líbero em amarelo. Tudo isso se atualiza sozinho a cada ponto.
+  </p>
+
+  <h4>O líbero não ocupa zona</h4>
+  <div class="caixa">
+    O líbero <strong>não roda</strong>: ele entra no lugar de um jogador de fundo e sai antes de chegar à
+    rede. Por isso a janela de formação <strong>recusa</strong> colocá-lo numa zona &mdash; se ele fosse
+    declarado ali, apareceria na rede depois de dois giros, o que nunca acontece em quadra e estragaria o
+    relatório de quem estava na rede.
+    <br><br>
+    O caminho dele é a <strong>substituição normal</strong> (seção 12.6), que já é isenta do limite de 6
+    trocas por set. Se ele acabar numa zona de rede, o indicador mostra o aviso
+    <strong>“líbero na rede”</strong> &mdash; quer dizer que a saída dele não foi registrada.
+  </div>
+
+  <h4>A dupla substituição</h4>
+  <p>
+    Quando o levantador chega à rede, a equipe costuma trocá-lo por um oposto e, ao mesmo tempo, tirar o
+    oposto titular (que está no fundo, na diagonal) para entrar o <strong>levantador reserva</strong>. O time
+    passa a jogar com levantador de fundo e <strong>3 atacantes na rede</strong>.
+  </p>
+  <ul>
+    <li>O botão <span class="b claro">Dupla sub</span> monta as <strong>duas trocas de uma vez</strong>, já
+        com quem entra e quem sai preenchidos. Clicar de novo <strong>desfaz</strong>, devolvendo cada atleta
+        ao lugar de onde saiu.</li>
+    <li>As duas juntas consomem <strong>2 das 6</strong> substituições do set, como na regra real.</li>
+    <li>Se uma das duas for recusada pelas regras, <strong>nenhuma é aplicada</strong>: meia dupla deixaria a
+        quadra sem levantador ou com dois.</li>
+    <li>O indicador passa a mostrar o selo <strong>dupla sub</strong>.</li>
+  </ul>
+
+  <div class="caixa neutra">
+    <div class="titulo">O número da rotação não muda com a dupla substituição</div>
+    A rotação acompanha o <strong>ciclo da equipe</strong>, não quem está levantando no momento. Se fosse o
+    contrário, o número pularia 3 toda vez que a dupla fosse feita &mdash; e um time que dobra sempre que o
+    levantador chega à rede só produziria R1, R5 e R6. As seis rotações virariam três rótulos misturando
+    formações diferentes, e o relatório perderia o sentido.
+  </div>
+
+  <h4>Se a rotação sair do lugar</h4>
+  <p>
+    O botão <span class="b claro">↻</span> ao lado do indicador <strong>gira a rotação inicial do set</strong>
+    e recalcula o set inteiro. Como a rotação de cada rally é derivada do placar, essa é a única coisa que
+    pode estar errada &mdash; não existe contador para acertar na mão. O mesmo vale para o
+    <kbd>Ctrl</kbd>+<kbd>Z</kbd>, o <kbd>Shift</kbd>+<kbd>&darr;</kbd> e o
+    <span class="b claro">Reabrir set</span>: a rotação volta sozinha junto com o placar.
+  </p>
+
+  <h4>O que a rotação passa a responder</h4>
+  <table>
+    <thead><tr><th style="width:26%">Número</th><th>O que significa</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Side-out %</strong></td><td>Rallies vencidos <strong>recebendo</strong>, dividido pelos rallies recebidos. É o indicador mais ligado a vitória no vôlei; acima de 60% é uma boa referência em nível de clube.</td></tr>
+      <tr><td><strong>Break %</strong></td><td>Rallies vencidos <strong>sacando</strong>, dividido pelos rallies sacados.</td></tr>
+      <tr><td><strong>Saldo</strong></td><td>Pontos ganhos menos pontos cedidos naquela rotação. É por onde o set escorre.</td></tr>
+      <tr><td><strong>Corte da dupla</strong></td><td>R2/R3/R4 <strong>com</strong> dupla substituição contra <strong>sem</strong> dupla, e contra R1/R5/R6. Responde em número se a troca está valendo a pena.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>12.9 Scout do adversário</h3>
+  <p>
+    Dá para escoutar o outro lado da rede sem cadastrar nenhum atleta dele: o registro é feito pela
+    <strong>camisa lida na quadra</strong>.
+  </p>
+
+  <div class="caixa">
+    <div class="titulo">É a mesma digitação, trocando Ctrl por Alt</div>
+    <kbd>Alt</kbd>+<kbd>1</kbd><kbd>2</kbd> &rarr; <kbd>A</kbd> &rarr; <kbd>6</kbd> registra um ponto de
+    ataque do camisa 12 <strong>do adversário</strong>. Fundamento e qualidade são idênticos; muda só o
+    modificador do começo. É a mesma convenção que o placar já usa, onde <kbd>Shift</kbd> é a sua equipe e
+    <kbd>Alt</kbd> é o adversário &mdash; não há um segundo mapa de teclas para decorar.
+  </div>
+
+  <ul>
+    <li>Quem decide o lado do lance é o <strong>primeiro modificador apertado</strong>: começou no
+        <kbd>Alt</kbd>, o lance inteiro é do adversário.</li>
+    <li><kbd>Alt</kbd>+<kbd>0</kbd> registra como <strong>adversário não identificado</strong>, para quando
+        não dá para ver quem jogou. A ação continua contando nos totais por fundamento.</li>
+    <li>A qualidade é lida <strong>da perspectiva de quem executou</strong>: um ataque <strong>=</strong> do
+        adversário é <strong>erro dele</strong>, ou seja, ponto seu.</li>
+    <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> desfaz o lance do adversário igual aos seus.</li>
+  </ul>
+
+  <div class="caixa neutra">
+    <div class="titulo">O adversário fica em separado</div>
+    Ele <strong>não tem</strong> escalação, rotação, substituição nem dono de ponto &mdash; só ações por
+    camisa. E nenhum relatório de atleta, ranking ou estatística da sua equipe muda de número por causa
+    dele: o dono do ponto continua sendo sempre um atleta seu.
+  </div>
+
+  <p>
+    <strong>O que isso responde:</strong> quantos ataques, saques e bloqueios o adversário errou e quantos ele
+    converteu em ponto, por fundamento e por camisa. Os erros dele são os pontos que a sua equipe ganhou sem
+    precisar fazer nada &mdash; um número que antes ficava invisível, somado no placar.
+  </p>
 </section>
 
 <section class="quebra">
@@ -942,6 +1115,12 @@
         defesa, no formato a que a comissão já está acostumada.</li>
     <li><strong>Dados da partida</strong> (nome, data, ginásio, mandante e visitante) e o
         <strong>vencedor de cada set</strong>.</li>
+    <li><strong>Adversário</strong>: o que o outro lado fez, por fundamento e por camisa, com destaque para
+        os erros dele &mdash; os pontos que a sua equipe ganhou sem precisar fazer nada.</li>
+    <li><strong>Rotações</strong>: side-out % e break % de R1 a R6, com o saldo de cada rotação, a melhor e a
+        pior da partida, o corte da dupla substituição e o resumo por set (por qual rotação cada set começou
+        e como ele correu). Se nenhum set teve a formação declarada, o bloco explica isso em vez de mostrar
+        números inventados.</li>
   </ul>
 
   <h3>13.2 Aba Jogadores</h3>
@@ -1098,7 +1277,7 @@
   <table>
     <thead><tr><th style="width:22%">Relatório</th><th style="width:34%">Onde fica o botão</th><th>O que traz</th></tr></thead>
     <tbody>
-      <tr><td><strong>Partida</strong></td><td>Card da partida finalizada &rarr; <span class="b">Relatorio da Partida</span> &rarr; <span class="b vermelho">Salvar como PDF</span></td><td>Scout completo por jogador e placar set a set.</td></tr>
+      <tr><td><strong>Partida</strong></td><td>Card da partida finalizada &rarr; <span class="b">Relatorio da Partida</span> &rarr; <span class="b vermelho">Salvar como PDF</span></td><td>Scout completo por jogador, <strong>rotações</strong> (side-out e break por rotação, corte da dupla substituição, resumo por set), <strong>scout do adversário</strong> e placar set a set.</td></tr>
       <tr><td><strong>Partidas (geral)</strong></td><td>Tela inicial, seção Elenco &rarr; <span class="b claro">Relatorio Partidas</span></td><td>Lista filtrável de partidas, resumo por fase, por local e desempenho por time.</td></tr>
       <tr><td><strong>Torneio</strong></td><td>Dentro do torneio &rarr; <span class="b claro">Relatorio do Torneio</span></td><td>Classificação, destaques, top jogadores, fundamentos, locais e partidas.</td></tr>
       <tr><td><strong>Torneios (consolidado)</strong></td><td>Menu do topo &rarr; <span class="b">Relatório Torneios</span></td><td>Todos os torneios, ranking de times e jogadores do time principal.</td></tr>
@@ -1122,6 +1301,9 @@
       <tr><td><strong>Eff (eficiência)</strong></td><td>Percentual do fundamento já descontados os erros.</td></tr>
       <tr><td><strong>Rec Pos% / Rec Prf%</strong></td><td>Percentual de recepções positivas e de recepções perfeitas.</td></tr>
       <tr><td><strong>P / J / V / S.S</strong></td><td>Na classificação: pontos, jogos, vitórias e saldo de sets.</td></tr>
+      <tr><td><strong>Side-out %</strong></td><td>Rallies vencidos recebendo, sobre os rallies recebidos. Acima de 60% é boa referência em nível de clube.</td></tr>
+      <tr><td><strong>Break %</strong></td><td>Rallies vencidos sacando, sobre os rallies sacados.</td></tr>
+      <tr><td><strong>Rot / Saldo</strong></td><td>A rotação (R1 a R6, pela zona do levantador) e quantos pontos ela deu de lucro ou prejuízo.</td></tr>
     </tbody>
   </table>
   <p class="rodape-nota">
@@ -1154,6 +1336,11 @@
       <tr><td><span class="b verde">Finalizar partida (3 x 1)</span></td><td>um dos times já venceu os sets necessários</td><td>Painel direito da tela do jogo</td></tr>
       <tr><td><span class="b claro">Reabrir set</span></td><td>o set atual <strong>está encerrado</strong> (no lugar de “Encerrar set”)</td><td>Painel direito da tela do jogo</td></tr>
       <tr><td><span class="b claro">Ctrl+Z desfaz: …</span></td><td>existe algum lance para desfazer no set aberto</td><td>Painel direito da tela do jogo</td></tr>
+      <tr><td><span class="b claro">Dupla sub</span></td><td>a <strong>formação do set</strong> já foi declarada (sem ela o botão fica apagado)</td><td>Barra inferior da tela do jogo</td></tr>
+      <tr><td>Indicador <strong>R1…R6</strong> e o botão <span class="b claro">↻</span></td><td>a <strong>formação do set</strong> já foi declarada &mdash; senão aparece “Declarar formação do set N”</td><td>Acima da quadra</td></tr>
+      <tr><td>Selo <strong>dupla sub</strong> no indicador</td><td>a dupla substituição está em vigor naquele momento</td><td>Acima da quadra</td></tr>
+      <tr><td>Aviso <strong>líbero na rede</strong></td><td>o líbero acabou numa zona de frente &mdash; sinal de que a saída dele não foi registrada</td><td>Acima da quadra</td></tr>
+      <tr><td>Bloco <strong>Rotações</strong> nas estatísticas</td><td>pelo menos um set da partida teve a formação declarada</td><td>Janela de estatísticas e PDF da partida</td></tr>
       <tr><td>Aba <strong>Jogadores</strong> nas estatísticas</td><td>a janela <strong>não</strong> está no modo “Resultado / Sets”</td><td>Janela de estatísticas</td></tr>
       <tr><td><span class="b">Adicionar set</span> / <span class="b vermelho">Excluir set</span></td><td>a janela <strong>não</strong> está em modo leitura — e Excluir só no último set</td><td>Janela de estatísticas, aba Sets</td></tr>
       <tr><td><span class="b">Editar</span> / <span class="b vermelho">Excluir</span> de uma ação</td><td>a janela <strong>não</strong> está em modo leitura</td><td>Janela de estatísticas, aba Jogadores</td></tr>
@@ -1244,6 +1431,15 @@
 
 <section>
   <h2>19. Roteiro de teste sugerido</h2>
+  <div class="caixa">
+    <div class="titulo">Testando a rotação e o scout do adversário</div>
+    Depois de declarar a formação do set, escoute um set curto conferindo três coisas:
+    <strong>(1)</strong> a quadra gira só quando a sua equipe ganha o rally <em>recebendo</em>, nunca quando
+    ganha sacando; <strong>(2)</strong> um <kbd>Ctrl</kbd>+<kbd>Z</kbd> e um <kbd>Shift</kbd>+<kbd>&darr;</kbd>
+    devolvem a rotação ao que era antes; <strong>(3)</strong> registrando alguns lances com
+    <kbd>Alt</kbd>+camisa, o resumo do adversário enche e os números da sua equipe <strong>não</strong> mudam.
+    Ao final, emita o PDF da partida e confira o bloco de rotações.
+  </div>
   <p>
     Um caminho que passa por tudo o que existe hoje. Percorrê-lo inteiro, anotando o que incomodar, já é um
     retorno muito útil.
@@ -1301,7 +1497,7 @@
 </section>
 
 <p class="rodape-nota" style="margin-top:22px; border-top:1px solid #e5e5e5; padding-top:10px;">
-  VolleyStats 1.0.0 — versão de avaliação, distribuída para teste. Documento gerado a partir do próprio
+  VolleyStats <span class="versao-app">1.2.0</span> — versão de avaliação, distribuída para teste. Documento gerado a partir do próprio
   código do aplicativo; a tabela de qualidade da seção 14 reproduz exatamente a escala usada pelo sistema.
 </p>
 

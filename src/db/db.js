@@ -190,6 +190,12 @@ function ensureSetColumns() {
         db.exec('ALTER TABLE "Set" ADD COLUMN pontosTime2 INTEGER');
     }
 
+    // Quem sacou a primeira bola do set. Sem isso nao da para saber se o
+    // primeiro rally foi side-out (gira a rotacao) ou break point (nao gira).
+    if (!columns.includes('sacaPrimeiro')) {
+        db.exec('ALTER TABLE "Set" ADD COLUMN sacaPrimeiro TEXT');
+    }
+
     if (!columns.includes('encerrado')) {
         db.exec('ALTER TABLE "Set" ADD COLUMN encerrado INTEGER DEFAULT 0');
         // Sets de partidas ja finalizadas contam como encerrados: e a unica
@@ -214,6 +220,18 @@ function ensurePontoColumns() {
 
     if (!columns.includes('vencedor')) {
         db.exec("ALTER TABLE Ponto ADD COLUMN vencedor TEXT");
+    }
+
+    // Cache materializado da rotacao, nunca fonte de verdade: quem manda e
+    // `Ponto.sincronizarRotacoes()`, que regrava as duas colunas a partir da
+    // escalacao do set e da sequencia de rallies. Existem para os relatorios
+    // conseguirem agregar por rotacao em SQL.
+    if (!columns.includes('rotacao')) {
+        db.exec('ALTER TABLE Ponto ADD COLUMN rotacao INTEGER');
+    }
+
+    if (!columns.includes('sacando')) {
+        db.exec('ALTER TABLE Ponto ADD COLUMN sacando TEXT');
     }
 }
 
@@ -339,6 +357,31 @@ function initDatabase() {
                 FOREIGN KEY (Jogadores_id) REFERENCES Jogadores (id) ON DELETE CASCADE
             );
 
+            -- Formacao inicial de cada set, por zona de quadra.
+            --
+            -- TimesPartida.linha so diz se o atleta esta em quadra ou no
+            -- banco; aqui fica ONDE ele comeca o set. E o equivalente do
+            -- home_p1..home_p6 do DataVolley, e o que permite saber em que
+            -- rotacao a equipe estava em cada rally.
+            --
+            -- So a nossa equipe (o time1 da partida) e registrada: o
+            -- adversario continua sendo escoutado apenas por camisa.
+            --
+            -- levantador = 1 marca o SLOT-ANCORA do set - a zona onde o
+            -- levantador comecou. O numero da rotacao sai da zona desse slot, e
+            -- ele nao se move quando o levantador e substituido (ver a dupla
+            -- substituicao em Model/Rotacao.js).
+            CREATE TABLE IF NOT EXISTS EscalacaoSet (
+                Partida_id INTEGER NOT NULL,
+                NumSet INTEGER NOT NULL,
+                zona INTEGER NOT NULL CHECK (zona BETWEEN 1 AND 6),
+                Jogadores_id INTEGER NOT NULL,
+                levantador INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (Partida_id, NumSet, zona),
+                FOREIGN KEY (Partida_id) REFERENCES Partidas (id) ON DELETE CASCADE,
+                FOREIGN KEY (Jogadores_id) REFERENCES Jogadores (id) ON DELETE CASCADE
+            );
+
             -------------------------------------------------------
             -- Tabela TimesCategorias
             -- ----------------------------------------------------
@@ -371,6 +414,8 @@ function initDatabase() {
                 -- distinguir "20x18 em andamento" de "25x18 terminado", e a
                 -- contagem de sets ganhos vira chute.
                 encerrado INTEGER DEFAULT 0,
+                -- 'MANDANTE' | 'VISITANTE': quem sacou a primeira bola do set.
+                sacaPrimeiro TEXT,
                 PRIMARY KEY (NumSet, Partida_id),
                 FOREIGN KEY (Partida_id) REFERENCES Partidas (id)
             );
@@ -384,6 +429,10 @@ function initDatabase() {
                 Jogador_id INTEGER,
                 -- 'MANDANTE' | 'VISITANTE': quem venceu o rally.
                 vencedor TEXT,
+                -- Rotacao da nossa equipe no rally (1 a 6 = zona do slot-ancora)
+                -- e quem estava sacando. Derivados: ver Ponto.sincronizarRotacoes.
+                rotacao INTEGER,
+                sacando TEXT,
                 PRIMARY KEY (pontoTime1, pontoTime2, NumSet, Set_Partida_id),
                 FOREIGN KEY (NumSet, Set_Partida_id) REFERENCES 'Set' (NumSet, Partida_id),
                 FOREIGN KEY (Jogador_id) REFERENCES Jogadores (id)

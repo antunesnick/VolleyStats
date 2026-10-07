@@ -2,6 +2,8 @@ import Acao from './Acao';
 import Substituicao from './Substituicao';
 import SetPartida from './SetPartida';
 import TimesPartida from './TimesPartida';
+import EscalacaoSet from './EscalacaoSet';
+import { simularSet } from './Rotacao';
 
 /** Lados possiveis de um rally. */
 export const VENCEDOR = Object.freeze({
@@ -159,9 +161,19 @@ class Ponto {
             'SELECT 1 FROM Ponto WHERE pontoTime1 = ? AND pontoTime2 = ? AND NumSet = ? AND Set_Partida_id = ?'
         ).get(pontoTime1, pontoTime2, numSet, partida_id);
 
-        // Sem acoes registradas nao existe rally no banco: nada a marcar.
         if (!alvo) {
-            return false;
+            // Limpar a marcacao de um rally que nao existe e no-op.
+            if (vencedor === null) {
+                return false;
+            }
+
+            // O rally e criado aqui quando o analista so mexeu no placar, sem
+            // escoutar nenhuma acao. Antes esses rallies nao deixavam registro
+            // e a sequencia do set ficava com buraco - o que impede derivar a
+            // rotacao, que depende de saber quem venceu CADA rally. E o mesmo
+            // caminho que AcaoAdversario.gravar ja usa.
+            new Ponto(pontoTime1, pontoTime2, new SetPartida(numSet, { id: partida_id }))
+                .criarPonto(db);
         }
 
         db.prepare(`
@@ -170,6 +182,150 @@ class Ponto {
         `).run(vencedor, pontoTime1, pontoTime2, numSet, partida_id);
 
         return true;
+    }
+
+    /**
+     * Regrava a rotacao de todos os rallies de um set.
+     *
+     * Mesma disciplina de `sincronizarDonoDoPonto`: `Ponto.rotacao` e
+     * `Ponto.sacando` sao cache, nunca fonte de verdade. A verdade e a formacao
+     * declarada do set mais a sequencia de rallies, e ela e reprocessada
+     * inteira a cada chamada.
+     *
+     * E isso que faz o undo (Ctrl+Z), a correcao de placar para baixo e o
+     * reabrir-set voltarem a rotacao certa sozinhos: nao existe contador para
+     * desfazer, so um recalculo.
+     */
+    static sincronizarRotacoes(partida_id, numSet, db) {
+        const partidaId = Number(partida_id);
+        const set = Number(numSet);
+
+        const limpar = () => {
+            db.prepare(`
+                UPDATE Ponto SET rotacao = NULL, sacando = NULL
+                WHERE Set_Partida_id = ? AND NumSet = ?
+            `).run(partidaId, set);
+        };
+
+        const escalacaoInicial = EscalacaoSet.buscarPorSet(partidaId, set, db);
+
+        // Set sem formacao declarada nao tem rotacao. Os relatorios leem isso
+        // como "sem rotacao registrada" em vez de inventar um numero.
+        if (escalacaoInicial.length !== 6) {
+            limpar();
+            return [];
+        }
+
+        const rallies = db.prepare(`
+            SELECT pontoTime1, pontoTime2, vencedor
+            FROM Ponto
+            WHERE Set_Partida_id = ? AND NumSet = ?
+            ORDER BY (pontoTime1 + pontoTime2) ASC
+        `).all(partidaId, set);
+
+        const substituicoes = db.prepare(`
+            SELECT Ponto_pontoTime1 AS pontoTime1,
+                   Ponto_pontoTime2 AS pontoTime2,
+                   JogadorEntra AS jogadorEntra,
+                   JogadorSai AS jogadorSai
+            FROM Substituicao
+            WHERE Ponto_Partida_id = ? AND Ponto_NumSet = ?
+            ORDER BY id ASC
+        `).all(partidaId, set);
+
+        const estados = simularSet({
+            escalacaoInicial,
+            sacaPrimeiro: EscalacaoSet.buscarSacaPrimeiro(partidaId, set, db),
+            rallies,
+            substituicoes,
+            ehLevantador: EscalacaoSet.verificadorDeLevantador(db),
+            ehLibero: EscalacaoSet.verificadorDeLibero(db),
+        });
+
+        limpar();
+
+        const gravar = db.prepare(`
+            UPDATE Ponto SET rotacao = ?, sacando = ?
+            WHERE pontoTime1 = ? AND pontoTime2 = ? AND NumSet = ? AND Set_Partida_id = ?
+        `);
+
+        estados.forEach((estado) => {
+            gravar.run(
+                estado.rotacao,
+                estado.sacando,
+                estado.pontoTime1,
+                estado.pontoTime2,
+                set,
+                partidaId
+            );
+        });
+
+        return estados;
+    }
+
+    /** Sincroniza a rotacao de todos os sets da partida. */
+    static sincronizarRotacoesDaPartida(partida_id, db) {
+        const sets = db.prepare(
+            'SELECT NumSet FROM "Set" WHERE Partida_id = ? ORDER BY NumSet ASC'
+        ).all(Number(partida_id));
+
+        sets.forEach(({ NumSet }) => Ponto.sincronizarRotacoes(partida_id, NumSet, db));
+    }
+
+    /**
+     * Estado de rotacao de cada rally de um set, ja com a ocupacao das zonas.
+     *
+     * A tela do scout usa o ultimo item para o badge ao vivo; o relatorio usa a
+     * lista inteira para o corte da dupla substituicao, que nao cabe numa
+     * coluna de `Ponto`.
+     */
+    static buscarEstadosDeRotacao(partida_id, numSet, db) {
+        const partidaId = Number(partida_id);
+        const set = Number(numSet);
+        const escalacaoInicial = EscalacaoSet.buscarPorSet(partidaId, set, db);
+
+        if (escalacaoInicial.length !== 6) {
+            return [];
+        }
+
+        const rallies = db.prepare(`
+            SELECT pontoTime1, pontoTime2, vencedor
+            FROM Ponto
+            WHERE Set_Partida_id = ? AND NumSet = ?
+            ORDER BY (pontoTime1 + pontoTime2) ASC
+        `).all(partidaId, set);
+
+        // O rally que esta sendo disputado agora ainda nao tem linha em `Ponto`
+        // enquanto ninguem escoutou nada nele. Ele entra aqui sem vencedor, so
+        // para a tela ter o estado de rotacao ao vivo - sem vencedor o motor
+        // nao avanca nada, e a contagem dos relatorios o ignora.
+        const placar = Ponto.buscarPlacarSet(partidaId, set, db);
+        const emDisputa = rallies.some(
+            (rally) => rally.pontoTime1 === placar.home && rally.pontoTime2 === placar.away
+        );
+
+        if (!emDisputa) {
+            rallies.push({ pontoTime1: placar.home, pontoTime2: placar.away, vencedor: null });
+        }
+
+        const substituicoes = db.prepare(`
+            SELECT Ponto_pontoTime1 AS pontoTime1,
+                   Ponto_pontoTime2 AS pontoTime2,
+                   JogadorEntra AS jogadorEntra,
+                   JogadorSai AS jogadorSai
+            FROM Substituicao
+            WHERE Ponto_Partida_id = ? AND Ponto_NumSet = ?
+            ORDER BY id ASC
+        `).all(partidaId, set);
+
+        return simularSet({
+            escalacaoInicial,
+            sacaPrimeiro: EscalacaoSet.buscarSacaPrimeiro(partidaId, set, db),
+            rallies,
+            substituicoes,
+            ehLevantador: EscalacaoSet.verificadorDeLevantador(db),
+            ehLibero: EscalacaoSet.verificadorDeLibero(db),
+        });
     }
 
     /**

@@ -1,6 +1,7 @@
 import db from '../db/db';
 import Substituicao from '../Model/Substituicao';
 import Player from '../Model/Player';
+import Ponto from '../Model/Ponto';
 
 class SubstituicaoControl {
   static #instance;
@@ -48,7 +49,11 @@ class SubstituicaoControl {
     }
 
     const transaction = db.transaction((dadosSubstituicao) => {
-      return Substituicao.registrarSubstituicao(dadosSubstituicao, db);
+      const resultado = Substituicao.registrarSubstituicao(dadosSubstituicao, db);
+      // Quem entra assume a zona de quem saiu: a ocupacao muda e o corte da
+      // dupla substituicao precisa enxergar a troca.
+      Ponto.sincronizarRotacoes(dadosSubstituicao.partidaId, dadosSubstituicao.numSet, db);
+      return resultado;
     });
 
     try {

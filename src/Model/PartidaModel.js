@@ -166,6 +166,7 @@ class PartidaModel {
         db.prepare('DELETE FROM Ponto WHERE Set_Partida_id = ?').run(partidaId);
         db.prepare('DELETE FROM "Set" WHERE Partida_id = ?').run(partidaId);
         db.prepare('DELETE FROM TimesPartida WHERE Partida_id = ?').run(partidaId);
+        db.prepare('DELETE FROM EscalacaoSet WHERE Partida_id = ?').run(partidaId);
         db.prepare('DELETE FROM LinksPartida WHERE Partida_id = ?').run(partidaId);
 
         const info = db.prepare('DELETE FROM Partidas WHERE id = ?').run(partidaId);

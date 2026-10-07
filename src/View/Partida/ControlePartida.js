@@ -14,7 +14,21 @@ import {
 
 // Os fundamentos vem sem acento do Model; na tela eles voltam acentuados.
 const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
+
+// Ordem em que as zonas aparecem na tela, da esquerda para a direita, com a
+// rede em cima. Nao e a ordem numerica: a numeracao das zonas gira em torno da
+// quadra, comecando no fundo a direita (Z1, quem saca).
+const ZONAS_FRENTE_ORDEM = [4, 3, 2];
+const ZONAS_FUNDO_ORDEM = [5, 6, 1];
+
+const semAcentoTela = (texto) =>
+  String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+/** O libero nao ocupa zona na formacao: ele entra no lugar de um jogador de fundo. */
+const ehPosicaoLibero = (posicao) => semAcentoTela(posicao).includes('libero');
+const ehPosicaoLevantador = (posicao) => semAcentoTela(posicao).startsWith('levantador');
   import PlayerControl from '../../Control/PlayerControl';
+  import CategoriaControl from '../../Control/CategoriaControl';
   import SubstituicaoControl from '../../Control/SubstituicaoControl';
   import TimesPartidaControl from '../../Control/TimesPartidaControl';
   import AcaoAdversarioControl from '../../Control/AcaoAdversarioControl';
@@ -22,49 +36,65 @@ const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
   import { useHotkeys } from 'react-hotkeys-hook';
   import EstatisticaView from './EstatisticaView';
   import HelpScoutModal from './HelpModal';
+  import EscalacaoSetControl from '../../Control/EscalacaoSetControl';
+  import PositionControl from '../../Control/PositionControl';
+  import { LADO, ZONAS_FUNDO, ZONAS_REDE } from '../../Model/Rotacao';
  
-  const VolleyballCourt = ({ players, formation, onPlayerClick }) => {
-    const formationMap = {
-      'Padrão 6-6': { front: 3, back: 3 },
-      '2-4-0': { front: 2, back: 4 },
-      '4-2-0': { front: 4, back: 2 },
-      '5-1-0': { front: 5, back: 1 },
+  /**
+   * Quadra com as zonas reais do volei.
+   *
+   * Antes este componente so fatiava os 6 jogadores em "frente" e "fundo" pela
+   * ordem do array, e o seletor de formacao ('Padrao 6-6', '2-4-0'...) nao
+   * correspondia a nada em quadra. Agora cada jogador aparece na zona em que
+   * esta de fato, e a quadra gira sozinha a cada side-out.
+   *
+   *          R E D E
+   *     Z4  |  Z3  |  Z2      frente
+   *     Z5  |  Z6  |  Z1      fundo   (Z1 = quem saca)
+   */
+  const VolleyballCourt = ({ ocupacao, porId, ancora, zonaLevantador, onPlayerClick }) => {
+    const PlayerSpot = ({ zona, isVisitor = false }) => {
+      const jogador = isVisitor ? null : porId?.get(Number(ocupacao?.[zona]));
+      const ehLevantador = !isVisitor && zona === zonaLevantador;
+      const ehAncora = !isVisitor && zona === ancora;
+      const ehLibero = !isVisitor && ehPosicaoLibero(jogador?.posicao);
+
+      const cor = isVisitor
+        ? 'border-orange-200 bg-orange-50/95 text-orange-600 shadow-[0_8px_22px_rgba(251,146,60,0.18)] cursor-default pointer-events-none'
+        : ehLevantador
+          ? 'border-red-500 bg-red-50 text-red-700 shadow-[0_10px_24px_rgba(220,38,38,0.20)] hover:-translate-y-0.5 cursor-pointer'
+          : ehLibero
+            ? 'border-amber-400 bg-amber-50 text-amber-800 shadow-[0_10px_24px_rgba(245,158,11,0.18)] hover:-translate-y-0.5 cursor-pointer'
+            : 'border-slate-200 bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:-translate-y-0.5 hover:border-red-500 cursor-pointer';
+
+      return (
+        <div className="relative flex flex-col items-center">
+          <button
+            type="button"
+            onClick={() => !isVisitor && onPlayerClick && jogador && onPlayerClick(jogador)}
+            title={isVisitor ? 'Adversario' : `Zona ${zona}${jogador ? ` — ${jogador.nome}` : ''}`}
+            className={`h-14 w-14 rounded-full border-2 flex flex-col items-center justify-center transition-all duration-200 ${cor}`}
+          >
+            <span className="text-[11px] font-black">
+              {isVisitor ? 'V' : (jogador?.numero ?? '--')}
+            </span>
+            <span className="text-[9px] uppercase tracking-tighter opacity-70">
+              {isVisitor ? 'VIS' : (jogador?.nome?.slice(0, 3) || '---')}
+            </span>
+          </button>
+          {!isVisitor && (
+            <span className="mt-1 flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
+              Z{zona}
+              {/* A estrela marca o slot-ancora: e dele que sai o numero da
+                  rotacao, mesmo quando a dupla substituicao tirou o levantador
+                  de la. */}
+              {ehAncora && <span className="text-red-500" title="Slot do levantador (ancora da rotacao)">★</span>}
+              {ehLevantador && !ehAncora && <span className="text-red-500" title="Levantando agora (dupla substituicao)">L</span>}
+            </span>
+          )}
+        </div>
+      );
     };
-
-    const config = formationMap[formation] || formationMap['Padrão 6-6'];
-    
-    const fillSlots = (items, count) => {
-      const filled = [...items];
-      while (filled.length < count) {
-        filled.push(null);
-      }
-      return filled.slice(0, count);
-    };
-
-    const frontPlayers = fillSlots(players.slice(0, config.front), config.front);
-    const backPlayers = fillSlots(players.slice(config.front, config.front + config.back), config.back);
-
-    const visitorFrontPlayers = Array(config.front).fill(null);
-    const visitorBackPlayers = Array(config.back).fill(null);
-
-    const PlayerSpot = ({ player, position, onClick, isVisitor = false }) => (
-      <button
-        type="button"
-        onClick={() => !isVisitor && onClick && onClick(player)}
-        className={`h-14 w-14 rounded-full border-2 flex flex-col items-center justify-center transition-all duration-200 ${
-          isVisitor 
-            ? 'border-orange-200 bg-orange-50/95 text-orange-600 shadow-[0_8px_22px_rgba(251,146,60,0.18)] cursor-default pointer-events-none' 
-            : 'border-slate-200 bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:-translate-y-0.5 hover:border-red-500 hover:shadow-[0_14px_28px_rgba(220,38,38,0.18)] cursor-pointer'
-        }`}
-      >
-        <span className={`text-[11px] font-black ${isVisitor ? 'text-orange-600' : 'text-gray-900'}`}>
-          {isVisitor ? 'V' : (player?.numero || position)}
-        </span>
-        <span className={`text-[9px] uppercase tracking-tighter ${isVisitor ? 'text-orange-400' : 'text-gray-500'}`}>
-          {isVisitor ? 'VIS' : (player?.nome?.slice(0, 3) || '---')}
-        </span>
-      </button>
-    );
 
     return (
       <div className="relative mx-auto w-full max-w-[430px] px-2">
@@ -75,21 +105,19 @@ const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
             REDE
           </div>
 
-          <div className="absolute inset-x-6 top-[11%] flex items-center justify-around gap-3">
-            {visitorBackPlayers.map((_, index) => <PlayerSpot key={`visitor-back-${index}`} isVisitor={true} />)}
+          <div className="absolute inset-x-6 top-[9%] flex items-start justify-around gap-3">
+            {[1, 2, 3].map((i) => <PlayerSpot key={`v-back-${i}`} zona={i} isVisitor />)}
           </div>
-          <div className="absolute inset-x-6 top-[30%] flex items-center justify-around gap-3">
-            {visitorFrontPlayers.map((_, index) => <PlayerSpot key={`visitor-front-${index}`} isVisitor={true} />)}
+          <div className="absolute inset-x-6 top-[28%] flex items-start justify-around gap-3">
+            {[4, 5, 6].map((i) => <PlayerSpot key={`v-front-${i}`} zona={i} isVisitor />)}
           </div>
-          <div className="absolute inset-x-6 top-[58%] flex items-center justify-around gap-3">
-            {frontPlayers.map((player, index) => (
-              <PlayerSpot key={`home-front-${index}`} player={player} position={index + 1} onClick={onPlayerClick} />
-            ))}
+
+          {/* Nossa quadra: rede em cima, entao Z4/Z3/Z2 na frente e Z5/Z6/Z1 no fundo. */}
+          <div className="absolute inset-x-6 top-[56%] flex items-start justify-around gap-3">
+            {ZONAS_FRENTE_ORDEM.map((zona) => <PlayerSpot key={`z-${zona}`} zona={zona} />)}
           </div>
-          <div className="absolute inset-x-6 top-[79%] flex items-center justify-around gap-3">
-            {backPlayers.map((player, index) => (
-              <PlayerSpot key={`home-back-${index}`} player={player} position={config.front + index + 1} onClick={onPlayerClick} />
-            ))}
+          <div className="absolute inset-x-6 top-[77%] flex items-start justify-around gap-3">
+            {ZONAS_FUNDO_ORDEM.map((zona) => <PlayerSpot key={`z-${zona}`} zona={zona} />)}
           </div>
         </div>
       </div>
@@ -109,8 +137,6 @@ const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
       [partida?.setsParaVencer]
     );
     const maxSets = totalDeSets(setsParaVencer);
-    const [formation, setFormation] = useState('Padrão 6-6');
-    const [isFormationOpen, setIsFormationOpen] = useState(false);
     const [liveStatus, setLiveStatus] = useState(
       String(partida?.status || '').toUpperCase() === 'FINALIZADA'
         ? 'Finalizada'
@@ -127,6 +153,9 @@ const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
     const [isEscalacaoLoaded, setIsEscalacaoLoaded] = useState(false);
     const [showEscalacao, setShowEscalacao] = useState(false);
     const [escalaMsg, setEscalaMsg] = useState(null);
+    const [categorias, setCategorias] = useState([]);
+    // null = segue a categoria de quem ja esta escalado; 'todas' ou um id = escolha do analista.
+    const [filtroCategoria, setFiltroCategoria] = useState(null);
     const timesPartidaControl = TimesPartidaControl.getInstance();
     const timesPartidaRef = useRef({
       home: timesPartidaControl.criarTimesPartida(partida?.time1, partida?.id),
@@ -152,6 +181,15 @@ const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
     const [selectedPlayerDetails, setSelectedPlayerDetails] = useState(null);
     const [substituicaoMessage, setSubstituicaoMessage] = useState({ type: '', text: '', visible: false });
     const [showEstatistica, setShowEstatistica] = useState(false);
+
+    // Rotacao do set aberto. `formacaoDoSet` sao as 6 zonas declaradas e
+    // `estadosRotacao` o estado rally a rally, derivado delas pelo motor.
+    const [formacaoDoSet, setFormacaoDoSet] = useState([]);
+    const [sacaPrimeiro, setSacaPrimeiro] = useState(LADO.MANDANTE);
+    const [estadosRotacao, setEstadosRotacao] = useState([]);
+    const [showFormacao, setShowFormacao] = useState(false);
+    const [rascunhoFormacao, setRascunhoFormacao] = useState({ zonas: {}, levantador: null, saca: LADO.MANDANTE });
+    const [formacaoMsg, setFormacaoMsg] = useState(null);
 
     const homeLabel = useMemo(() => partida?.time1Nome || partida?.time1 || 'Mandante', [partida]);
     const awayLabel = useMemo(() => partida?.time2Nome || partida?.time2 || 'Visitante', [partida]);
@@ -474,11 +512,17 @@ const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
         return;
       }
 
+      // A camisa so identifica o atleta dentro do elenco desta partida: o
+      // cadastro tem varios times e categorias com numeros repetidos (o 10 do
+      // sub-16 e o 10 do adulto). Buscar em `players` pegava o primeiro do
+      // cadastro inteiro. Quadra antes do banco, para o reserva digitado cair
+      // no aviso de "nao esta na linha" e nao num homonimo de outro time.
       const normalizarCamisa = (value) => String(value || '').replace(/^0+/, '') || '0';
-      const jogador = players.find((p) => normalizarCamisa(p.numero) === normalizarCamisa(buffer.numero));
+      const mesmaCamisa = (p) => normalizarCamisa(p?.numero) === normalizarCamisa(buffer.numero);
+      const jogador = escalados.home.find(mesmaCamisa) || benchPlayers.find(mesmaCamisa);
 
       if (!jogador) {
-        mostrarAviso('erro', `Nenhum atleta da equipe com a camisa ${buffer.numero}. Para o adversário use Alt + número.`);
+        mostrarAviso('erro', `Nenhum atleta escalado nesta partida com a camisa ${buffer.numero}. Para o adversário use Alt + número.`);
         setBuffer(BUFFER_VAZIO);
         return;
       }
@@ -511,7 +555,7 @@ const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
 
       // Limpa o buffer para o próximo rally
       setBuffer(BUFFER_VAZIO);
-    }, { enableOnFormTags: false }, [buffer, players]);
+    }, { enableOnFormTags: false }, [buffer, escalados.home, benchPlayers]);
 
     useHotkeys('esc', () => {
       if (showHelpModal) {
@@ -581,10 +625,198 @@ const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
         set: adversarioControl.resumo(partidaId, set),
         partida: adversarioControl.resumo(partidaId, null),
       });
+
+      // A rotacao e derivada, entao e relida junto com o resto: nao ha contador
+      // na tela para manter em dia.
+      const escalacaoControl = EscalacaoSetControl.getInstance();
+      setFormacaoDoSet(escalacaoControl.buscarPorSet(partidaId, set));
+      setSacaPrimeiro(escalacaoControl.buscarSacaPrimeiro(partidaId, set));
+      setEstadosRotacao(control.buscarEstadosDeRotacao(partidaId, set));
     } catch (error) {
       console.error('Erro ao carregar dados do set:', error.message);
       alert(`Erro ao carregar set ${numSet}: ${error.message}`);
     }
+  };
+
+  /** Todo atleta do elenco por id, para a quadra resolver quem esta em cada zona. */
+  const jogadoresPorId = useMemo(
+    () => new Map(players.map((jogador) => [Number(jogador.id), jogador])),
+    [players]
+  );
+
+  /**
+   * Estado de rotacao agora.
+   *
+   * O ultimo item de `estadosRotacao` e sempre o rally em disputa - o Model
+   * acrescenta um rally sem vencedor no placar corrente justamente para a tela
+   * ter esse estado ao vivo.
+   */
+  const rotacaoAtual = useMemo(
+    () => estadosRotacao[estadosRotacao.length - 1] || null,
+    [estadosRotacao]
+  );
+
+  const temFormacao = formacaoDoSet.length === 6;
+
+  const zonaAncoraDoSet = useMemo(() => {
+    const linha = formacaoDoSet.find((item) => Number(item.levantador) === 1);
+    return linha ? Number(linha.zona) : null;
+  }, [formacaoDoSet]);
+
+  /** Os 6 que rodam. O libero fica de fora: ele nao ocupa zona (ver Model/EscalacaoSet). */
+  const candidatosAZona = useMemo(
+    () => escalados.home.filter((jogador) => !ehPosicaoLibero(jogador.posicao)),
+    [escalados.home]
+  );
+
+  const abrirFormacao = () => {
+    setFormacaoMsg(null);
+
+    if (temFormacao) {
+      const zonas = {};
+      formacaoDoSet.forEach((linha) => { zonas[linha.zona] = Number(linha.jogadorId); });
+      setRascunhoFormacao({
+        zonas,
+        levantador: zonaAncoraDoSet,
+        saca: sacaPrimeiro,
+      });
+      setShowFormacao(true);
+      return;
+    }
+
+    // Set novo abre com a formacao do set anterior: na pratica a equipe repete
+    // a escalacao e so muda por onde comeca.
+    const sugerida = EscalacaoSetControl.getInstance().sugerirParaSet(
+      parseInt(partida.id),
+      parseInt(currentSet)
+    );
+
+    const zonas = {};
+    let levantador = null;
+
+    if (sugerida.length === 6) {
+      sugerida.forEach((linha) => {
+        zonas[linha.zona] = Number(linha.jogadorId);
+        if (Number(linha.levantador) === 1) levantador = Number(linha.zona);
+      });
+    } else {
+      candidatosAZona.slice(0, 6).forEach((jogador, indice) => {
+        zonas[indice + 1] = Number(jogador.id);
+        if (levantador === null && ehPosicaoLevantador(jogador.posicao)) {
+          levantador = indice + 1;
+        }
+      });
+    }
+
+    setRascunhoFormacao({ zonas, levantador, saca: sacaPrimeiro });
+    setShowFormacao(true);
+  };
+
+  const salvarFormacao = () => {
+    const zonas = [1, 2, 3, 4, 5, 6].map((zona) => ({
+      zona,
+      jogadorId: rascunhoFormacao.zonas[zona],
+      levantador: rascunhoFormacao.levantador === zona ? 1 : 0,
+    }));
+
+    try {
+      EscalacaoSetControl.getInstance().salvar({
+        partidaId: parseInt(partida.id),
+        numSet: parseInt(currentSet),
+        zonas,
+        sacaPrimeiro: rascunhoFormacao.saca,
+      });
+
+      setShowFormacao(false);
+      setFormacaoMsg(null);
+      carregarDadosDoSet(currentSet);
+      mostrarAviso('sucesso', `Formação do set ${currentSet} registrada.`);
+    } catch (error) {
+      setFormacaoMsg(error.message || 'Não foi possível salvar a formação.');
+    }
+  };
+
+  /**
+   * Gira a rotacao inicial do set.
+   *
+   * E o unico conserto possivel quando a rotacao sai do lugar: o placar ja esta
+   * certo e todo o resto e derivado dele, entao o unico grau de liberdade e por
+   * onde o set comecou.
+   */
+  const girarRotacaoDoSet = () => {
+    try {
+      EscalacaoSetControl.getInstance().girar(parseInt(partida.id), parseInt(currentSet));
+      carregarDadosDoSet(currentSet);
+    } catch (error) {
+      mostrarAviso('erro', error.message || 'Não foi possível girar a rotação.');
+    }
+  };
+
+  /**
+   * Dupla substituicao: levantador sai para um oposto, e o oposto titular sai
+   * para o levantador reserva, que fica no fundo. O time joga com 3 atacantes
+   * na rede. As duas trocas vao juntas - meia dupla deixaria a quadra sem
+   * levantador ou com dois.
+   */
+  const aplicarDuplaSubstituicao = () => {
+    if (!rotacaoAtual) {
+      mostrarAviso('erro', 'Declare a formação do set antes de fazer a dupla substituição.');
+      return;
+    }
+
+    const sugestao = EscalacaoSetControl.getInstance().sugerirDuplaSubstituicao(
+      parseInt(partida.id),
+      parseInt(currentSet),
+      benchPlayers
+    );
+
+    if (!sugestao) {
+      mostrarAviso('erro', 'Declare a formação do set antes de fazer a dupla substituição.');
+      return;
+    }
+
+    const { trocaAncora, trocaDiagonal, desfazendo } = sugestao;
+
+    if (!trocaAncora.jogadorEntra || !trocaDiagonal.jogadorEntra) {
+      mostrarAviso(
+        'erro',
+        desfazendo
+          ? 'Para desfazer a dupla, o levantador e o oposto titulares precisam estar no banco.'
+          : 'A dupla substituição precisa de um levantador e um oposto no banco.'
+      );
+      return;
+    }
+
+    const resultado = EscalacaoSetControl.getInstance().registrarDuplaSubstituicao({
+      partidaId: parseInt(partida.id),
+      numSet: parseInt(currentSet),
+      pontoTime1: scoreRef.current.home,
+      pontoTime2: scoreRef.current.away,
+      trocas: [trocaAncora, trocaDiagonal],
+    });
+
+    if (!resultado.success) {
+      mostrarAviso('erro', resultado.message);
+      return;
+    }
+
+    // A quadra em memoria precisa acompanhar, senao gravarPonto recusa o atleta
+    // que acabou de entrar por "nao esta na linha".
+    const timePartida = timesPartidaRef.current.home;
+    [trocaAncora, trocaDiagonal].forEach((troca) => {
+      const sai = escalados.home.find((jogador) => Number(jogador.id) === Number(troca.jogadorSai));
+      const entra = benchPlayers.find((jogador) => Number(jogador.id) === Number(troca.jogadorEntra));
+      if (sai && entra) timePartida.realizarSubstituicao(sai, entra);
+    });
+
+    setEscalados((atual) => ({ ...atual, home: [...timePartida.linha] }));
+    setBenchPlayers([...timePartida.banco]);
+    persistCurrentEscalacao(timePartida).catch((error) =>
+      console.error('Erro ao persistir a escalação após a dupla substituição:', error)
+    );
+
+    carregarDadosDoSet(currentSet);
+    mostrarAviso('sucesso', desfazendo ? 'Dupla substituição desfeita.' : 'Dupla substituição registrada.');
   };
 
     
@@ -762,11 +994,31 @@ const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
 
           const control = PlayerControl.getInstance();
           const data = await control.findAllPlayers();
+
+          // O nome da posicao vem do cadastro: a rotacao precisa saber quem e
+          // levantador (define o slot-ancora) e quem e libero (nao ocupa zona).
+          // Antes a tela mostrava "Posicao 3", que nao diz nada a ninguem.
+          const posicoes = await PositionControl.getInstance().findAllPositions();
+          const nomePorPosicao = new Map(
+            (posicoes || []).map((posicao) => [Number(posicao.id), posicao.nome])
+          );
+
+          // Categoria do cadastro do atleta: o cadastro mistura times e
+          // categorias, e a escalacao filtra por ela.
+          const listaCategorias = (await CategoriaControl.getInstance().listarCategorias()) || [];
+          const nomePorCategoria = new Map(
+            listaCategorias.map((categoria) => [Number(categoria.id), categoria.nome])
+          );
+          setCategorias(listaCategorias);
+
           const formatted = data.map((player) => ({
             id: player.id,
             nome: player.nome || 'Jogador',
             numero: String(player.numCamisa || player.id).padStart(2, '0'),
-            posicao: player.posicao_id ? `Posição ${player.posicao_id}` : 'Sem posição',
+            posicaoId: player.posicao_id ?? null,
+            posicao: nomePorPosicao.get(Number(player.posicao_id)) || 'Sem posição',
+            categoriaId: player.categoria_id ?? null,
+            categoria: nomePorCategoria.get(Number(player.categoria_id)) || 'Sem categoria',
           }));
           setPlayers(formatted);
 
@@ -801,6 +1053,10 @@ const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
             setEscalados({ home: [], away: [] });
             setBenchPlayers([]);
             setIsEscalacaoLoaded(false);
+            // Sem escalacao nao ha scout possivel: a tela ja abre para monta-la.
+            if (String(partida?.status || '').toUpperCase() !== 'FINALIZADA') {
+              setShowEscalacao(true);
+            }
           }
         } catch (error) {
           // Sem aviso aqui a escalacao aparecia vazia sem explicacao nenhuma.
@@ -818,33 +1074,38 @@ const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
       }
     }, [partida?.id, partida?.time1, partida?.time2]);
 
-    useEffect(() => {
-      if (!players.length || escalados.home.length > 0 || benchPlayers.length > 0 || isEscalacaoLoaded) return;
+    // Nao existe escalacao automatica. Antes, partida sem escalacao salva recebia
+    // os 14 primeiros atletas do cadastro inteiro - de qualquer time e categoria
+    // -, e como o efeito disparava antes de a escalacao salva terminar de
+    // carregar, podia sobrescreve-la. O analista monta a escalacao na tela.
 
-      const initialLine = players.slice(0, 6);
-      const initialBench = players.slice(6, 14);
-      const homeTime = timesPartidaControl.criarTimesPartida(partida?.time1, partida?.id);
-
-      initialLine.forEach((player) => homeTime.adicionarJogadorLinha(player));
-      initialBench.forEach((player) => homeTime.adicionarJogadorBanco(player));
-
-      timesPartidaRef.current.home = homeTime;
-      setEscalados({ home: initialLine, away: [] });
-      setBenchPlayers(initialBench);
-
-      persistCurrentEscalacao(homeTime).catch((error) => {
-        console.error('Erro ao salvar escalação inicial:', error);
-        setEscalaMsg(error.message || 'Erro ao salvar escalação inicial.');
+    // Categoria predominante entre os ja escalados: e ela que a lista de
+    // disponiveis mostra por padrao, para o sub-16 nao ver o adulto.
+    const categoriaDaEscalacao = useMemo(() => {
+      const contagem = new Map();
+      [...escalados.home, ...benchPlayers].forEach((player) => {
+        if (player?.categoriaId == null) return;
+        contagem.set(player.categoriaId, (contagem.get(player.categoriaId) || 0) + 1);
       });
-    }, [players, escalados.home.length, benchPlayers.length, partida?.id, partida?.time1, partida?.time2, isEscalacaoLoaded]);
+      let predominante = null;
+      contagem.forEach((total, categoriaId) => {
+        if (predominante === null || total > contagem.get(predominante)) predominante = categoriaId;
+      });
+      return predominante;
+    }, [escalados.home, benchPlayers]);
+
+    const categoriaFiltrada = filtroCategoria ?? categoriaDaEscalacao ?? 'todas';
 
     const availableEscalacaoPlayers = useMemo(() => {
       const selectedIds = new Set([
         ...escalados.home.map((player) => player?.id),
         ...benchPlayers.map((player) => player?.id),
       ]);
-      return players.filter((player) => !selectedIds.has(player?.id));
-    }, [players, escalados.home, benchPlayers]);
+      return players.filter((player) => (
+        !selectedIds.has(player?.id)
+        && (categoriaFiltrada === 'todas' || Number(player.categoriaId) === Number(categoriaFiltrada))
+      ));
+    }, [players, escalados.home, benchPlayers, categoriaFiltrada]);
 
 const handleExcluirAcao = (acao) => {
   if (!window.confirm(`Excluir ação de ${acao.jogadorNome}? (${acao.tipoAcaoNome} - ${rotularQualidade(acao.tipoAcaoNome, acao.qualidade)})`)) return;
@@ -1279,12 +1540,62 @@ const resumoAdversarioAtivo = resumoAdversario?.[escopoAdversario] || null;
               </div>
             </div>
 
+            {/* Rotacao ao vivo */}
+            <div className="relative z-10 w-full mt-6 flex justify-center px-4">
+              {temFormacao && rotacaoAtual ? (
+                <div className="flex flex-wrap items-center justify-center gap-2 rounded-full border border-gray-200 bg-white/90 px-4 py-2 shadow-sm backdrop-blur-sm">
+                  <span className="rounded-full bg-red-600 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-white">
+                    R{rotacaoAtual.rotacao}
+                  </span>
+                  <span className="text-[11px] font-bold text-gray-600">
+                    levantando: #{jogadoresPorId.get(Number(rotacaoAtual.levantadorId))?.numero ?? '--'}
+                    {' '}(Z{rotacaoAtual.zonaLevantador})
+                  </span>
+                  {rotacaoAtual.duplaSub && (
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700">
+                      dupla sub
+                    </span>
+                  )}
+                  <span className="text-gray-300">•</span>
+                  <span className="text-[11px] font-bold text-gray-600">
+                    sacando: {rotacaoAtual.sacando === LADO.MANDANTE ? 'nós' : 'eles'}
+                  </span>
+                  {rotacaoAtual.liberoNaRede && (
+                    <span
+                      className="rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-white"
+                      title="O libero nao joga na rede: registre a saida dele."
+                    >
+                      líbero na rede
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={girarRotacaoDoSet}
+                    title="Gira a rotação inicial do set e recalcula o set inteiro"
+                    className="ml-1 rounded-full bg-gray-100 p-1.5 text-gray-600 transition-colors hover:bg-gray-200"
+                  >
+                    <RefreshCw size={13} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={abrirFormacao}
+                  className="rounded-full border border-dashed border-gray-300 bg-white/80 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-gray-500 shadow-sm backdrop-blur-sm transition-colors hover:border-red-400 hover:text-red-600"
+                >
+                  Declarar formação do set {currentSet}
+                </button>
+              )}
+            </div>
+
             {/* The Court */}
-            <div className="relative z-10 w-full mt-10">
-              <VolleyballCourt 
-                players={escalados.home} 
-                formation={formation} 
-                onPlayerClick={setSelectedPlayerDetails} 
+            <div className="relative z-10 w-full mt-4">
+              <VolleyballCourt
+                ocupacao={rotacaoAtual?.ocupacao}
+                porId={jogadoresPorId}
+                ancora={rotacaoAtual?.rotacao ?? zonaAncoraDoSet}
+                zonaLevantador={rotacaoAtual?.zonaLevantador}
+                onPlayerClick={setSelectedPlayerDetails}
               />
             </div>
 
@@ -1296,6 +1607,24 @@ const resumoAdversarioAtivo = resumoAdversario?.[escopoAdversario] || null;
               >
                 <LayoutGrid size={14} className="text-gray-900" />
                 Escalação
+              </button>
+
+              <button
+                onClick={abrirFormacao}
+                className="bg-white/90 backdrop-blur-sm border border-gray-200 px-5 py-3 rounded-full shadow-sm hover:bg-white transition-all text-[11px] font-black uppercase tracking-widest text-gray-700 flex items-center gap-2"
+              >
+                <MapPin size={14} className="text-gray-900" />
+                Formação do set
+              </button>
+
+              <button
+                onClick={aplicarDuplaSubstituicao}
+                disabled={!temFormacao}
+                title="Levantador sai para um oposto e o levantador reserva entra na diagonal"
+                className="bg-white/90 backdrop-blur-sm border border-gray-200 px-5 py-3 rounded-full shadow-sm hover:bg-white transition-all text-[11px] font-black uppercase tracking-widest text-gray-700 flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <RefreshCw size={14} className="text-gray-900" />
+                Dupla sub
               </button>
 
               <button
@@ -1713,6 +2042,166 @@ const resumoAdversarioAtivo = resumoAdversario?.[escopoAdversario] || null;
         </div>
         </div>
 
+        {showFormacao && (
+          <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm p-4 sm:p-6 overflow-auto flex items-center justify-center">
+            <div className="w-full max-w-2xl rounded-[2rem] bg-white p-8 shadow-2xl border border-gray-100">
+              <div className="flex items-start justify-between gap-4 mb-6">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-gray-500">Rotação · sistema 5-1</p>
+                  <h2 className="mt-1 text-2xl font-black text-gray-900 tracking-tight">Formação do set {currentSet}</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Posicione os 6 que rodam nas zonas e marque o levantador. A rotação é a zona dele.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowFormacao(false)}
+                  className="rounded-full bg-gray-100 p-3 text-gray-600 hover:bg-gray-200 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {formacaoMsg && (
+                <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  {formacaoMsg}
+                </div>
+              )}
+
+              <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[12px] text-amber-800">
+                O líbero não entra aqui: ele não roda. Ele substitui um jogador de fundo e sai
+                antes de chegar à rede — use a substituição normal, que já é isenta do limite do set.
+              </div>
+
+              <div className="rounded-3xl border border-gray-100 bg-gray-50 p-5">
+                <p className="mb-3 text-center text-[10px] font-black uppercase tracking-[0.22em] text-gray-400">
+                  Rede
+                </p>
+
+                {[ZONAS_FRENTE_ORDEM, ZONAS_FUNDO_ORDEM].map((linha, indiceLinha) => (
+                  <div key={indiceLinha} className={`grid grid-cols-3 gap-3 ${indiceLinha === 1 ? 'mt-3' : ''}`}>
+                    {linha.map((zona) => {
+                      const selecionado = rascunhoFormacao.zonas[zona] ?? '';
+                      const ehAncora = rascunhoFormacao.levantador === zona;
+
+                      return (
+                        <div
+                          key={zona}
+                          className={`rounded-2xl border-2 bg-white p-3 transition-colors ${
+                            ehAncora ? 'border-red-500 shadow-[0_8px_20px_rgba(220,38,38,0.12)]' : 'border-gray-100'
+                          }`}
+                        >
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                              Z{zona}{zona === 1 ? ' · saque' : ''}
+                            </span>
+                            <button
+                              type="button"
+                              title="Marcar como levantador"
+                              onClick={() => setRascunhoFormacao((atual) => ({ ...atual, levantador: zona }))}
+                              className={`text-base leading-none transition-colors ${
+                                ehAncora ? 'text-red-500' : 'text-gray-300 hover:text-red-400'
+                              }`}
+                            >
+                              ★
+                            </button>
+                          </div>
+
+                          <select
+                            value={selecionado}
+                            onChange={(evento) => {
+                              const novo = Number(evento.target.value) || null;
+                              setRascunhoFormacao((atual) => {
+                                const zonas = { ...atual.zonas };
+                                // Trocar dois atletas de zona em vez de duplicar:
+                                // escolher alguem que ja esta em outra zona faz as
+                                // duas trocarem de lugar.
+                                const zonaAnteriorDoAtleta = Object.keys(zonas)
+                                  .find((chave) => Number(zonas[chave]) === novo && Number(chave) !== zona);
+                                if (zonaAnteriorDoAtleta) zonas[zonaAnteriorDoAtleta] = zonas[zona] ?? null;
+                                zonas[zona] = novo;
+                                return { ...atual, zonas };
+                              });
+                            }}
+                            className="w-full rounded-xl border border-gray-200 bg-white px-2 py-2 text-xs font-bold text-gray-900 focus:border-red-500 focus:outline-none"
+                          >
+                            <option value="">--</option>
+                            {candidatosAZona.map((jogador) => (
+                              <option key={jogador.id} value={jogador.id}>
+                                #{jogador.numero} {jogador.nome}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">Saque inicial</span>
+                  {[
+                    { valor: LADO.MANDANTE, rotulo: 'Nós' },
+                    { valor: LADO.VISITANTE, rotulo: 'Adversário' },
+                  ].map((opcao) => (
+                    <button
+                      key={opcao.valor}
+                      type="button"
+                      onClick={() => setRascunhoFormacao((atual) => ({ ...atual, saca: opcao.valor }))}
+                      className={`rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-widest transition-colors ${
+                        rascunhoFormacao.saca === opcao.valor
+                          ? 'bg-red-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {opcao.rotulo}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setRascunhoFormacao((atual) => {
+                    // Girar aqui e o atalho de sempre: a equipe repete a
+                    // escalacao e so muda por onde comeca o set.
+                    const zonas = {};
+                    [1, 2, 3, 4, 5, 6].forEach((zona) => {
+                      zonas[zona === 1 ? 6 : zona - 1] = atual.zonas[zona] ?? null;
+                    });
+                    const levantador = atual.levantador
+                      ? (atual.levantador === 1 ? 6 : atual.levantador - 1)
+                      : null;
+                    return { ...atual, zonas, levantador };
+                  })}
+                  className="flex items-center gap-2 rounded-full bg-gray-100 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-gray-700 transition-colors hover:bg-gray-200"
+                >
+                  <RefreshCw size={13} />
+                  Girar
+                </button>
+              </div>
+
+              <div className="mt-7 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowFormacao(false)}
+                  className="rounded-full bg-gray-100 px-6 py-3 text-[11px] font-black uppercase tracking-widest text-gray-600 hover:bg-gray-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={salvarFormacao}
+                  className="rounded-full bg-red-600 px-6 py-3 text-[11px] font-black uppercase tracking-widest text-white hover:bg-red-700"
+                >
+                  Salvar formação
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showEscalacao && (
           <div className="fixed inset-0 z-[10000] bg-black/40 backdrop-blur-sm p-4 sm:p-6 overflow-auto flex items-center justify-center">
             <div className="w-full max-w-6xl rounded-[2rem] bg-white p-8 shadow-2xl border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -1791,12 +2280,22 @@ const resumoAdversarioAtivo = resumoAdversario?.[escopoAdversario] || null;
                     <h3 className="text-sm font-black uppercase tracking-widest text-gray-500">Disponíveis</h3>
                     <span className="text-[11px] font-bold text-gray-600">{availableEscalacaoPlayers.length} jogadores</span>
                   </div>
-                  <div className="space-y-3 max-h-[520px] overflow-auto pr-1">
+                  <select
+                    value={String(categoriaFiltrada)}
+                    onChange={(e) => setFiltroCategoria(e.target.value === 'todas' ? 'todas' : Number(e.target.value))}
+                    className="mb-4 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#DC2626]"
+                  >
+                    <option value="todas">Todas as categorias</option>
+                    {categorias.map((categoria) => (
+                      <option key={categoria.id} value={String(categoria.id)}>{categoria.nome}</option>
+                    ))}
+                  </select>
+                  <div className="space-y-3 max-h-[460px] overflow-auto pr-1">
                     {availableEscalacaoPlayers.length ? availableEscalacaoPlayers.map((player) => (
                       <div key={player.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white border border-gray-100 p-4">
                         <div>
                           <p className="font-black text-gray-900">{player.nome}</p>
-                          <p className="text-[11px] uppercase tracking-wider text-gray-500">#{player.numero} • {player.posicao}</p>
+                          <p className="text-[11px] uppercase tracking-wider text-gray-500">#{player.numero} • {player.posicao} • {player.categoria}</p>
                         </div>
                         <div className="flex gap-2">
                           <button
@@ -1812,7 +2311,11 @@ const resumoAdversarioAtivo = resumoAdversario?.[escopoAdversario] || null;
                         </div>
                       </div>
                     )) : (
-                      <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-400">Sem jogadores disponíveis.</div>
+                      <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-400">
+                        {categoriaFiltrada === 'todas'
+                          ? 'Sem jogadores disponíveis.'
+                          : 'Nenhum atleta disponível nesta categoria. Escolha "Todas as categorias" acima.'}
+                      </div>
                     )}
                   </div>
                 </div>

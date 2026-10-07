@@ -130,6 +130,85 @@ export function cenarioPartidaEscalada() {
   return { ...partida, categoriaId, ginasioId, emQuadra, noBanco };
 }
 
+/**
+ * Declara a formacao inicial de um set, por zona.
+ *
+ * `zonas` e um array de 6 posicoes na ordem Z1..Z6 com o id do atleta, e
+ * `levantadorNaZona` diz qual delas e o slot-ancora.
+ */
+export function escalarPorZona({
+  partidaId,
+  numSet = 1,
+  zonas = [],
+  levantadorNaZona = 1,
+  sacaPrimeiro = 'MANDANTE',
+}) {
+  db.prepare('INSERT OR IGNORE INTO "Set" (NumSet, Partida_id) VALUES (?, ?)')
+    .run(numSet, partidaId);
+  db.prepare('UPDATE "Set" SET sacaPrimeiro = ? WHERE NumSet = ? AND Partida_id = ?')
+    .run(sacaPrimeiro, numSet, partidaId);
+
+  db.prepare('DELETE FROM EscalacaoSet WHERE Partida_id = ? AND NumSet = ?')
+    .run(partidaId, numSet);
+
+  const stmt = db.prepare(
+    'INSERT INTO EscalacaoSet (Partida_id, NumSet, zona, Jogadores_id, levantador) VALUES (?, ?, ?, ?, ?)'
+  );
+
+  zonas.forEach((jogadorId, indice) => {
+    const zona = indice + 1;
+    stmt.run(partidaId, numSet, zona, jogadorId, zona === levantadorNaZona ? 1 : 0);
+  });
+}
+
+/**
+ * Cenario de rotacao 5-1 pronto.
+ *
+ * O levantador comeca na zona 1 (rotacao R1) e o oposto na 4, que e a diagonal
+ * dele - o par que a dupla substituicao troca. No banco ficam um levantador
+ * reserva e um oposto reserva, que e o que a dupla exige.
+ */
+export function cenarioRotacao({ sacaPrimeiro = 'MANDANTE' } = {}) {
+  const categoriaId = criarCategoria();
+  const ginasioId = criarGinasio();
+  const partida = criarPartida({ ginasioId });
+
+  const levantador = criarJogador({ nome: 'Levantador', numCamisa: 1, posicao: 'Levantador', categoriaId });
+  const ponteiro2 = criarJogador({ nome: 'Ponteiro 2', numCamisa: 2, posicao: 'Ponteiro', categoriaId });
+  const central3 = criarJogador({ nome: 'Central 3', numCamisa: 3, posicao: 'Central', categoriaId });
+  const oposto = criarJogador({ nome: 'Oposto', numCamisa: 4, posicao: 'Oposto', categoriaId });
+  const ponteiro5 = criarJogador({ nome: 'Ponteiro 5', numCamisa: 5, posicao: 'Ponteiro', categoriaId });
+  const central6 = criarJogador({ nome: 'Central 6', numCamisa: 6, posicao: 'Central', categoriaId });
+
+  const levantadorReserva = criarJogador({ nome: 'Levantador reserva', numCamisa: 7, posicao: 'Levantador', categoriaId });
+  const opostoReserva = criarJogador({ nome: 'Oposto reserva', numCamisa: 8, posicao: 'Oposto', categoriaId });
+  const libero = criarJogador({ nome: 'Libero', numCamisa: 9, posicao: 'Líbero', categoriaId });
+
+  // Ordem Z1..Z6: levantador na 1, oposto na 4 (diagonal).
+  const zonas = [levantador, ponteiro2, central3, oposto, ponteiro5, central6];
+
+  escalar({
+    timeId: partida.time1,
+    partidaId: partida.id,
+    emQuadra: zonas,
+    noBanco: [levantadorReserva, opostoReserva, libero],
+  });
+
+  escalarPorZona({ partidaId: partida.id, numSet: 1, zonas, levantadorNaZona: 1, sacaPrimeiro });
+
+  return {
+    ...partida,
+    categoriaId,
+    ginasioId,
+    zonas,
+    levantador,
+    oposto,
+    levantadorReserva,
+    opostoReserva,
+    libero,
+  };
+}
+
 /** Objeto TipoAcao no formato que a Model espera. */
 export const TIPO_ACAO = Object.freeze({
   SAQUE: { idTipoAcao: 1 },

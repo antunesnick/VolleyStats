@@ -26,10 +26,36 @@ npm run make    # gera o instalador em out/
 ```
 
 > `better-sqlite3` é um módulo nativo e precisa ser compilado para o ABI certo:
-> `npm test` compila para o Node e `npm run package` / `npm run make` compilam
-> para o Electron, cada um automaticamente antes de rodar. Nenhuma ação manual
-> é necessária — basta usar os scripts acima em vez de chamar as ferramentas
-> diretamente.
+> `npm test` compila para o Node, e `npm start`, `npm run package` e
+> `npm run make` compilam para o Electron — cada um automaticamente antes de
+> rodar. Nenhuma ação manual é necessária, basta usar os scripts acima em vez de
+> chamar as ferramentas diretamente. Alternar entre testar e rodar o app é o
+> caso normal e está coberto nos dois sentidos.
+
+### Dados de demonstração
+
+Para mostrar o sistema funcionando sem cadastrar nada à mão:
+
+```bash
+npm run seed:demo
+npm start
+```
+
+O seed monta um elenco de **12 atletas** com as posições que um 5-1 exige (2 levantadores,
+2 opostos, 4 ponteiros, 3 centrais e 1 líbero), um torneio com 4 times e três partidas em
+estágios diferentes:
+
+| Partida | Estado | Serve para mostrar |
+|---|---|---|
+| Vôlei Prudente x Sesi Bauru | Finalizada 3x1 | Relatórios cheios: scout por atleta, rotações e o corte da dupla substituição |
+| Vôlei Prudente x Osasco | Set 1 fechado, set 2 em 14x11 | **Escoutar ao vivo** — formação já declarada, é só digitar |
+| Vôlei Prudente x Campinas | Agendada | O fluxo do zero: escalação → formação do set → scout |
+
+Tudo é gerado pelos Controls do próprio sistema, não por `INSERT` cru — é isso que garante
+que rotação, dono do ponto e sets ganhos fiquem coerentes. O gerador usa semente fixa, então
+os números são sempre os mesmos.
+
+> O banco anterior é salvo como `developVS.db.bak` antes de o seed rodar.
 
 ### Onde ficam os dados
 
@@ -100,6 +126,7 @@ linha nenhuma.
 | --- | --- |
 | `EBUSY` / `EPERM` no `.node` | O VolleyStats está aberto. Feche e rode de novo. |
 | `NODE_MODULE_VERSION 137 ... requires 143` ao abrir o app instalado | O binário nativo foi empacotado no ABI errado. `npm run rebuild:electron` e `npm run make` de novo. |
+| O mesmo erro logo após rodar `npm test` | Já é resolvido sozinho pelo `prestart`. Se persistir, feche o VolleyStats (o Windows trava o binário com o app aberto) e rode `npm start` de novo. |
 | Erro copiando para `out/` | Antivírus ou editor segurando a pasta. `VOLLEYSTATS_OUT_DIR=out-nova npm run make`. |
 
 ## 🏐 Scout: a quem pertence o ponto

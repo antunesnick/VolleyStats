@@ -7,6 +7,7 @@ import {
   totalDeSets,
 } from "../Model/RegrasSet";
 import { ESCALA, normalizarQualidade } from "../Model/Qualidade";
+import EstatisticaRotacao from "../Model/EstatisticaRotacao";
 
 class EstatisticaControl {
   static #instance;
@@ -374,6 +375,22 @@ class EstatisticaControl {
   confirmar(onConfirm, statistics, draftSets) {
     if (typeof onConfirm === "function") {
       onConfirm(this.obterResultadoPartida(statistics, draftSets));
+    }
+  }
+
+  /**
+   * Relatorio de rotacao da partida.
+   *
+   * Devolve `disponivel: false` quando nenhum set teve formacao declarada - o
+   * caso das partidas escoutadas antes desta funcionalidade, que nao tem como
+   * ganhar rotacao retroativa.
+   */
+  buscarRotacoes(partidaId) {
+    try {
+      return EstatisticaRotacao.resumoDaPartida(partidaId, db);
+    } catch (error) {
+      console.error("Erro ao montar o relatorio de rotacao:", error);
+      return null;
     }
   }
 }

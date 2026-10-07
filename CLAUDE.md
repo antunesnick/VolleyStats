@@ -28,13 +28,27 @@ Não há linter configurado.
 
 **A armadilha que isso resolve:** o electron-rebuild grava um marcador `.forge-meta` com o ABI compilado, e o Forge **pula** a recompilação quando o marcador já bate. Um `npm rebuild` (feito pelos testes) troca o binário **sem** atualizar o marcador — o Forge confia no dado desatualizado, pula o rebuild e empacota o binário do Node. O app compila, empacota, exibe zero erros e só quebra ao abrir, na máquina de quem recebeu o instalador (`NODE_MODULE_VERSION 137 ... requires 143`). Aconteceu de verdade nesta base.
 
-Três travas, nessa ordem:
+Quatro travas:
 
-1. **`hooks.generateAssets`** (`forge.config.js`) apaga o `.forge-meta` antes da etapa *Preparing native dependencies*. Sem marcador o Forge sempre recompila, e o marcador volta a ser verdade. **Esta é a correção principal.**
+1. **`hooks.generateAssets`** (`forge.config.js`) apaga o `.forge-meta` antes da etapa *Preparing native dependencies*. Sem marcador o Forge sempre recompila, e o marcador volta a ser verdade. **Esta é a correção principal — mas só vale para `package` e `make`; veja a trava 4.**
 2. **`afterCopy`** confere, via `node-abi`, se o binário copiado é o do ABI do Electron e derruba o empacotamento se não for.
 3. **`pretest`** (`scripts/ensureNativeBuild.js`) recompila para o Node quando encontra um binário do Electron, e apaga o marcador.
+4. **`prestart`** (`scripts/ensureElectronBuild.js`) recompila para o Electron quando encontra um binário do Node.
 
-Não remova essas travas — o bug não aparece em nenhum teste, só na entrega. E não confie no `.forge-meta` como prova do ABI do binário: ele só é confiável logo após uma recompilação forçada.
+**Por que a trava 4 precisa existir: o `start` inverte a ordem das etapas do Forge.**
+
+```
+package / make            start
+------------------        ------------------
+generateAssets    <-      Preparing native dependencies   <- já decidiu pular
+Preparing native  <-      generateAssets                  <- apaga tarde demais
+```
+
+No `package`/`make` o hook apaga o marcador antes de o Forge decidir, e a recompilação acontece. No `start` o Forge decide primeiro, encontra o marcador desatualizado deixado pelos testes e **pula** o rebuild — a etapa passa em 0,7s e o app morre no boot com `NODE_MODULE_VERSION 137 ... requires 143`. O `prestart` corrige o binário antes de o Forge sequer começar. Aconteceu de verdade nesta base, depois de rodar os testes.
+
+**A detecção do `prestart` roda num processo filho, e isso não é detalhe.** No Windows um `.node` carregado fica travado pelo sistema. Como o caso que dispara o rebuild ali é justamente o de o binário **carregar** com sucesso, verificar no próprio processo faria ele segurar o arquivo e o rebuild que ele dispara falharia com `EPERM`. O `ensureNativeBuild.js` não tem esse problema porque lá o gatilho é a **falha** ao carregar — o handle nunca chega a existir.
+
+Não remova essas travas — o bug não aparece em nenhum teste, só na entrega ou no boot. E não confie no `.forge-meta` como prova do ABI do binário: ele só é confiável logo após uma recompilação forçada.
 
 **Feche o app antes de rodar os testes.** Com o VolleyStats aberto, o Electron mantém o `.node` carregado e o Windows bloqueia o arquivo: o `pretest` falha com `EBUSY: resource busy or locked` / `EPERM: operation not permitted, unlink`. Não é problema de permissão nem de instalação — é só a janela aberta.
 
@@ -148,6 +162,42 @@ Quem precisa dessa decisão usa `classificar(fundamento, qualidade)` → `PONTO 
 
 A coluna `Acao.Qualidade` tem `CHECK` para os 6 símbolos, então gravar a letra antiga estoura no banco. `normalizarQualidade()` continua traduzindo `A → #`, `B → !`, `C → =` na **leitura** de linhas antigas.
 
+### Rotação do levantador (5-1): `Model/Rotacao.js`
+
+Funções puras — formação + sequência de rallies → rotação —, sem banco e sem tela, no molde de `RegrasSet.js`. Só a **nossa equipe** (o `time1`/MANDANTE, o único lado escoutado) e só **sistema 5-1**.
+
+Zonas na numeração oficial, vistas de cima, na nossa quadra:
+
+```
+        R E D E
+   Z4  │  Z3  │  Z2     frente
+   Z5  │  Z6  │  Z1     fundo   (Z1 = quem saca)
+```
+
+A cada side-out os jogadores andam `Z2→Z1→Z6→Z5→Z4→Z3→Z2`: o número da zona **decresce** (`proximaZona(1) === 6`). A rotação gira **somente no side-out** — vencer sacando é break point e não gira; perder nunca gira a nossa rotação.
+
+**A rotação é a zona do slot-âncora, não a de quem está levantando.** Essa é a decisão que a dupla substituição força, e o caminho intuitivo é o errado: quando o levantador chega à rede a equipe o troca por um oposto e põe o levantador reserva na diagonal. Se a rotação fosse "onde está quem levanta" (a leitura literal do `home_setter_position` do DataVolley), o número pularia 3, e um time que sempre dobra só produziria R1/R5/R6 — seis alinhamentos distintos colapsados em três rótulos. O slot-âncora (`EscalacaoSet.levantador = 1`) segue o ciclo e não se move com substituição nenhuma.
+
+**O líbero não ocupa zona.** Ele não roda: entra no lugar de um jogador de fundo e sai antes de chegar à rede. `EscalacaoSet.validar()` recusa o líbero na formação — declarado numa zona, ele apareceria na rede depois de dois giros. O caminho dele é a substituição normal, que `Model/Substituicao.js` já isenta do limite de 6 por set. Quando o motor detecta o líbero numa zona de rede (`liberoNaRede`), é sinal de que a saída dele não foi registrada, e a tela avisa.
+
+### Rotação é derivada, nunca incrementada
+
+`Ponto.sincronizarRotacoes(partidaId, numSet, db)` regrava `Ponto.rotacao` e `Ponto.sacando` do set inteiro a partir da formação declarada, do `Set.sacaPrimeiro`, das substituições e da sequência de rallies. Mesma disciplina de `sincronizarDonoDoPonto()` e de `buscarSetsGanhos()`: as duas colunas são **cache para os relatórios agregarem em SQL**, nunca fonte de verdade.
+
+É isso que faz `Ctrl+Z`, a correção de placar para baixo e o `reabrirSet` voltarem à rotação certa sozinhos — não existe contador para desfazer. Chamada em `PontoControl.definirVencedorRally`, ao salvar/girar a formação e ao registrar substituição, sempre **dentro da mesma transação**.
+
+**A ordem dos rallies vem de graça:** a chave primária de `Ponto` é o placar, então o rally *n* é o que soma `pontoTime1 + pontoTime2 = n`. `ORDER BY (pontoTime1 + pontoTime2)` é ordem total sem ambiguidade.
+
+**Todo rally precisa existir em `Ponto`.** `definirVencedorRally` passa a criar o rally quando o analista só mexe no placar sem escoutar ação — antes esses rallies não deixavam registro e a sequência do set ficava com buraco, o que impede derivar a rotação. Nenhum relatório mudou de número: todos passam por `JOIN Jogadores ON Ponto.Jogador_id`, que descarta rally sem dono.
+
+`Ponto.buscarEstadosDeRotacao()` acrescenta um rally sem vencedor no placar corrente — é o rally em disputa, e é dele que sai o badge ao vivo da tela. Sem vencedor o motor não avança nada e a contagem dos relatórios o ignora.
+
+### Formação por zona: `EscalacaoSet`
+
+`TimesPartida.linha` continua sendo só um booleano (em quadra / banco). A tabela `EscalacaoSet` (`Partida_id, NumSet, zona, Jogadores_id, levantador`) guarda **onde** cada titular começa o set — o equivalente do `home_p1..home_p6` do DataVolley. Uma formação é gravada inteira, as 6 zonas de uma vez: meia formação não descreve rotação nenhuma.
+
+Relatórios em `Model/EstatisticaRotacao.js`: side-out % e break % por rotação, o corte da dupla substituição (R2/R3/R4 com dupla × sem dupla × R1/R5/R6) e o resumo por set. **A contagem de rallies é feita em JS**, a partir dos estados do motor — não existe versão SQL da regra de rotação de propósito, para não repetir o problema da escala de qualidade, que vive em duas linguagens e precisa de um teste dedicado para não divergir. O único bloco em SQL é o de fundamentos por rotação, que cruza `Acao` com `Ponto.rotacao`.
+
 ### Regras de pontuação: `Model/RegrasSet.js`
 
 Funções puras (placar + formato → decisão), sem banco nem tela: `pontosParaVencerSet`, `avaliarSet`, `podeIncrementar`, `avaliarPartida`. Cuidado com a armadilha que elas resolvem: **não é "set 3 e set 5 valem 15"** — só o último set do formato é de 15, então numa melhor de 5 o set 3 é um set comum de 25.
@@ -254,3 +304,5 @@ Ao criar um relatório novo, use esses blocos: não escreva `<style>` nem `escap
 2. **Diálogos inconsistentes** — `Alertas` vs. `Swal.fire` vs. `window.alert`. `ControlePartida` ainda usa `alert`/`confirm` nativos.
 3. `developVS.db` está versionado apesar de `*.db` estar no `.gitignore` (entrou antes da regra).
 4. Sem biblioteca de gráficos: toda estatística é tabela.
+5. **Rotação não é retroativa.** Partidas escoutadas antes da formação por zona não têm como saber qual era o alinhamento inicial; elas aparecem como "sem rotação registrada". Só vale para o que for escoutado a partir daí.
+6. **Só 5-1.** O motor trabalha por *slot*, então 6-2 e 4-2 entram depois sem reescrita — mas hoje `EscalacaoSet.validar()` exige exatamente um levantador.

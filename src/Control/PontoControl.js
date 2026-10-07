@@ -109,9 +109,24 @@ class PontoControl {
    */
   definirVencedorRally(partida_id, numSet, pontoTime1, pontoTime2, vencedor) {
     const transaction = db.transaction(() => {
-      return Ponto.definirVencedorRally(partida_id, numSet, pontoTime1, pontoTime2, vencedor, db);
+      const marcado = Ponto.definirVencedorRally(partida_id, numSet, pontoTime1, pontoTime2, vencedor, db);
+      // A rotacao depende de quem venceu cada rally, entao ela e regravada na
+      // mesma transacao: ou o rally e o estado de rotacao mudam juntos, ou
+      // nenhum dos dois muda.
+      Ponto.sincronizarRotacoes(partida_id, numSet, db);
+      return marcado;
     });
 
+    return transaction();
+  }
+
+  /** Rotacao de cada rally do set, com ocupacao das zonas. Alimenta o badge ao vivo. */
+  buscarEstadosDeRotacao(partida_id, numSet) {
+    return Ponto.buscarEstadosDeRotacao(partida_id, numSet, db);
+  }
+
+  sincronizarRotacoes(partida_id, numSet) {
+    const transaction = db.transaction(() => Ponto.sincronizarRotacoes(partida_id, numSet, db));
     return transaction();
   }
 

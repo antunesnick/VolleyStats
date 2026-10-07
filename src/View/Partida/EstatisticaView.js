@@ -101,6 +101,158 @@ const ROTULO_FUNDAMENTO = { Recepcao: 'Recepção' };
  * ganhou sem precisar de nada. E essa a coluna que o analista procura, por isso
  * ela vem primeiro e em verde.
  */
+/**
+ * Rotacoes da nossa equipe.
+ *
+ * O numero que o tecnico procura e o side-out por rotacao: e o indicador mais
+ * associado a vitoria no volei, e ele so faz sentido quebrado por rotacao -
+ * uma equipe com 60% de media pode estar afundando em uma unica rotacao.
+ */
+const ResumoRotacao = ({ resumo }) => {
+  if (!resumo || !resumo.disponivel) {
+    return (
+      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Rotações</p>
+        <p className="text-sm text-gray-500">
+          Nenhum set desta partida teve a formação declarada, então não há rotação para mostrar.
+          No scout ao vivo, use <span className="font-bold">Formação do set</span> antes de começar
+          a escoutar: posicione os 6 que rodam nas zonas e marque o levantador.
+        </p>
+      </div>
+    );
+  }
+
+  const pct = (valor) => `${Number(valor || 0).toFixed(1)}%`;
+  const saldo = (valor) => (valor > 0 ? `+${valor}` : String(valor));
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-gray-100 bg-white p-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Side-out geral</p>
+          <p className="mt-1 text-2xl font-black text-gray-900">{pct(resumo.totais.sideOutPct)}</p>
+          <p className="text-[11px] text-gray-400">{resumo.totais.sideOuts}/{resumo.totais.recebidos} recebendo</p>
+        </div>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Melhor rotação</p>
+          <p className="mt-1 text-2xl font-black text-gray-900">
+            {resumo.destaques.melhor ? `R${resumo.destaques.melhor.rotacao}` : '--'}
+          </p>
+          <p className="text-[11px] text-gray-500">
+            {resumo.destaques.melhor ? `saldo ${saldo(resumo.destaques.melhor.saldo)}` : 'sem dados'}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-red-100 bg-red-50/60 p-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-red-600">Pior rotação</p>
+          <p className="mt-1 text-2xl font-black text-gray-900">
+            {resumo.destaques.pior ? `R${resumo.destaques.pior.rotacao}` : '--'}
+          </p>
+          <p className="text-[11px] text-gray-500">
+            {resumo.destaques.pior ? `saldo ${saldo(resumo.destaques.pior.saldo)}` : 'sem dados'}
+          </p>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-[10px] font-black uppercase tracking-widest text-gray-500">
+            <tr>
+              <th className="px-3 py-2 text-left">Rot</th>
+              <th className="px-3 py-2 text-center">Rallies</th>
+              <th className="px-3 py-2 text-center">Recebidos</th>
+              <th className="px-3 py-2 text-center">Side-out</th>
+              <th className="px-3 py-2 text-center">Sacados</th>
+              <th className="px-3 py-2 text-center">Break</th>
+              <th className="px-3 py-2 text-center">Pontos</th>
+              <th className="px-3 py-2 text-center">Cedidos</th>
+              <th className="px-3 py-2 text-center">Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {resumo.porRotacao.map((linha) => (
+              <tr key={linha.rotacao} className="border-t border-gray-100">
+                <td className="px-3 py-2 font-black text-gray-900">R{linha.rotacao}</td>
+                <td className="px-3 py-2 text-center text-gray-600">{linha.rallies}</td>
+                <td className="px-3 py-2 text-center text-gray-600">{linha.recebidos}</td>
+                <td className="px-3 py-2 text-center font-bold text-gray-900">{pct(linha.sideOutPct)}</td>
+                <td className="px-3 py-2 text-center text-gray-600">{linha.sacados}</td>
+                <td className="px-3 py-2 text-center font-bold text-gray-900">{pct(linha.breakPct)}</td>
+                <td className="px-3 py-2 text-center text-gray-600">{linha.pontos}</td>
+                <td className="px-3 py-2 text-center text-gray-600">{linha.cedidos}</td>
+                <td className={`px-3 py-2 text-center font-black ${linha.saldo > 0 ? 'text-emerald-600' : linha.saldo < 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                  {saldo(linha.saldo)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white">
+        <p className="px-3 pt-3 text-[10px] font-black uppercase tracking-widest text-gray-500">
+          Dupla substituição
+        </p>
+        <table className="w-full text-sm">
+          <thead className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+            <tr>
+              <th className="px-3 py-2 text-left">Grupo</th>
+              <th className="px-3 py-2 text-center">Rallies</th>
+              <th className="px-3 py-2 text-center">Side-out</th>
+              <th className="px-3 py-2 text-center">Break</th>
+              <th className="px-3 py-2 text-center">Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {resumo.duplaSub.map((grupo) => (
+              <tr key={grupo.chave} className="border-t border-gray-100">
+                <td className="px-3 py-2 text-gray-700">{grupo.rotulo}</td>
+                <td className="px-3 py-2 text-center text-gray-600">{grupo.rallies}</td>
+                <td className="px-3 py-2 text-center font-bold text-gray-900">{pct(grupo.sideOutPct)}</td>
+                <td className="px-3 py-2 text-center font-bold text-gray-900">{pct(grupo.breakPct)}</td>
+                <td className={`px-3 py-2 text-center font-black ${grupo.saldo > 0 ? 'text-emerald-600' : grupo.saldo < 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                  {saldo(grupo.saldo)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white">
+        <p className="px-3 pt-3 text-[10px] font-black uppercase tracking-widest text-gray-500">
+          Por set
+        </p>
+        <table className="w-full text-sm">
+          <thead className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+            <tr>
+              <th className="px-3 py-2 text-left">Set</th>
+              <th className="px-3 py-2 text-left">Começou em</th>
+              <th className="px-3 py-2 text-left">Saque inicial</th>
+              <th className="px-3 py-2 text-center">Side-out</th>
+              <th className="px-3 py-2 text-center">Break</th>
+              <th className="px-3 py-2 text-center">Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {resumo.porSet.map((linha) => (
+              <tr key={linha.numSet} className="border-t border-gray-100">
+                <td className="px-3 py-2 font-black text-gray-900">{linha.numSet}</td>
+                <td className="px-3 py-2 text-gray-700">R{linha.rotacaoInicial}</td>
+                <td className="px-3 py-2 text-gray-700">{linha.sacaPrimeiro === 'MANDANTE' ? 'Nós' : 'Adversário'}</td>
+                <td className="px-3 py-2 text-center font-bold text-gray-900">{pct(linha.sideOutPct)}</td>
+                <td className="px-3 py-2 text-center font-bold text-gray-900">{pct(linha.breakPct)}</td>
+                <td className={`px-3 py-2 text-center font-black ${linha.saldo > 0 ? 'text-emerald-600' : linha.saldo < 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                  {saldo(linha.saldo)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 const ResumoAdversario = ({ resumo, awayLabel }) => {
   if (!resumo || resumo.totais.total === 0) {
     return (
@@ -226,6 +378,7 @@ const EstatisticaView = ({
   const [statisticsError, setStatisticsError] = useState(initialState.statisticsError);
   const [substituicoesPorSet, setSubstituicoesPorSet] = useState({});
   const [resumoAdversario, setResumoAdversario] = useState(null);
+  const [resumoRotacao, setResumoRotacao] = useState(null);
   const [playerSearch, setPlayerSearch] = useState('');
   const [playerSearchMode, setPlayerSearchMode] = useState('nome');
   const [pdfSaving, setPdfSaving] = useState(false);
@@ -310,6 +463,8 @@ const EstatisticaView = ({
         console.error('Erro ao carregar o scout do adversario:', error);
         setResumoAdversario(null);
       }
+
+      setResumoRotacao(EstatisticaControl.buscarRotacoes(partidaId));
     }
   }, [open, partidaId, resumoOnly, readOnly]);
 
@@ -570,6 +725,90 @@ const EstatisticaView = ({
       `;
     });
 
+    // Rotacao. O relatorio so ganha o bloco quando alguma formacao foi
+    // declarada - partidas escoutadas antes disso nao tem como ter rotacao.
+    const pctRot = (valor) => `${Number(valor || 0).toFixed(1)}%`;
+    const saldoRot = (valor) => (valor > 0 ? `+${valor}` : String(valor));
+    const temRotacao = Boolean(resumoRotacao?.disponivel);
+
+    const linhasRotacao = temRotacao ? resumoRotacao.porRotacao.map((linha) => `
+      <tr>
+        <td>R${linha.rotacao}</td>
+        <td class="center">${linha.rallies}</td>
+        <td class="center">${linha.recebidos}</td>
+        <td class="center">${pctRot(linha.sideOutPct)}</td>
+        <td class="center">${linha.sacados}</td>
+        <td class="center">${pctRot(linha.breakPct)}</td>
+        <td class="center">${linha.pontos}</td>
+        <td class="center">${linha.cedidos}</td>
+        <td class="center">${saldoRot(linha.saldo)}</td>
+      </tr>
+    `) : [];
+
+    const linhasDuplaSub = temRotacao ? resumoRotacao.duplaSub.map((grupo) => `
+      <tr>
+        <td>${escapeHtml(grupo.rotulo)}</td>
+        <td class="center">${grupo.rallies}</td>
+        <td class="center">${pctRot(grupo.sideOutPct)}</td>
+        <td class="center">${pctRot(grupo.breakPct)}</td>
+        <td class="center">${saldoRot(grupo.saldo)}</td>
+      </tr>
+    `) : [];
+
+    const linhasRotacaoPorSet = temRotacao ? resumoRotacao.porSet.map((linha) => `
+      <tr>
+        <td class="center">${linha.numSet}</td>
+        <td class="center">R${linha.rotacaoInicial}</td>
+        <td>${linha.sacaPrimeiro === 'MANDANTE' ? 'Nos' : 'Adversario'}</td>
+        <td>${escapeHtml(linha.levantadorNome || '--')}</td>
+        <td class="center">${pctRot(linha.sideOutPct)}</td>
+        <td class="center">${pctRot(linha.breakPct)}</td>
+        <td class="center">${saldoRot(linha.saldo)}</td>
+      </tr>
+    `) : [];
+
+    const blocosRotacao = !temRotacao ? '' : `
+      ${blocoMetricas([
+        { rotulo: 'Side-out geral', valor: pctRot(resumoRotacao.totais.sideOutPct), destaque: true },
+        { rotulo: 'Break geral', valor: pctRot(resumoRotacao.totais.breakPct) },
+        { rotulo: 'Melhor rotacao', valor: resumoRotacao.destaques.melhor ? `R${resumoRotacao.destaques.melhor.rotacao}` : '--' },
+        { rotulo: 'Pior rotacao', valor: resumoRotacao.destaques.pior ? `R${resumoRotacao.destaques.pior.rotacao}` : '--' },
+      ])}
+      ${blocoTabela({
+        titulo: 'Rotacoes (levantador na zona)',
+        colunas: [
+          'Rot',
+          ...['Rallies', 'Recebidos', 'Side-out', 'Sacados', 'Break', 'Pontos', 'Cedidos', 'Saldo']
+            .map((rotulo) => ({ rotulo, center: true })),
+        ],
+        linhas: linhasRotacao,
+        vazio: 'Nenhuma rotacao registrada.',
+      })}
+      ${blocoTabela({
+        titulo: 'Dupla substituicao',
+        estreita: true,
+        colunas: [
+          'Grupo',
+          ...['Rallies', 'Side-out', 'Break', 'Saldo'].map((rotulo) => ({ rotulo, center: true })),
+        ],
+        linhas: linhasDuplaSub,
+        vazio: 'Sem dados.',
+      })}
+      ${blocoTabela({
+        titulo: 'Rotacao por set',
+        estreita: true,
+        colunas: [
+          { rotulo: 'Set', center: true },
+          { rotulo: 'Comecou em', center: true },
+          'Saque inicial',
+          'Levantador',
+          ...['Side-out', 'Break', 'Saldo'].map((rotulo) => ({ rotulo, center: true })),
+        ],
+        linhas: linhasRotacaoPorSet,
+        vazio: 'Sem dados.',
+      })}
+    `;
+
     return montarDocumento({
       titulo: 'Relatorio da Partida',
       eyebrow: 'VolleyStats',
@@ -637,6 +876,7 @@ const EstatisticaView = ({
           linhas: linhasAdversarioPorCamisa,
           vazio: 'Nenhuma acao do adversario escoutada.',
         }) : ''}
+        ${blocosRotacao}
         ${blocoTabela({
           titulo: 'Sets',
           estreita: true,
@@ -737,6 +977,8 @@ const EstatisticaView = ({
             <ScoutResumo scout={statistics.totals.scout} />
 
             <ResumoAdversario resumo={resumoAdversario} awayLabel={awayLabel} />
+
+            <ResumoRotacao resumo={resumoRotacao} />
 
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="rounded-3xl border border-gray-100 bg-gray-50 p-6">

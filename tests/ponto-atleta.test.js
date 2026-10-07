@@ -189,8 +189,25 @@ describe('Vencedor do rally', () => {
     );
   });
 
-  it('ignora a marcacao de um rally que nao existe no banco', () => {
-    expect(control.definirVencedorRally(cenario.id, 1, 20, 20, VENCEDOR.MANDANTE)).toBe(false);
+  /**
+   * Um rally decidido sem nenhuma acao escoutada precisa deixar registro.
+   *
+   * Antes ele era descartado, e a sequencia de rallies do set ficava com
+   * buraco - o que impede derivar a rotacao, que depende de saber quem venceu
+   * CADA rally. Nenhum relatorio de atleta muda: todos passam por
+   * `JOIN Jogadores ON Ponto.Jogador_id`, que ignora rally sem dono.
+   */
+  it('cria o rally quando o analista so mexe no placar, sem escoutar acao', () => {
+    expect(control.definirVencedorRally(cenario.id, 1, 20, 20, VENCEDOR.MANDANTE)).toBe(true);
+
+    const rally = control.buscarDonoDoPonto(cenario.id, 1, 20, 20);
+
+    expect(rally.vencedor).toBe(VENCEDOR.MANDANTE);
+    expect(rally.jogadorId).toBeNull();
+  });
+
+  it('limpar a marcacao de um rally inexistente continua sendo no-op', () => {
+    expect(control.definirVencedorRally(cenario.id, 1, 20, 20, null)).toBe(false);
   });
 });
 

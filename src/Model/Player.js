@@ -145,6 +145,10 @@ class Player {
       'SELECT COUNT(*) AS total FROM JogadoresTimes WHERE Jogadores_id = ?',
       jogadorId
     );
+    const formacoes = contar(
+      'SELECT COUNT(*) AS total FROM EscalacaoSet WHERE Jogadores_id = ?',
+      jogadorId
+    );
 
     return {
       acoes,
@@ -153,7 +157,8 @@ class Player {
       substituicoes,
       pontos,
       times,
-      total: acoes + escalacoes + substituicoes + pontos + times,
+      formacoes,
+      total: acoes + escalacoes + substituicoes + pontos + times + formacoes,
     };
   }
 
@@ -195,6 +200,7 @@ class Player {
     db.prepare('DELETE FROM Acao WHERE Jogador_id = ?').run(jogadorId);
     db.prepare('DELETE FROM TimesPartida WHERE Jogadores_id = ?').run(jogadorId);
     db.prepare('DELETE FROM JogadoresTimes WHERE Jogadores_id = ?').run(jogadorId);
+    db.prepare('DELETE FROM EscalacaoSet WHERE Jogadores_id = ?').run(jogadorId);
     db.prepare('UPDATE Ponto SET Jogador_id = NULL WHERE Jogador_id = ?').run(jogadorId);
 
     ralliesAfetados.forEach((rally) => {
