@@ -40,6 +40,41 @@ export const TECLA_PARA_FUNDAMENTO = Object.freeze({
     S: 'Saque', A: 'Ataque', B: 'Bloqueio', R: 'Recepcao', D: 'Defesa',
 });
 
+/**
+ * Erro geral: as faltas que nao pertencem a nenhum fundamento (rede, conducao,
+ * rotacao...). Hoje elas so viravam ponto do adversario no placar, sem dono e
+ * sem tipo - e o relatorio mostrava a coluna "Erro geral" sempre zerada.
+ *
+ * Fica fora de `TIPO_ACAO_PARA_FUNDAMENTO` de proposito: nao tem escala de
+ * qualidade (toda falta e erro) e nao entra nas tabelas por fundamento. Na
+ * linha de `Acao` grava `Qualidade = '='` e o tipo da falta em `tipoErro`.
+ */
+export const TIPO_ACAO_ERRO_GERAL = 7;
+export const TECLA_ERRO_GERAL = 'E';
+
+/** Tecla do 3o estagio, depois do E -> tipo da falta. */
+export const TIPOS_ERRO_GERAL = Object.freeze([
+    { tecla: '1', codigo: 'REDE', nome: 'Toque na rede' },
+    { tecla: '2', codigo: 'CONDUCAO', nome: 'Condução' },
+    { tecla: '3', codigo: 'DOIS_TOQUES', nome: 'Dois toques' },
+    { tecla: '4', codigo: 'ROTACAO', nome: 'Rotação / posição' },
+    { tecla: '5', codigo: 'INVASAO', nome: 'Invasão' },
+    { tecla: '6', codigo: 'OUTRO', nome: 'Outra falta' },
+]);
+
+export const TECLA_PARA_TIPO_ERRO = Object.freeze(
+    Object.fromEntries(TIPOS_ERRO_GERAL.map((tipo) => [tipo.tecla, tipo.codigo]))
+);
+
+/** Codigo gravado em `Acao.tipoErro` -> nome. Linha sem tipo vira "Nao especificado". */
+export function nomeTipoErro(codigo) {
+    return TIPOS_ERRO_GERAL.find((tipo) => tipo.codigo === codigo)?.nome || 'Não especificado';
+}
+
+export function ehErroGeral(nome) {
+    return String(nome || '').trim().toLowerCase().startsWith('erro');
+}
+
 /** Fundamento normalizado -> idTipoAcao, para gravar a acao. */
 export const FUNDAMENTO_PARA_TIPO_ACAO = Object.freeze(
     Object.fromEntries(
@@ -155,6 +190,9 @@ export function descrever(fundamento, qualidade) {
 export function classificar(fundamento, qualidade) {
     const chave = normalizarFundamento(fundamento);
     const simbolo = normalizarQualidade(qualidade);
+    // Falta fora dos fundamentos sempre entrega o rally - o mesmo que o
+    // `Qualidade = '='` gravado faz `SqlQualidade.sqlEhErro` concluir.
+    if (!chave && ehErroGeral(fundamento) && simbolo === '=') return 'ERRO';
     if (!chave || !simbolo) return 'NEUTRO';
 
     if (PONTOS_POR_FUNDAMENTO[chave].includes(simbolo)) return 'PONTO';

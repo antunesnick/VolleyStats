@@ -3,6 +3,7 @@
 import './config/bootstrapPaths';
 
 import { app, BrowserWindow, ipcMain, protocol } from 'electron';
+import path from 'path';
 import url from 'url';
 import squirrelStartup from 'electron-squirrel-startup';
 
@@ -38,6 +39,9 @@ const createWindow = () => {
     minWidth: 1280,
     minHeight: 800,
     autoHideMenuBar: true,
+    // Empacotado, a janela herda o icone do .exe (packagerConfig.icon). Em dev
+    // o processo e o electron.exe, que traria o icone padrao do Electron.
+    ...(!app.isPackaged && { icon: path.join(app.getAppPath(), 'assets', 'icon.png') }),
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       nodeIntegration: true,     

@@ -4,6 +4,7 @@ import SetPartida from './SetPartida';
 import TimesPartida from './TimesPartida';
 import EscalacaoSet from './EscalacaoSet';
 import { simularSet } from './Rotacao';
+import { TIPO_ACAO_ERRO_GERAL, TIPOS_ERRO_GERAL } from './Qualidade';
 
 /** Lados possiveis de um rally. */
 export const VENCEDOR = Object.freeze({
@@ -77,7 +78,17 @@ class Ponto {
         }
     }
 
-    static gravarPonto(partida, numSet, pontoTime1, pontoTime2, jogador, tipoAcao, qualidade, db) {
+    static gravarPonto(partida, numSet, pontoTime1, pontoTime2, jogador, tipoAcao, qualidade, db, tipoErro = null) {
+        const ehErroGeral = Number(tipoAcao?.idTipoAcao) === TIPO_ACAO_ERRO_GERAL;
+
+        // Falta nao tem escala: e sempre erro. E o tipo da falta so existe nela.
+        if (ehErroGeral && qualidade !== '=') {
+            throw new Error('Erro geral é sempre gravado com a qualidade "=".');
+        }
+        if (tipoErro !== null && (!ehErroGeral || !TIPOS_ERRO_GERAL.some((tipo) => tipo.codigo === tipoErro))) {
+            throw new Error(`Tipo de erro invalido: "${tipoErro}".`);
+        }
+
         const timesPartida1 = new TimesPartida(partida.time1, partida);
         timesPartida1.carregarDoDb(db);
 
@@ -96,7 +107,7 @@ class Ponto {
         const ponto = new Ponto(pontoTime1, pontoTime2, set);
         ponto.criarPonto(db);
 
-        const acao = new Acao(ponto, jogador, tipoAcao, qualidade);
+        const acao = new Acao(ponto, jogador, tipoAcao, qualidade, null, tipoErro);
         ponto.addEvento(acao, db);
 
         // Regra do scout: o dono do ponto e o autor da ULTIMA acao do rally.
@@ -395,6 +406,7 @@ class Ponto {
                 DONO.numCamisa AS donoNumero,
                 A.id AS acaoId,
                 A.Qualidade AS qualidade,
+                A.tipoErro AS tipoErro,
                 J.nome AS jogadorNome,
                 J.NumCamisa AS jogadorNumero,
                 T.Nome AS tipoAcaoNome
@@ -432,7 +444,8 @@ class Ponto {
                     jogadorNome: row.jogadorNome,
                     jogadorNumero: row.jogadorNumero,
                     tipoAcaoNome: row.tipoAcaoNome,
-                    qualidade: row.qualidade
+                    qualidade: row.qualidade,
+                    tipoErro: row.tipoErro || null
                 });
             }
         }

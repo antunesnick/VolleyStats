@@ -216,6 +216,7 @@ export const TIPO_ACAO = Object.freeze({
   BLOQUEIO: { idTipoAcao: 3 },
   RECEPCAO: { idTipoAcao: 4 },
   DEFESA: { idTipoAcao: 5 },
+  ERRO_GERAL: { idTipoAcao: 7 },
 });
 
 export { db };

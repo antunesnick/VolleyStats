@@ -5,10 +5,15 @@ import { avaliarPartida, avaliarSet, normalizarSetsParaVencer, podeIncrementar, 
 import {
   FUNDAMENTOS,
   FUNDAMENTO_PARA_TIPO_ACAO,
+  TECLA_ERRO_GERAL,
   TECLA_PARA_FUNDAMENTO,
   TECLA_PARA_QUALIDADE,
+  TECLA_PARA_TIPO_ERRO,
+  TIPO_ACAO_ERRO_GERAL,
+  TIPOS_ERRO_GERAL,
   legendaDoFundamento,
   nomeQualidade,
+  nomeTipoErro,
   rotularQualidade,
 } from '../../Model/Qualidade';
 
@@ -441,13 +446,23 @@ const ehPosicaoLevantador = (posicao) => semAcentoTela(posicao).startsWith('leva
       digitarCamisa(digitoDaTecla(event), 'adversario');
     }, { enableOnFormTags: false }, [buffer])
 
-    // 2. Soltou o Control e digitou o fundamento (S=Saque, A=Ataque, B=Bloqueio, R=Recepção, D=Defesa)
-    useHotkeys('s, a, b, r, d', (event) => {
+    // 2. Soltou o Control e digitou o fundamento (S=Saque, A=Ataque, B=Bloqueio,
+    // R=Recepção, D=Defesa) ou E = Erro geral (rede, condução, rotação...).
+    useHotkeys('s, a, b, r, d, e', (event) => {
       // Sem a camisa no buffer não há o que escoutar; a letra é ignorada.
       if (!buffer.numero || buffer.acao) return;
 
       const tecla = event.key.toUpperCase();
-      if (!TECLA_PARA_FUNDAMENTO[tecla]) return;
+      const ehErroGeral = tecla === TECLA_ERRO_GERAL;
+      if (!TECLA_PARA_FUNDAMENTO[tecla] && !ehErroGeral) return;
+
+      // A falta do adversario ja e o ponto no placar (Alt + Seta). AcaoAdversario
+      // nao guarda o tipo da falta, e gravar sem tipo nao acrescentaria nada.
+      if (ehErroGeral && buffer.alvo === 'adversario') {
+        mostrarAviso('erro', 'Erro geral é só da nossa equipe. Falta do adversário: Alt + ↑ no placar.');
+        setBuffer(BUFFER_VAZIO);
+        return;
+      }
 
       setBuffer((prev) => (prev.acao ? prev : { ...prev, acao: tecla }));
     }, { enableOnFormTags: false }, [buffer]);
@@ -458,7 +473,11 @@ const ehPosicaoLevantador = (posicao) => semAcentoTela(posicao).startsWith('leva
     useHotkeys('1, 2, 3, 4, 5, 6', (event) => {
       if (!buffer.numero || !buffer.acao) return;
 
-      const qualidade = TECLA_PARA_QUALIDADE[event.key];
+      // No Erro geral a tecla escolhe o TIPO da falta; a qualidade e sempre
+      // "=", porque toda falta entrega o rally.
+      const ehErroGeral = buffer.acao === TECLA_ERRO_GERAL;
+      const tipoErro = ehErroGeral ? TECLA_PARA_TIPO_ERRO[event.key] : null;
+      const qualidade = ehErroGeral ? (tipoErro ? '=' : null) : TECLA_PARA_QUALIDADE[event.key];
       if (!qualidade) return;
 
       if (setEncerradoRef.current) {
@@ -468,7 +487,7 @@ const ehPosicaoLevantador = (posicao) => semAcentoTela(posicao).startsWith('leva
       }
 
       const fundamento = TECLA_PARA_FUNDAMENTO[buffer.acao];
-      const idTipoAcao = FUNDAMENTO_PARA_TIPO_ACAO[fundamento];
+      const idTipoAcao = ehErroGeral ? TIPO_ACAO_ERRO_GERAL : FUNDAMENTO_PARA_TIPO_ACAO[fundamento];
 
       if (!partida?.id) {
         setBuffer(BUFFER_VAZIO);
@@ -535,7 +554,8 @@ const ehPosicaoLevantador = (posicao) => semAcentoTela(posicao).startsWith('leva
           placar.away,
           jogador,
           { idTipoAcao },
-          qualidade
+          qualidade,
+          tipoErro
         );
 
         const acaoId = ponto?.ultimaAcaoGravada?.();
@@ -544,7 +564,9 @@ const ehPosicaoLevantador = (posicao) => semAcentoTela(posicao).startsWith('leva
             tipo: 'acao',
             acaoId,
             numSet,
-            descricao: `#${jogador.numero} ${buffer.acao}${qualidade}`,
+            descricao: ehErroGeral
+              ? `#${jogador.numero} Erro geral (${nomeTipoErro(tipoErro)})`
+              : `#${jogador.numero} ${buffer.acao}${qualidade}`,
           });
         }
 
@@ -1411,8 +1433,10 @@ const resumoAdversarioAtivo = resumoAdversario?.[escopoAdversario] || null;
 
             <p className="mt-3 text-[11px] font-medium text-slate-500">
               {!buffer.acao
-                ? `Solte ${escoutandoAdversario ? 'Alt' : 'Ctrl'} + Ação (S, A, B, R, D)`
-                : `Qualidade de ${TECLA_PARA_FUNDAMENTO[buffer.acao]} (teclas 1 a 6)`}
+                ? `Solte ${escoutandoAdversario ? 'Alt' : 'Ctrl'} + Ação (S, A, B, R, D${escoutandoAdversario ? '' : ' ou E = erro geral'})`
+                : buffer.acao === TECLA_ERRO_GERAL
+                  ? 'Tipo da falta (teclas 1 a 6)'
+                  : `Qualidade de ${TECLA_PARA_FUNDAMENTO[buffer.acao]} (teclas 1 a 6)`}
             </p>
 
             {escoutandoAdversario && buffer.numero === '0' && (
@@ -1423,7 +1447,18 @@ const resumoAdversarioAtivo = resumoAdversario?.[escopoAdversario] || null;
 
             {/* A escala é a mesma nos cinco fundamentos, o significado não.
                 A legenda evita que o analista decore cinco mapas no meio do rally. */}
-            {buffer.acao && (
+            {buffer.acao === TECLA_ERRO_GERAL && (
+              <ul className="mt-3 w-full space-y-1 border-t border-slate-700 pt-3">
+                {TIPOS_ERRO_GERAL.map((item) => (
+                  <li key={item.codigo} className="flex items-center gap-2 text-[11px] font-medium text-slate-300">
+                    <span className="w-4 text-center font-black text-slate-500">{item.tecla}</span>
+                    <span className="w-4 text-center font-black text-red-400">=</span>
+                    <span>{item.nome}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {buffer.acao && buffer.acao !== TECLA_ERRO_GERAL && (
               <ul className="mt-3 w-full space-y-1 border-t border-slate-700 pt-3">
                 {legendaDoFundamento(TECLA_PARA_FUNDAMENTO[buffer.acao]).map((item) => (
                   <li key={item.simbolo} className="flex items-center gap-2 text-[11px] font-medium text-slate-300">
@@ -2019,7 +2054,7 @@ const resumoAdversarioAtivo = resumoAdversario?.[escopoAdversario] || null;
                       className="font-bold bg-white border border-gray-200 px-2 py-0.5 rounded text-10px shadow-sm whitespace-nowrap"
                       title={rotularQualidade(acao.tipoAcaoNome, acao.qualidade)}
                     >
-                      {nomeQualidade(acao.qualidade)}
+                      {acao.tipoErro ? nomeTipoErro(acao.tipoErro) : nomeQualidade(acao.qualidade)}
                     </span>
                     {/* ✅ Botão de excluir a ação */}
                     <button

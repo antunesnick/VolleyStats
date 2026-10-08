@@ -8,8 +8,10 @@ import {
   FUNDAMENTOS,
   QUALIDADE_PARA_TECLA,
   TIPO_ACAO_PARA_FUNDAMENTO,
+  TIPOS_ERRO_GERAL,
   descrever,
   nomeQualidade,
+  nomeTipoErro,
   rotularQualidade,
 } from '../../Model/Qualidade';
 import {
@@ -253,6 +255,125 @@ const ResumoRotacao = ({ resumo }) => {
   );
 };
 
+/** Tabela pequena das secoes de analista: [{ rotulo, valores: [...] }]. */
+const TabelaAnalista = ({ titulo, colunas, linhas }) => (
+  <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white">
+    <p className="px-3 pt-3 text-[10px] font-black uppercase tracking-widest text-gray-500">{titulo}</p>
+    <table className="w-full text-sm">
+      <thead className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+        <tr>
+          {colunas.map((coluna, indice) => (
+            <th key={`${coluna}-${indice}`} className={`px-3 py-2 ${indice === 0 ? 'text-left' : 'text-center'}`}>{coluna}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {linhas.map((linha) => (
+          <tr key={linha.rotulo} className="border-t border-gray-100">
+            <td className="px-3 py-2 font-bold text-gray-900">{linha.rotulo}</td>
+            {linha.valores.map((valor, indice) => (
+              <td key={indice} className="px-3 py-2 text-center text-gray-700">{valor}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
+const linhaAtaque = (rotulo, ataque) => ({
+  rotulo,
+  valores: [
+    ataque?.total || 0,
+    ataque?.pontos || 0,
+    ataque?.erros || 0,
+    ataque?.bloqueados || 0,
+    formatPercent(ataque?.pontosPct),
+    formatPercent(ataque?.eficiencia),
+  ],
+});
+
+const COLUNAS_ATAQUE = ['Situação', 'Tot', 'Pts', 'Err', 'Bloq', 'Pts%', 'Eff'];
+
+/** Origem com zero e "sem acao registrada" nao acrescenta nada: some da tabela. */
+const itensDaDistribuicao = (distribuicao) => distribuicao.itens
+  .filter((item) => item.total > 0 || item.chave !== 'naoEscoutado');
+
+/**
+ * Visao do time: as metricas que o analista usa para ler a partida e que nao
+ * cabem como colunas da tabela por jogador. Vao no PDF do analista e ficam de
+ * fora do PDF para a equipe.
+ */
+const ResumoAnalista = ({ resumo }) => {
+  if (!resumo) return null;
+
+  const { fases, ataques, origens, erros } = resumo;
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-gray-100 bg-gray-50 p-5">
+      <p className="text-[10px] font-black uppercase tracking-widest text-red-600">Visão do time</p>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ScoutCard label="Side-out (K1)" value={formatPercent(fases.sideOutPct)} tone="red" />
+        <ScoutCard label="Break-point (K2)" value={formatPercent(fases.breakPct)} tone="red" />
+        <ScoutCard label="Ataque K1 eff" value={formatPercent(ataques.k1.eficiencia)} />
+        <ScoutCard label="Ataque K2 eff" value={formatPercent(ataques.k2.eficiencia)} />
+        <ScoutCard label="Side-outs / recebidos" value={`${fases.sideOuts}/${fases.recebidos}`} />
+        <ScoutCard label="Breaks / sacados" value={`${fases.breaks}/${fases.sacados}`} />
+        <ScoutCard
+          label="Erros não forçados"
+          value={`${origens.errosNaoForcados.total} (${formatPercent(origens.errosNaoForcados.pct)})`}
+        />
+        <ScoutCard label="Erros totais" value={erros.total} />
+      </div>
+
+      {resumo.ralliesSemSaque > 0 && (
+        <p className="text-xs font-medium text-gray-500">
+          {resumo.ralliesSemSaque} rally(s) sem como saber quem sacou ficaram fora do K1/K2.
+          Declare quem saca primeiro na formação do set.
+        </p>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TabelaAnalista
+          titulo="Ataque K1 × K2"
+          colunas={COLUNAS_ATAQUE}
+          linhas={[
+            linhaAtaque('K1 (após recepção)', ataques.k1),
+            linhaAtaque('K2 (contra-ataque)', ataques.k2),
+          ]}
+        />
+        <TabelaAnalista
+          titulo="Ataque por qualidade do passe"
+          colunas={COLUNAS_ATAQUE}
+          linhas={ataques.porPasse.map((faixa) => linhaAtaque(faixa.rotulo, faixa))}
+        />
+        <TabelaAnalista
+          titulo={`Origem dos pontos ganhos (${origens.ganhos.total})`}
+          colunas={['Origem', 'Pontos', '%']}
+          linhas={itensDaDistribuicao(origens.ganhos)
+            .map((item) => ({ rotulo: item.rotulo, valores: [item.total, formatPercent(item.pct)] }))}
+        />
+        <TabelaAnalista
+          titulo={`Origem dos pontos cedidos (${origens.cedidos.total})`}
+          colunas={['Origem', 'Pontos', '%']}
+          linhas={itensDaDistribuicao(origens.cedidos)
+            .map((item) => ({ rotulo: item.rotulo, valores: [item.total, formatPercent(item.pct)] }))}
+        />
+      </div>
+
+      <TabelaAnalista
+        titulo="Erros por tipo"
+        colunas={['Erro', 'Tipo', 'Total', '%']}
+        linhas={erros.linhas.map((linha) => ({
+          rotulo: linha.rotulo,
+          valores: [linha.grupo, linha.total, formatPercent(linha.pct)],
+        }))}
+      />
+    </div>
+  );
+};
+
 const ResumoAdversario = ({ resumo, awayLabel }) => {
   if (!resumo || resumo.totais.total === 0) {
     return (
@@ -343,6 +464,157 @@ const ResumoAdversario = ({ resumo, awayLabel }) => {
   );
 };
 
+/**
+ * Versoes do PDF da partida.
+ *
+ * ANALISTA sai completo. EQUIPE e o que vai para atletas e comissao: sem a
+ * visao do time, sem rotacao, sem as colunas de dono do ponto (Pontos,
+ * Cedidos), sem PTS e sem a contagem por nivel de qualidade.
+ */
+export const VERSAO_RELATORIO = Object.freeze({ ANALISTA: 'analista', EQUIPE: 'equipe' });
+
+const tdCentro = (valor) => `<td class="center">${valor}</td>`;
+
+/** Faltas do Erro geral, uma linha por atleta que cometeu alguma. */
+const linhasFaltasPorAtleta = (jogadores = []) => jogadores
+  .filter((jogador) => (jogador.scout?.errosGerais || 0) > 0)
+  .map((jogador) => {
+    const porTipo = jogador.scout?.errosGeraisPorTipo || {};
+    return `
+      <tr>
+        <td><strong>#${escapeHtml(jogador.numero || '--')} - ${escapeHtml(jogador.nome)}</strong></td>
+        ${TIPOS_ERRO_GERAL.map((tipo) => tdCentro(porTipo[tipo.codigo] || 0)).join('')}
+        ${tdCentro(porTipo.SEM_TIPO || 0)}
+        <td class="center emph">${jogador.scout.errosGerais}</td>
+      </tr>
+    `;
+  });
+
+const linhaAtaqueHtml = (rotulo, ataque) => `
+  <tr>
+    <td><strong>${escapeHtml(rotulo)}</strong></td>
+    ${tdCentro(ataque?.total || 0)}
+    ${tdCentro(ataque?.pontos || 0)}
+    ${tdCentro(ataque?.erros || 0)}
+    ${tdCentro(ataque?.bloqueados || 0)}
+    ${tdCentro(formatPercent(ataque?.pontosPct))}
+    <td class="center emph">${formatPercent(ataque?.eficiencia)}</td>
+  </tr>
+`;
+
+const COLUNAS_ATAQUE_PDF = [
+  'Situacao',
+  ...['Tot', 'Pts', 'Err', 'Bloq', 'Pts%', 'Eff'].map((rotulo) => ({ rotulo, center: true })),
+];
+
+const linhasDistribuicao = (distribuicao) => itensDaDistribuicao(distribuicao).map((item) => `
+  <tr>
+    <td>${escapeHtml(item.rotulo)}</td>
+    ${tdCentro(item.total)}
+    ${tdCentro(formatPercent(item.pct))}
+  </tr>
+`);
+
+/** Secao "Visao do time" do PDF do analista. */
+export const montarVisaoDoTime = (resumo, jogadores) => {
+  if (!resumo) return '';
+
+  const { fases, ataques, origens, erros } = resumo;
+  const faltas = linhasFaltasPorAtleta(jogadores);
+  const totalFaltas = erros.linhas
+    .filter((linha) => linha.grupo === 'Falta')
+    .reduce((soma, linha) => soma + linha.total, 0);
+
+  return `
+    ${blocoMetricas([
+      // Os percentuais de K1/K2 ja estao no topo, ao lado do resultado.
+      { rotulo: 'Side-outs / recebidos', valor: `${fases.sideOuts}/${fases.recebidos}` },
+      { rotulo: 'Breaks / sacados', valor: `${fases.breaks}/${fases.sacados}` },
+      { rotulo: 'Ataque K1 eff', valor: formatPercent(ataques.k1.eficiencia) },
+      { rotulo: 'Ataque K2 eff', valor: formatPercent(ataques.k2.eficiencia) },
+    ])}
+    ${blocoTabela({
+      titulo: 'Visao do time: ataque K1 x K2',
+      colunas: COLUNAS_ATAQUE_PDF,
+      linhas: [
+        linhaAtaqueHtml('K1 (apos recepcao)', ataques.k1),
+        linhaAtaqueHtml('K2 (contra-ataque)', ataques.k2),
+      ],
+    })}
+    ${blocoTabela({
+      titulo: 'Ataque por qualidade do passe',
+      colunas: COLUNAS_ATAQUE_PDF,
+      linhas: ataques.porPasse.map((faixa) => linhaAtaqueHtml(faixa.rotulo, faixa)),
+    })}
+    ${blocoTabela({
+      titulo: 'Side-out (K1) e break-point (K2) por set',
+      colunas: [
+        { rotulo: 'Set', center: true },
+        ...['Side-out', 'Recebidos', 'Break', 'Sacados', 'Atq K1 Eff', 'Atq K2 Eff'].map((rotulo) => ({ rotulo, center: true })),
+      ],
+      linhas: resumo.porSet.map((linha) => `
+        <tr>
+          ${tdCentro(linha.numSet)}
+          <td class="center emph">${formatPercent(linha.sideOutPct)}</td>
+          ${tdCentro(`${linha.sideOuts}/${linha.recebidos}`)}
+          <td class="center emph">${formatPercent(linha.breakPct)}</td>
+          ${tdCentro(`${linha.breaks}/${linha.sacados}`)}
+          ${tdCentro(formatPercent(linha.ataqueK1.eficiencia))}
+          ${tdCentro(formatPercent(linha.ataqueK2.eficiencia))}
+        </tr>
+      `),
+      vazio: 'Nenhum rally registrado.',
+    })}
+    ${blocoTabela({
+      titulo: `Origem dos pontos ganhos (${origens.ganhos.total})`,
+      estreita: true,
+      colunas: ['Origem', { rotulo: 'Pontos', center: true }, { rotulo: '%', center: true }],
+      linhas: origens.ganhos.total > 0 ? linhasDistribuicao(origens.ganhos) : [],
+      vazio: 'Nenhum rally ganho registrado.',
+    })}
+    ${blocoTabela({
+      titulo: `Origem dos pontos cedidos (${origens.cedidos.total})`,
+      estreita: true,
+      colunas: ['Origem', { rotulo: 'Pontos', center: true }, { rotulo: '%', center: true }],
+      linhas: origens.cedidos.total > 0 ? linhasDistribuicao(origens.cedidos) : [],
+      vazio: 'Nenhum rally perdido registrado.',
+    })}
+    ${blocoMetricas([
+      { rotulo: 'Erros totais', valor: erros.total, destaque: true },
+      { rotulo: 'Erros nao forcados', valor: origens.errosNaoForcados.total },
+      { rotulo: 'Nao forcados / cedidos', valor: formatPercent(origens.errosNaoForcados.pct) },
+      { rotulo: 'Faltas (erro geral)', valor: totalFaltas },
+    ])}
+    ${blocoTabela({
+      titulo: 'Erros por tipo',
+      estreita: true,
+      colunas: ['Erro', 'Tipo', { rotulo: 'Total', center: true }, { rotulo: '%', center: true }],
+      linhas: erros.total > 0 ? erros.linhas.map((linha) => `
+        <tr>
+          <td>${escapeHtml(linha.rotulo)}</td>
+          <td>${escapeHtml(linha.grupo)}</td>
+          ${tdCentro(linha.total)}
+          ${tdCentro(formatPercent(linha.pct))}
+        </tr>
+      `) : [],
+      vazio: 'Nenhum erro registrado.',
+    })}
+    ${faltas.length > 0 ? blocoTabela({
+      titulo: 'Faltas por atleta (erro geral)',
+      colunas: [
+        'Jogador',
+        ...TIPOS_ERRO_GERAL.map((tipo) => ({ rotulo: tipo.nome, center: true })),
+        { rotulo: nomeTipoErro(null), center: true },
+        { rotulo: 'Total', center: true },
+      ],
+      linhas: faltas,
+    }) : ''}
+    ${resumo.ralliesSemSaque > 0
+      ? `<p class="meta" style="color:#6b7280">${resumo.ralliesSemSaque} rally(s) sem como saber quem sacou ficaram fora do K1/K2.</p>`
+      : ''}
+  `;
+};
+
 const getScoreInputValue = (value) => {
   if (value === '' || value === null || value === undefined || Number(value) === 0) {
     return '';
@@ -379,6 +651,7 @@ const EstatisticaView = ({
   const [substituicoesPorSet, setSubstituicoesPorSet] = useState({});
   const [resumoAdversario, setResumoAdversario] = useState(null);
   const [resumoRotacao, setResumoRotacao] = useState(null);
+  const [resumoAnalista, setResumoAnalista] = useState(null);
   const [playerSearch, setPlayerSearch] = useState('');
   const [playerSearchMode, setPlayerSearchMode] = useState('nome');
   const [pdfSaving, setPdfSaving] = useState(false);
@@ -467,6 +740,17 @@ const EstatisticaView = ({
       setResumoRotacao(EstatisticaControl.buscarRotacoes(partidaId));
     }
   }, [open, partidaId, resumoOnly, readOnly]);
+
+  // Recalculado a cada mudanca do scout (editar/excluir acao), porque o bloco
+  // de erros por tipo le o scout agregado de `statistics`.
+  useEffect(() => {
+    if (!open || !partidaId) {
+      setResumoAnalista(null);
+      return;
+    }
+
+    setResumoAnalista(EstatisticaControl.buscarAnalise(partidaId, statistics.totals?.scout));
+  }, [open, partidaId, statistics]);
 
   const handleCloseWithRollback = () => {
     if (!confirmedRef.current && rollbackSnapshotRef.current) {
@@ -640,17 +924,33 @@ const EstatisticaView = ({
     onStatisticsChange?.();
   };
 
-  const montarHtmlRelatorioPartida = () => {
+  const montarHtmlRelatorioPartida = (versao = VERSAO_RELATORIO.ANALISTA) => {
+    const ehAnalista = versao === VERSAO_RELATORIO.ANALISTA;
     const scout = statistics.totals.scout || {};
-    const linhasJogadores = statistics.jogadores.map((jogador) => `
+    const celulaJogador = (jogador) =>
+      `<td><strong>#${escapeHtml(jogador.numero || '--')} - ${escapeHtml(jogador.nome)}</strong></td>`;
+
+    // A tabela por jogador tinha 40 colunas e as depois de "BK Pts" saiam
+    // cortadas na pagina. Ela vai em tres partes: o resumo (so no PDF do
+    // analista, e onde ficam dono do ponto, PTS e os niveis de qualidade) e os
+    // fundamentos em duas tabelas que cabem na largura do A4 deitado.
+    const linhasResumoJogadores = statistics.jogadores.map((jogador) => `
       <tr>
-        <td><strong>#${escapeHtml(jogador.numero || '--')} - ${escapeHtml(jogador.nome)}</strong></td>
+        ${celulaJogador(jogador)}
         <td class="center">${jogador.totalAcoes || 0}</td>
         <td class="center emph">${jogador.pontos || 0}</td>
         <td class="center">${jogador.pontosCedidos || 0}</td>
         <td class="center emph">${jogador.scout?.pontosTotais || 0}</td>
         <td class="center emph">${jogador.scout?.vitoriaPontos || 0}</td>
         ${ESCALA.map((simbolo) => `<td class="center">${jogador.qualidade?.[simbolo] || 0}</td>`).join('')}
+      </tr>
+    `);
+
+    const linhasSaqueRecepcao = statistics.jogadores.map((jogador) => `
+      <tr>
+        ${celulaJogador(jogador)}
+        <td class="center">${jogador.totalAcoes || 0}</td>
+        <td class="center emph">${jogador.scout?.vitoriaPontos || 0}</td>
         <td class="center">${jogador.scout?.saque?.total || 0}</td>
         <td class="center">${jogador.scout?.saque?.aces || 0}</td>
         <td class="center">${jogador.scout?.saque?.ab || 0}</td>
@@ -665,6 +965,12 @@ const EstatisticaView = ({
         <td class="center">${jogador.scout?.recepcao?.erros || 0}</td>
         <td class="center">${formatPercent(jogador.scout?.recepcao?.positivaPct)}</td>
         <td class="center">${formatPercent(jogador.scout?.recepcao?.perfeitaPct)}</td>
+      </tr>
+    `);
+
+    const linhasAtaqueDefesa = statistics.jogadores.map((jogador) => `
+      <tr>
+        ${celulaJogador(jogador)}
         <td class="center">${jogador.scout?.ataque?.total || 0}</td>
         <td class="center">${jogador.scout?.ataque?.pontos || 0}</td>
         <td class="center">${jogador.scout?.ataque?.positivos || 0}</td>
@@ -681,6 +987,8 @@ const EstatisticaView = ({
         <td class="center">${jogador.scout?.errosGerais || 0}</td>
       </tr>
     `);
+
+    const colunasCentro = (rotulos) => rotulos.map((rotulo) => ({ rotulo, center: true }));
 
     // Scout do adversario. "Erros dele" e a coluna util: sao os pontos que a
     // equipe ganhou sem precisar construir a jogada.
@@ -811,7 +1119,7 @@ const EstatisticaView = ({
 
     return montarDocumento({
       titulo: 'Relatorio da Partida',
-      eyebrow: 'VolleyStats',
+      eyebrow: ehAnalista ? 'VolleyStats | Analista' : 'VolleyStats | Equipe',
       subtitulo: [
         `${matchInfo?.name || 'Partida'} | ${matchInfo?.date || ''} | ${matchInfo?.gymnasium || ''}`,
         `${homeLabel} x ${awayLabel}`,
@@ -819,7 +1127,13 @@ const EstatisticaView = ({
       corpo: `
         ${blocoMetricas([
           { rotulo: 'Resultado', valor: `${resultadoPartida.home} x ${resultadoPartida.away}`, destaque: true },
-          { rotulo: 'Pontos scout', valor: scout.pontosTotais || 0 },
+          // Side-out e break-point no topo, ao lado do resultado: sao os dois
+          // numeros que o analista le primeiro.
+          ...(ehAnalista && resumoAnalista ? [
+            { rotulo: 'Side-out (K1)', valor: formatPercent(resumoAnalista.fases.sideOutPct), destaque: true },
+            { rotulo: 'Break-point (K2)', valor: formatPercent(resumoAnalista.fases.breakPct), destaque: true },
+          ] : []),
+          ...(ehAnalista ? [{ rotulo: 'Pontos scout', valor: scout.pontosTotais || 0 }] : []),
           { rotulo: 'V-P', valor: scout.vitoriaPontos || 0 },
           { rotulo: 'Saque total', valor: scout.saque?.total || 0 },
           { rotulo: 'Saque pontos', valor: scout.saque?.aces || 0 },
@@ -829,27 +1143,49 @@ const EstatisticaView = ({
           { rotulo: 'Defesa +', valor: scout.defesa?.positivas || 0 },
           { rotulo: 'Erros do adversario', valor: resumoAdversario?.totais?.erros || 0 },
         ])}
-        ${blocoTabela({
-          titulo: 'Scout detalhado por jogador',
+        ${ehAnalista ? blocoTabela({
+          titulo: 'Scout por jogador: resumo',
           compacta: true,
           colunas: [
             'Jogador',
-            ...['Acoes', 'Pontos', 'Cedidos', 'PTS', 'V-P'].map((rotulo) => ({ rotulo, center: true })),
+            ...colunasCentro(['Acoes', 'Pontos', 'Cedidos', 'PTS', 'V-P']),
             // A escala de qualidade, na ordem das teclas 1..6, pelo nome do nivel:
             // o simbolo sozinho nao diz nada a quem le o relatorio.
             ...ESCALA.map((simbolo) => ({ rotulo: nomeQualidade(simbolo), center: true })),
-            ...[
+          ],
+          linhas: linhasResumoJogadores,
+          vazio: 'Nenhum scout registrado.',
+        }) : ''}
+        ${blocoTabela({
+          titulo: 'Scout por jogador: saque e recepcao',
+          compacta: true,
+          colunas: [
+            'Jogador',
+            ...colunasCentro([
+              'Acoes', 'V-P',
               'Saq Tot', 'Saq Pts', 'Saq A+B', 'Saq C+X', 'Saq Err', 'Saq Eff',
               'Rec Tot', 'Rec A', 'Rec B', 'Rec C', 'Rec X', 'Rec Err', 'Rec Pos%', 'Rec Prf%',
+            ]),
+          ],
+          linhas: linhasSaqueRecepcao,
+          vazio: 'Nenhum scout registrado.',
+        })}
+        ${blocoTabela({
+          titulo: 'Scout por jogador: ataque, bloqueio e defesa',
+          compacta: true,
+          colunas: [
+            'Jogador',
+            ...colunasCentro([
               'Atq Tot', 'Atq Pts', 'Atq +', 'Atq -', 'Atq Bloq', 'Atq Err', 'Atq Pts%', 'Atq Eff',
               'BK Pts',
               'Def Tot', 'Def +', 'Def -', 'Def Eff',
               'Erro Geral',
-            ].map((rotulo) => ({ rotulo, center: true })),
+            ]),
           ],
-          linhas: linhasJogadores,
+          linhas: linhasAtaqueDefesa,
           vazio: 'Nenhum scout registrado.',
         })}
+        ${ehAnalista ? montarVisaoDoTime(resumoAnalista, statistics.jogadores) : ''}
         ${blocoTabela({
           titulo: `Scout do adversario (${escapeHtml(awayLabel)}) por fundamento`,
           estreita: true,
@@ -876,7 +1212,7 @@ const EstatisticaView = ({
           linhas: linhasAdversarioPorCamisa,
           vazio: 'Nenhuma acao do adversario escoutada.',
         }) : ''}
-        ${blocosRotacao}
+        ${ehAnalista ? blocosRotacao : ''}
         ${blocoTabela({
           titulo: 'Sets',
           estreita: true,
@@ -892,17 +1228,17 @@ const EstatisticaView = ({
     });
   };
 
-  const handleSavePdf = async () => {
+  const handleSavePdf = async (versao) => {
     if (!window.reportAPI?.salvarPdf) {
       Alertas.erro('Exportacao em PDF indisponivel.');
       return;
     }
 
-    setPdfSaving(true);
+    setPdfSaving(versao);
     try {
       const result = await salvarRelatorioPdf({
-        nomeArquivo: nomeArquivoRelatorio('relatorio', 'partida', matchInfo?.name),
-        html: montarHtmlRelatorioPartida(),
+        nomeArquivo: nomeArquivoRelatorio('relatorio', 'partida', matchInfo?.name, versao),
+        html: montarHtmlRelatorioPartida(versao),
       });
 
       if (result?.success) {
@@ -975,6 +1311,8 @@ const EstatisticaView = ({
             </div>
 
             <ScoutResumo scout={statistics.totals.scout} />
+
+            <ResumoAnalista resumo={resumoAnalista} />
 
             <ResumoAdversario resumo={resumoAdversario} awayLabel={awayLabel} />
 
@@ -1441,14 +1779,26 @@ const EstatisticaView = ({
 
         <div className="shrink-0 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4">
           {readOnly && (
-            <button
-              type="button"
-              onClick={handleSavePdf}
-              disabled={pdfSaving}
-              className="rounded-full bg-red-600 px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-red-700 transition-colors disabled:cursor-wait disabled:opacity-60"
-            >
-              {pdfSaving ? 'Salvando...' : 'Salvar como PDF'}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => handleSavePdf(VERSAO_RELATORIO.EQUIPE)}
+                disabled={Boolean(pdfSaving)}
+                title="Sem visão do time, rotações, Pontos, Cedidos, PTS e níveis de qualidade"
+                className="rounded-full bg-gray-900 px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-gray-800 transition-colors disabled:cursor-wait disabled:opacity-60"
+              >
+                {pdfSaving === VERSAO_RELATORIO.EQUIPE ? 'Salvando...' : 'PDF para a equipe'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSavePdf(VERSAO_RELATORIO.ANALISTA)}
+                disabled={Boolean(pdfSaving)}
+                title="Relatório completo, com K1/K2, origem dos pontos, erros e rotações"
+                className="rounded-full bg-red-600 px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-red-700 transition-colors disabled:cursor-wait disabled:opacity-60"
+              >
+                {pdfSaving === VERSAO_RELATORIO.ANALISTA ? 'Salvando...' : 'PDF do analista'}
+              </button>
+            </>
           )}
           <button
             type="button"

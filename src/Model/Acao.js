@@ -6,21 +6,23 @@ class Acao extends Evento {
      * @param {object}   jogador   - Objeto Jogador (deve conter .id)
      * @param {object}   tipoAcao  - Objeto TipoAcao (deve conter .idTipoAcao)
      * @param {string}   qualidade - escala DataVolley: '=', '/', '-', '!', '+' ou '#'
+     * @param {string}   tipoErro  - so no Erro geral: o codigo da falta (TIPOS_ERRO_GERAL)
      */
-    constructor(ponto, jogador, tipoAcao, qualidade, importacaoId = null) {
+    constructor(ponto, jogador, tipoAcao, qualidade, importacaoId = null, tipoErro = null) {
         super(ponto);
         this.jogador = jogador;
         this.tipoAcao = tipoAcao;
         this.qualidade = qualidade;
         this.importacaoId = importacaoId;
+        this.tipoErro = tipoErro;
     }
 
     criarAcao(db) {
             try {
                 const sql = db.prepare(
                     `INSERT INTO Acao 
-                    (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id, Jogador_id, Qualidade, idTipoAcao, importacao_id) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+                    (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id, Jogador_id, Qualidade, idTipoAcao, importacao_id, tipoErro) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
                 );
                 
                 const info = sql.run(
@@ -31,7 +33,8 @@ class Acao extends Evento {
                     this.jogador.id,
                     this.qualidade,
                     this.tipoAcao.idTipoAcao,
-                    this.importacaoId // <-- Novo
+                    this.importacaoId, // <-- Novo
+                    this.tipoErro ?? null
                 );
                 this.id = info.lastInsertRowid;
                 return this.id;

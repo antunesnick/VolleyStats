@@ -75,7 +75,7 @@ Vitest, em `tests/`. Cada arquivo roda em processo próprio (`pool: 'forks'`) e 
 
 Use `tests/helpers/fixtures.js` para montar cenários. `resetarBanco()` no `beforeEach` dropa e recria o schema; `cenarioPartidaEscalada()` devolve uma partida com 6 titulares e 2 reservas já escalados, que é o que a maior parte dos testes de scout precisa.
 
-Os testes cobrem: atribuição de ponto a atleta, regras de substituição, limites de escalação, regras de pontuação de set/partida, a escala de qualidade (inclusive o acordo entre a versão JS e a versão SQL), validação de encerramento de partida, métricas de scout, scout do adversário, CRUD de cadastros, cascata de exclusão de partida e cascata de exclusão de jogador.
+Os testes cobrem: atribuição de ponto a atleta, regras de substituição, limites de escalação, regras de pontuação de set/partida, a escala de qualidade (inclusive o acordo entre a versão JS e a versão SQL), validação de encerramento de partida, métricas de scout, scout do adversário, métricas do analista (K1/K2, ataque K1×K2, origem dos pontos) e o Erro geral, CRUD de cadastros, cascata de exclusão de partida e cascata de exclusão de jogador.
 
 ## Arquitetura
 
@@ -129,7 +129,9 @@ Partidas ──< 'Set' (NumSet, Partida_id)
 
 **`Ponto` não tem `id`.** A chave primária é o próprio placar — um rally é "o ponto em que o placar virou 15×12 no set 2 da partida 7". `Acao` e `Substituicao` referenciam essa chave composta de 4 colunas.
 
-Uma ação escoutada = uma linha em `Acao` = `{qual rally, qual jogador, qual tipo, qual qualidade}`. `TipoAcao` é fixo: `1=Saque, 2=Ataque, 3=Bloqueio, 4=Recepção, 5=Defesa`.
+Uma ação escoutada = uma linha em `Acao` = `{qual rally, qual jogador, qual tipo, qual qualidade}`. `TipoAcao` é fixo: `1=Saque, 2=Ataque, 3=Bloqueio, 4=Recepção, 5=Defesa, 7=Erro geral`.
+
+**Erro geral** (`TIPO_ACAO_ERRO_GERAL` em `Model/Qualidade.js`) é a falta fora dos fundamentos: rede, condução, dois toques, rotação, invasão. Não tem escala — grava sempre `Qualidade = '='`, e o tipo da falta vai em `Acao.tipoErro` (`TIPOS_ERRO_GERAL`). Fica fora de `TIPO_ACAO_PARA_FUNDAMENTO` de propósito, para não entrar nas tabelas por fundamento; `classificar('Erro geral', '=')` devolve `ERRO`, igual ao `sqlEhErro`. `Ponto.gravarPonto` recusa qualquer outra qualidade e tipo de falta fora da lista.
 
 O adversário fica em **`AcaoAdversario`**, tabela separada — `Acao.Jogador_id` é `NOT NULL` e referencia `Jogadores`, e os atletas do adversário não são (nem devem ser) cadastrados. Lá o atleta é só `numCamisa`, e pode ser `NULL` (adversário não identificado). A separação é o que mantém todo relatório existente com o mesmo número: nada que conta `Acao` passa a contar o adversário. `Model/AcaoAdversario.js` + `Control/AcaoAdversarioControl.js`.
 
@@ -220,7 +222,7 @@ Buffer de teclado em 3 estágios via `react-hotkeys-hook`:
 2. Solta Ctrl → tecla do fundamento: **S / A / B / R / D**
 3. Tecla da qualidade: **1..6** (do erro ao ponto) → grava e limpa o buffer
 
-Ex.: `12` + `A` + `6` grava um `#` de ataque. Placar: `Shift+↑/↓` (mandante), `Alt+↑/↓` (visitante). `Esc` limpa. Documentado ao usuário em `Partida/HelpModal.js`.
+Ex.: `12` + `A` + `6` grava um `#` de ataque. No estágio 2, **`E`** é o Erro geral: aí o estágio 3 (`1..6`) escolhe o tipo da falta, não a qualidade (`Ctrl+7` `E` `1` = toque na rede do camisa 7). Só para a nossa equipe — a falta do adversário é o ponto no placar. Placar: `Shift+↑/↓` (mandante), `Alt+↑/↓` (visitante). `Esc` limpa. Documentado ao usuário em `Partida/HelpModal.js`.
 
 Como as teclas do estágio 3 são dígitos sem modificador e as do estágio 1 são `ctrl+dígito`, os dois handlers não colidem — o `react-hotkeys-hook` exige que os modificadores batam exatamente.
 
@@ -297,6 +299,14 @@ Toda tela que emite PDF monta HTML e chama `window.reportAPI.salvarPdf`, que ren
 - `nomeArquivoRelatorio(...partes)` e `salvarRelatorioPdf({ nomeArquivo, html })`.
 
 Ao criar um relatório novo, use esses blocos: não escreva `<style>` nem `escapeHtml` na tela. `tests/relatorio-pdf.test.js` cobre o módulo.
+
+**O PDF da partida tem duas versões** (`VERSAO_RELATORIO` em `EstatisticaView.js`): **analista** sai completo; **equipe** é o que vai para atletas e comissão, sem a visão do time, sem rotação, sem as colunas Pontos/Cedidos/PTS e sem a contagem por nível de qualidade. A tabela por jogador vai em três partes (resumo — só no analista —, saque/recepção e ataque/bloqueio/defesa) porque as 40 colunas juntas saíam cortadas no A4.
+
+### Métricas do analista: `Model/EstatisticaAnalista.js`
+
+K1 (side-out %), K2 (break-point %), ataque K1 × K2, ataque por qualidade do passe, origem dos pontos ganhos/cedidos e erros por tipo. **Não precisam de formação**, ao contrário de `EstatisticaRotacao`: quem sacou o rally sai das ações (Saque/Recepção nossa ou do adversário), depois da regra do jogo (quem venceu o rally anterior saca) e, no primeiro rally do set, de `Set.sacaPrimeiro` lido cru. Rally sem nenhuma dessas evidências fica fora do K1/K2 (`ralliesSemSaque`) em vez de cair num lado chutado.
+
+Ataque K1 × K2 segue a ordem de digitação dentro do rally: Recepção abre um K1; Defesa, Bloqueio e Saque abrem um K2; depois de um ataque, o próximo só pode ser K2. Funções puras exportadas, testadas em `tests/analista.test.js`.
 
 ## Dívidas conhecidas
 

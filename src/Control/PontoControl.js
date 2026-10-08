@@ -9,9 +9,9 @@ class PontoControl {
     return PontoControl.instance;
   }
 
-  gravarPonto(partida, numSet, pontoTime1, pontoTime2, jogador, tipoAcao, qualidade) {
+  gravarPonto(partida, numSet, pontoTime1, pontoTime2, jogador, tipoAcao, qualidade, tipoErro = null) {
     const gravarTransaction = db.transaction(() => {
-      return Ponto.gravarPonto(partida, numSet, pontoTime1, pontoTime2, jogador, tipoAcao, qualidade, db);
+      return Ponto.gravarPonto(partida, numSet, pontoTime1, pontoTime2, jogador, tipoAcao, qualidade, db, tipoErro);
     });
 
     try {

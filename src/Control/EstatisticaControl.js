@@ -8,6 +8,7 @@ import {
 } from "../Model/RegrasSet";
 import { ESCALA, normalizarQualidade } from "../Model/Qualidade";
 import EstatisticaRotacao from "../Model/EstatisticaRotacao";
+import EstatisticaAnalista from "../Model/EstatisticaAnalista";
 
 class EstatisticaControl {
   static #instance;
@@ -390,6 +391,20 @@ class EstatisticaControl {
       return EstatisticaRotacao.resumoDaPartida(partidaId, db);
     } catch (error) {
       console.error("Erro ao montar o relatorio de rotacao:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Metricas do analista: K1/K2, ataque K1 x K2, ataque por qualidade do
+   * passe, origem dos pontos e erros por tipo. `scoutTotal` e o
+   * `statistics.totals.scout` ja carregado pela tela.
+   */
+  buscarAnalise(partidaId, scoutTotal = null) {
+    try {
+      return EstatisticaAnalista.resumoDaPartida(partidaId, db, scoutTotal);
+    } catch (error) {
+      console.error("Erro ao montar as metricas do analista:", error);
       return null;
     }
   }

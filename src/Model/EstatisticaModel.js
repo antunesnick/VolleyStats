@@ -1,6 +1,12 @@
 import db from '../db/db';
 import Ponto from './Ponto';
-import { ESCALA, normalizarFundamento, normalizarQualidade } from './Qualidade';
+import {
+  ESCALA,
+  TIPO_ACAO_ERRO_GERAL,
+  TIPOS_ERRO_GERAL,
+  normalizarFundamento,
+  normalizarQualidade,
+} from './Qualidade';
 
 const ACTION_NAMES = ['Saque', 'Ataque', 'Bloqueio', 'Recepcao', 'Defesa', 'Erro geral'];
 
@@ -216,8 +222,18 @@ class EstatisticaModel {
         eficiencia: 0,
       },
       errosGerais: 0,
+      // Quebra do Erro geral pelo tipo da falta. "SEM_TIPO" sao as linhas
+      // gravadas sem tipo (edicao manual para Erro geral, importacao).
+      errosGeraisPorTipo: this.criarContagemErrosGerais(),
       vitoriaPontos: 0,
     };
+  }
+
+  criarContagemErrosGerais() {
+    return TIPOS_ERRO_GERAL.reduce(
+      (acc, tipo) => ({ ...acc, [tipo.codigo]: 0 }),
+      { SEM_TIPO: 0 }
+    );
   }
 
   arredondarPercentual(value) {
@@ -284,7 +300,7 @@ class EstatisticaModel {
     return s;
   }
 
-  aplicarAcaoNoScout(scout, actionName, quality) {
+  aplicarAcaoNoScout(scout, actionName, quality, tipoErro = null) {
     if (!scout) {
       return;
     }
@@ -296,6 +312,10 @@ class EstatisticaModel {
       if (this.normalizarNomeAcao(actionName) === 'Erro geral') {
         scout.errosGerais += 1;
         scout.totalAcoes += 1;
+        const chave = Object.prototype.hasOwnProperty.call(scout.errosGeraisPorTipo, tipoErro)
+          ? tipoErro
+          : 'SEM_TIPO';
+        scout.errosGeraisPorTipo[chave] += 1;
       }
       return;
     }
@@ -462,6 +482,7 @@ class EstatisticaModel {
         tipoAcaoId: row.tipoAcaoId,
         tipoAcaoNome: row.tipoAcaoNome || 'Sem tipo',
         qualidade: quality,
+        tipoErro: row.tipoErro || null,
       };
 
       for (const alvo of [jogadoresMap.get(row.jogadorId), setStats.jogadoresMap.get(row.jogadorId)]) {
@@ -470,12 +491,12 @@ class EstatisticaModel {
         if (quality && Object.prototype.hasOwnProperty.call(alvo.qualidade, quality)) {
           alvo.qualidade[quality] += 1;
         }
-        this.aplicarAcaoNoScout(alvo.scout, actionName, quality);
+        this.aplicarAcaoNoScout(alvo.scout, actionName, quality, row.tipoErro);
         alvo.acoesDetalhadas.push(detalhe);
       }
 
-      this.aplicarAcaoNoScout(setStats.scout, actionName, quality);
-      this.aplicarAcaoNoScout(scoutTotal, actionName, quality);
+      this.aplicarAcaoNoScout(setStats.scout, actionName, quality, row.tipoErro);
+      this.aplicarAcaoNoScout(scoutTotal, actionName, quality, row.tipoErro);
     }
 
     const ordenarJogadores = (lista) => lista
@@ -554,6 +575,7 @@ class EstatisticaModel {
         A.id AS acaoId,
         A.idTipoAcao AS tipoAcaoId,
         A.Qualidade AS qualidade,
+        A.tipoErro AS tipoErro,
         J.id AS jogadorId,
         J.nome AS jogadorNome,
         J.NumCamisa AS jogadorNumero,
@@ -985,13 +1007,21 @@ class EstatisticaModel {
       throw new Error('Tipo de acao invalido.');
     }
 
+    const ehErroGeral = tipoAcaoId === TIPO_ACAO_ERRO_GERAL;
+    if (ehErroGeral && qualidade !== '=') {
+      throw new Error('Erro geral e sempre uma falta: use a qualidade "Erro".');
+    }
+
+    // O tipo da falta so existe no Erro geral. Trocar o fundamento apaga o
+    // tipo; manter o Erro geral preserva o que o scout gravou.
     const stmt = db.prepare(`
       UPDATE Acao
-      SET Jogador_id = ?, idTipoAcao = ?, Qualidade = ?
+      SET Jogador_id = ?, idTipoAcao = ?, Qualidade = ?,
+          tipoErro = CASE WHEN ? THEN tipoErro ELSE NULL END
       WHERE id = ? AND Ponto_Partida_id = ?
     `);
 
-    const result = stmt.run(jogadorId, tipoAcaoId, qualidade, acaoId, Number(partidaId));
+    const result = stmt.run(jogadorId, tipoAcaoId, qualidade, ehErroGeral ? 1 : 0, acaoId, Number(partidaId));
     if (result.changes === 0) {
       throw new Error('Nenhuma acao foi atualizada.');
     }

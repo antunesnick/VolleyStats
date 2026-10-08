@@ -50,6 +50,9 @@ function seedTipoAcao() {
         { id: 3, nome: 'Bloqueio' },
         { id: 4, nome: 'Recepção' },
         { id: 5, nome: 'Defesa' },
+        // Faltas fora dos fundamentos (rede, conducao, rotacao...): ver
+        // TIPO_ACAO_ERRO_GERAL em Model/Qualidade.js.
+        { id: 7, nome: 'Erro geral' },
     ];
     const insert = db.prepare('INSERT OR IGNORE INTO TipoAcao (idTipoAcao, Nome) VALUES (?, ?)');
     for (const tipo of tipos) {
@@ -179,6 +182,15 @@ function ensureAcaoEscalaQualidade() {
  * vencedor    - quem ganhou o rally ('MANDANTE' | 'VISITANTE'). Sem isso um erro
  *               de ataque seria contado como ponto a favor do atleta.
  */
+/** `Acao.tipoErro`: o tipo da falta de um Erro geral (rede, conducao...). */
+function ensureAcaoColumns() {
+    const columns = db.prepare('PRAGMA table_info(Acao)').all().map((column) => column.name);
+
+    if (!columns.includes('tipoErro')) {
+        db.exec('ALTER TABLE Acao ADD COLUMN tipoErro TEXT');
+    }
+}
+
 function ensureSetColumns() {
     const columns = db.prepare('PRAGMA table_info("Set")').all().map((column) => column.name);
 
@@ -460,6 +472,8 @@ function initDatabase() {
             -- Escala de 6 niveis do DataVolley, do erro ao ponto.
             Qualidade TEXT CHECK(Qualidade IN ('=', '/', '-', '!', '+', '#')),
             idTipoAcao INTEGER NOT NULL,
+            -- So no Erro geral (idTipoAcao 7): REDE, CONDUCAO, ROTACAO...
+            tipoErro TEXT,
             -- CORREÇÃO DA FOREIGN KEY AQUI:
             FOREIGN KEY (Ponto_pontoTime1, Ponto_pontoTime2, Ponto_NumSet, Ponto_Partida_id) REFERENCES Ponto (pontoTime1, pontoTime2, NumSet, Set_Partida_id),
             FOREIGN KEY (Jogador_id) REFERENCES Jogadores (id),
@@ -553,6 +567,8 @@ function initDatabase() {
         ensurePontoColumns();
         ensureTorneioTimesSchema();
         ensureAcaoEscalaQualidade();
+        // Depois da reconstrucao da escala, que recria Acao sem esta coluna.
+        ensureAcaoColumns();
         seedTipoAcao();
     } catch (e) {
         console.error("Erro ao inicializar o banco de dados:", e);

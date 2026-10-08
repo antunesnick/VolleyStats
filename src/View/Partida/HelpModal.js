@@ -18,6 +18,7 @@ import {
   ESCALA,
   FUNDAMENTOS,
   QUALIDADE_PARA_TECLA,
+  TIPOS_ERRO_GERAL,
   classificar,
   nomeQualidade,
 } from '../../Model/Qualidade';
@@ -196,7 +197,7 @@ function HelpScoutModal({ open, onClose }) {
               </li>
               <li>Digite o número da camisa do jogador.</li>
               <li>Solte o modificador.</li>
-              <li>Pressione a tecla da ação: <strong>S</strong>, <strong>A</strong>, <strong>B</strong>, <strong>R</strong> ou <strong>D</strong>.</li>
+              <li>Pressione a tecla da ação: <strong>S</strong>, <strong>A</strong>, <strong>B</strong>, <strong>R</strong> ou <strong>D</strong> — ou <strong>E</strong> para uma falta (rede, condução, rotação...).</li>
               <li>Depois pressione a qualidade da ação: <strong>1</strong> a <strong>6</strong>, do erro ao ponto.</li>
               <li>Feche o rally no placar: <strong>Shift + ↑</strong> (ponto seu) ou <strong>Alt + ↑</strong> (ponto deles).</li>
             </ol>
@@ -235,7 +236,33 @@ function HelpScoutModal({ open, onClose }) {
               <div className="rounded-2xl bg-white border border-gray-200 p-4"><strong>A</strong> = Ataque</div>
               <div className="rounded-2xl bg-white border border-gray-200 p-4"><strong>B</strong> = Bloqueio</div>
               <div className="rounded-2xl bg-white border border-gray-200 p-4"><strong>R</strong> = Recepção</div>
-              <div className="rounded-2xl bg-white border border-gray-200 p-4 sm:col-span-2"><strong>D</strong> = Defesa</div>
+              <div className="rounded-2xl bg-white border border-gray-200 p-4"><strong>D</strong> = Defesa</div>
+              <div className="rounded-2xl bg-white border border-red-200 p-4"><strong>E</strong> = Erro geral (falta)</div>
+            </div>
+
+            {/* O Erro geral nao tem escala: a tecla do 3o estagio diz QUAL falta foi. */}
+            <div className="mt-4 rounded-2xl bg-white border border-red-200 p-4">
+              <p className="text-xs font-black uppercase tracking-widest text-red-600 mb-2">
+                Erro geral — faltas fora dos fundamentos
+              </p>
+              <p className="leading-6 mb-3">
+                Depois do <strong>E</strong>, a tecla de <strong>1</strong> a <strong>6</strong> não é
+                qualidade: ela diz qual foi a falta. Toda falta é gravada como erro e vai para o
+                relatório, por tipo e por atleta.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {TIPOS_ERRO_GERAL.map((tipo) => (
+                  <div key={tipo.codigo} className="rounded-xl bg-red-50 px-3 py-2 text-xs">
+                    <strong>{tipo.tecla}</strong> = {tipo.nome}
+                  </div>
+                ))}
+              </div>
+              <p className="leading-6 mt-3">
+                Exemplo — o central 7 tocou na rede: <strong>Ctrl + 7</strong> → <strong>E</strong>{' '}
+                → <strong>1</strong> → <strong>Alt + ↑</strong>. Na falta de rotação, digite a camisa
+                de quem estava fora de posição. A falta do adversário é só o ponto no placar
+                (<strong>Alt + ↑</strong>).
+              </p>
             </div>
           </Secao>
 
@@ -649,8 +676,18 @@ function HelpScoutModal({ open, onClose }) {
               <li><strong>Scout por jogador</strong>: ações, pontos conquistados e cedidos, e a quebra por fundamento e por nível de qualidade.</li>
               <li><strong>Rotações</strong>: side-out % e break % de R1 a R6, com o saldo de cada uma, o corte da dupla substituição e o resumo por set.</li>
               <li><strong>Adversário</strong>: por fundamento e por camisa, incluindo os erros dele — que são os pontos que a sua equipe ganhou sem precisar fazer nada.</li>
+              <li><strong>Visão do time</strong>: side-out % (K1) e break-point % (K2), ataque K1 × K2, ataque por qualidade do passe, origem dos pontos ganhos e cedidos e os erros por tipo — inclusive as faltas do <strong>E</strong>.</li>
               <li><strong>Sets</strong>: placar e vencedor de cada um.</li>
             </ul>
+
+            <div className="mt-4">
+              <Cartao titulo="Dois PDFs: analista e equipe">
+                <strong>PDF do analista</strong> sai completo. <strong>PDF para a equipe</strong> é o
+                que se manda para atletas e comissão: sai sem a visão do time, sem as rotações, sem
+                as colunas Pontos, Cedidos e PTS e sem a contagem por nível de qualidade (Ruim,
+                Negativa, Positiva...).
+              </Cartao>
+            </div>
 
             <div className="mt-4">
               <Cartao titulo="Rotação não é retroativa">

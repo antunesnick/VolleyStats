@@ -95,6 +95,9 @@ module.exports = {
   //   VOLLEYSTATS_OUT_DIR=out-nova npm run package
   outDir: process.env.VOLLEYSTATS_OUT_DIR || undefined,
   packagerConfig: {
+    // Icone do executavel (o packager acrescenta .ico no Windows e .icns no
+    // macOS). Gerado de src/View/assets/logoTransparent.png.
+    icon: './assets/icon',
     asar: {
       // O .node precisa ficar fora do asar para o Electron conseguir carrega-lo.
       unpack: '**/node_modules/better-sqlite3/build/Release/*.node',
@@ -120,7 +123,10 @@ module.exports = {
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
-      config: {},
+      config: {
+        // Icone do Setup.exe; o do app instalado vem de packagerConfig.icon.
+        setupIcon: './assets/icon.ico',
+      },
     },
     {
       name: '@electron-forge/maker-zip',
